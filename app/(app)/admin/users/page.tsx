@@ -1,4 +1,4 @@
-import { createUserAction, resetPasswordAction, updateUserAction } from '@/app/actions';
+import { createUserAction, generateSampleAction, purgeSampleAction, resetPasswordAction, updateUserAction } from '@/app/actions';
 import { PasswordInput } from '@/components/PasswordInput';
 import { SubmitButton } from '@/components/SubmitButton';
 import { Flash } from '@/components/ui';
@@ -6,9 +6,13 @@ import { BOARD_COLORS } from '@/lib/backlog';
 import { AKSES } from '@/lib/config';
 import { formatWaktu } from '@/lib/dates';
 import { findPerson, findPersonByEmail } from '@/lib/master';
+import { countSample } from '@/lib/sample';
 import { getDb, requireSuperadmin } from '@/lib/session';
+import { getStore } from '@/lib/store';
 
 export const metadata = { title: 'Kelola user' };
+// Membuat data contoh bisa memakan beberapa detik.
+export const maxDuration = 60;
 
 type SP = Promise<Record<string, string | undefined>>;
 
@@ -32,6 +36,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
     db.accounts.some((a) => a.nama.toLowerCase() === name.toLowerCase() || (email && a.email === email));
   const withoutAccount = db.master.people.filter((p) => p.active && !hasAccount(p.name, p.email));
   const masterNames = db.master.people.filter((p) => p.active).map((p) => p.name);
+  const sampleCounts = await countSample(await getStore());
+  const hasSample = sampleCounts.requests + sampleCounts.tasks + sampleCounts.members > 0;
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -261,6 +267,41 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
         </table>
       </div>
       <p className="subtle">Setelah dibuat, user wajib mengganti password saat login pertama. Akun nonaktif tidak bisa login dan sesinya langsung berhenti.</p>
+
+      <h2 className="section-title" id="data-contoh">
+        <span className="num">4</span> Data contoh
+        <span className="hint">· untuk melihat alur & insight sebelum data asli masuk</span>
+      </h2>
+      <section className="mcard plain" style={{ ['--c' as string]: BOARD_COLORS[8], marginTop: 22 }}>
+        <div className="tab">Data contoh (ID berawalan DEMO-)</div>
+        {hasSample ? (
+          <>
+            <p style={{ marginTop: 0 }}>
+              Saat ini ada <b>{sampleCounts.requests}</b> request, <b>{sampleCounts.tasks}</b> task, <b>{sampleCounts.statusLog}</b> riwayat
+              status, <b>{sampleCounts.waLog}</b> log WA, dan <b>{sampleCounts.members}</b> anggota tim bertanda &quot;(contoh)&quot;.
+              Data asli (ID berawalan selain DEMO-) tidak ikut terhapus.
+            </p>
+            <form action={purgeSampleAction}>
+              <SubmitButton className="btn danger" pendingText="Menghapus…">
+                Hapus semua data contoh
+              </SubmitButton>
+            </form>
+          </>
+        ) : (
+          <>
+            <p style={{ marginTop: 0 }}>
+              Membuat ±6 minggu aktivitas contoh (±70 request di semua brand dan kategori) memakai master data saat ini, lengkap dengan
+              cek brief, assign, draft, QC, revisi, ACC, final, riwayat status, dan log WA. Ditambah beberapa anggota tim bertanda
+              &quot;(contoh)&quot;. Tidak ada WA yang benar-benar dikirim.
+            </p>
+            <form action={generateSampleAction}>
+              <SubmitButton className="btn primary" pendingText="Membuat data contoh… (±10–30 detik)">
+                Buat data contoh
+              </SubmitButton>
+            </form>
+          </>
+        )}
+      </section>
     </div>
   );
 }

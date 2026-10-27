@@ -172,6 +172,41 @@ export class SheetsStore implements Store {
     await this.call(`/values:batchUpdate`, { method: 'POST', body: { valueInputOption: 'RAW', data } });
   }
 
+  async deleteWhere(name: SheetName, column: string, match: (value: string) => boolean): Promise<number> {
+    this.readCache.clear();
+    const headers = await this.headersOf(name);
+    const c = headers.indexOf(column);
+    if (c < 0) return 0;
+    const range = `${q(name)}!${columnLetter(c)}:${columnLetter(c)}`;
+    const values = (await this.readRaw([range]))[range];
+    // Indeks baris grid (0 = header) yang cocok, dikelompokkan jadi rentang berurutan dari bawah ke atas.
+    const hits: number[] = [];
+    values.forEach((r, i) => {
+      if (i > 0 && match(String(r?.[0] ?? '').trim())) hits.push(i);
+    });
+    if (!hits.length) return 0;
+    const ranges: { start: number; end: number }[] = [];
+    for (const i of hits) {
+      const last = ranges[ranges.length - 1];
+      if (last && last.end === i) last.end = i + 1;
+      else ranges.push({ start: i, end: i + 1 });
+    }
+    const meta = await this.call<{ sheets: { properties: { sheetId: number; title: string } }[] }>(
+      `?fields=sheets.properties(sheetId,title)`,
+    );
+    const sheetId = meta.sheets.find((x) => x.properties.title === name)?.properties.sheetId;
+    if (sheetId === undefined) throw new Error(`Sheet ${name} tidak ditemukan`);
+    await this.call(`:batchUpdate`, {
+      method: 'POST',
+      body: {
+        requests: ranges
+          .reverse()
+          .map((r) => ({ deleteDimension: { range: { sheetId, dimension: 'ROWS', startIndex: r.start, endIndex: r.end } } })),
+      },
+    });
+    return hits.length;
+  }
+
   /** Buat sheet yang belum ada dan pasang header (dipakai scripts/setup-sheet.ts). */
   async ensureSheets(headers: Record<string, readonly string[]>, seed: Record<string, Cell[][]> = {}): Promise<string[]> {
     const meta = await this.call<{ sheets: { properties: { title: string } }[] }>(`?fields=sheets.properties.title`);

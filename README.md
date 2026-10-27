@@ -21,7 +21,7 @@ Cakupan: 11 brand (Menswear & Womenswear), 7 PIC brand, tim creative, 5 kategori
 | **Request baru** `/requests/new` | Form pengajuan dengan field wajib per kategori (jumlah SKU untuk foto, durasi & rasio untuk video, dst.) dan deteksi URGENT otomatis. |
 | **Task** `/tasks/[id]` | Aksi sesuai peran & status: assign, upload draft per versi, QC lead, review ACC/REV, upload final, tutup tiket, ubah prioritas. |
 | **Panduan** `/panduan` | Alur kerja, format balasan WA, peran, 11 status, routing & SLA. |
-| **Kelola user** `/admin/users` | Khusus Superadmin: tambah user (password acak sekali klik), reset password, aktif/nonaktif, ubah akses, dan buat akun cepat untuk orang di master data yang belum punya akun. |
+| **Kelola user** `/admin/users` | Khusus Superadmin: tambah user (password acak sekali klik), reset password, aktif/nonaktif, ubah akses, buat akun cepat untuk orang di master data yang belum punya akun, serta **buat/hapus data contoh**. |
 | **Akun saya** `/akun` | Profil & ganti password. User baru / yang di-reset wajib ganti password di sini sebelum memakai aplikasi. |
 
 ## Alur
@@ -60,6 +60,17 @@ PIC balas ACC ──► assignee upload file final ──► WA ke PIC & Traffic
 > Aplikasi membaca kolom berdasarkan **nama header**. Urutan kolom boleh diubah, nama header jangan.
 > Data yang perlu dilengkapi sebelum go-live: **No WA** semua orang dan **anggota tim creative lainnya** (sampai 38 orang) di `Master_Tim`. Akun login dibuat Superadmin di aplikasi; kolom Nama di `Users` harus sama dengan nama di `Master_PIC` / `Master_Tim` agar perannya terbaca.
 > Jangan mengisi kolom `Password Hash` secara manual. Password hanya diatur lewat aplikasi.
+
+## Data contoh di produksi
+
+Untuk melihat alur penuh dan insight dashboard sebelum data asli masuk, Superadmin bisa membuka **Kelola user → 4. Data contoh → Buat data contoh**. Aplikasi menyimulasikan ±6 minggu aktivitas (±70 request di semua brand & kategori) memakai master data saat ini dan logika aplikasi yang asli, lalu menulisnya ke sheet:
+
+- semua ID berawalan `DEMO-` dan ada 8 anggota tim bertanda `(contoh)` di `Master_Tim`;
+- semua status terisi (Baru sampai Selesai), termasuk request URGENT, task overdue, revisi berulang, dan brief kurang;
+- pola yang bisa dibaca di dashboard: brand besar paling banyak request, video paling lama diproduksi, brand Womenswear lebih lama ACC, Prow/Zeyya/Secondserve paling sering revisi, intern lebih sering belum lolos QC;
+- tidak ada WA yang benar-benar dikirim.
+
+**Hapus semua data contoh** menghapus baris `DEMO-` dan anggota `(contoh)` saja; data asli tidak tersentuh.
 
 ## Coba lokal (mode demo)
 

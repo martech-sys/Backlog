@@ -1,3 +1,4 @@
+import { inSimulation } from './clock';
 import { env } from './env';
 
 export interface SendResult {
@@ -12,8 +13,10 @@ export interface SendResult {
  * Saat dry-run, pesan tidak dikirim (tetap dicatat di Log_WA oleh pemanggil).
  */
 export async function sendWa(phone: string, message: string): Promise<SendResult> {
-  if (!phone) return { ok: false, detail: 'NO_PHONE' };
-  if (env.waDryRun || env.waProvider === 'none') return { ok: true, detail: 'DRY_RUN' };
+  if (env.waDryRun || env.waProvider === 'none' || inSimulation()) {
+    return { ok: true, detail: phone ? 'DRY_RUN' : 'DRY_RUN · nomor WA belum diisi' };
+  }
+  if (!phone) return { ok: false, detail: 'Nomor WA belum diisi di master data' };
 
   try {
     let res: Response;

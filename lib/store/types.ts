@@ -14,4 +14,6 @@ export interface Store {
   append(name: SheetName, rows: Record<string, Cell>[]): Promise<void>;
   /** Ubah sel-sel pada baris yang kolom `keyHeader`-nya = key. */
   update(name: SheetName, keyHeader: string, updates: { key: string; patch: Record<string, Cell> }[]): Promise<void>;
+  /** Hapus baris yang nilai kolom `column`-nya memenuhi `match`. Mengembalikan jumlah baris terhapus. */
+  deleteWhere(name: SheetName, column: string, match: (value: string) => boolean): Promise<number>;
 }

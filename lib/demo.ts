@@ -99,7 +99,8 @@ export async function seedDemoActivity(store: Store): Promise<void> {
       t += hourAdj * H;
       if (t > realNow) break;
 
-      const brand = pick(master.brands);
+      // Brand besar lebih sering request (pola volume per brand)
+      const brand = rand() < 0.35 ? pick(master.brands.filter((b) => ['Heymale', 'Heylocal', 'Shuwa'].includes(b.name))) : pick(master.brands);
       const grup = master.grups.find((g) => g.name === brand.grup)!;
       const pic = pick(master.people.filter((p) => p.roles.includes('pic') && p.grup === brand.grup));
       const kategori = rand() < 0.25 ? [pick(CATEGORIES).name, pick(CATEGORIES).name] : [pick(CATEGORIES).name];
@@ -190,21 +191,26 @@ export async function seedDemoActivity(store: Store): Promise<void> {
           if (!(await step(1 + rand() * 8, () => svc.assignTask(store, user(task.Lead), id, who)))) continue;
         }
         const assignee = (await loadDb(store)).tasks.find((x) => x['Task ID'] === id)!.Assignee;
-        const slow = rand() < 0.25 ? 2.2 : 1;
+        // Pola untuk insight: video produksinya lebih lama, brand Womenswear lebih lama review,
+        // beberapa brand brief-nya sering direvisi, hasil intern lebih sering belum lolos QC.
+        const slow = (rand() < 0.25 ? 2.2 : 1) * (task.Divisi === 'Video' ? 1.8 : 1);
+        const slowReview = task.Grup === 'Womenswear' ? 1.8 : 1;
+        const accRate = ['Prow', 'Zeyya', 'Secondserve'].includes(task.Brand) ? 0.35 : 0.7;
+        const qcRate = /intern/i.test(assignee) ? 0.55 : 0.85;
         let draft = 0;
         let ok = await step((10 + rand() * 50) * slow, () => svc.submitDraft(store, user(assignee), id, `https://drive.google.com/demo/${id}/v${++draft}`));
         if (!ok) continue;
         let finished = false;
         for (let round = 0; round < 6 && ok; round++) {
-          const pass = rand() < 0.8;
+          const pass = rand() < qcRate;
           ok = await step(1 + rand() * 6, () => svc.qcDecision(store, user(task.Lead), id, pass, pass ? '' : 'Crop dan warna perlu dirapikan.'));
           if (!ok) break;
           if (!pass) {
             ok = await step(4 + rand() * 12, () => svc.submitDraft(store, user(assignee), id, `https://drive.google.com/demo/${id}/v${++draft}`));
             continue;
           }
-          const acc = rand() < 0.6 || round >= 3;
-          ok = await step((3 + rand() * 30) * slow, () =>
+          const acc = rand() < accRate || round >= 3;
+          ok = await step((3 + rand() * 30) * slowReview, () =>
             svc.brandReview(store, user(task['PIC Brand']), id, acc ? 'ACC' : 'REV', acc ? '' : pick(['Logo diperbesar', 'Warna lebih terang', 'Ganti copy headline', 'Crop lebih dekat ke produk']), rand() < 0.6 ? 'WA' : 'web'),
           );
           if (!ok) break;
@@ -217,13 +223,115 @@ export async function seedDemoActivity(store: Store): Promise<void> {
         }
         if (!ok || !finished) continue;
         if (!(await step(2 + rand() * 10, () => svc.submitFinal(store, user(assignee), id, `https://drive.google.com/demo/${id}/final`)))) continue;
-        await step(1 + rand() * 8, () => svc.closeTask(store, user(task.Grup === 'Womenswear' ? 'Nadia Syifa' : 'Evi'), id));
+        await step(1 + rand() * 8, () => svc.closeTask(store, user(master.grups.find((g) => g.name === task.Grup)?.traffic || task.Lead), id));
       }
     }
+    await showcase(store, realNow);
   } finally {
     setClock(null);
   }
 
+}
+
+/**
+ * Request "etalase" di 1,5 hari terakhir yang sengaja berhenti di tiap tahap, supaya
+ * semua status, kolom papan, dan jenis notifikasi terlihat.
+ */
+async function showcase(store: Store, realNow: number): Promise<void> {
+  const H = 60 * 60 * 1000;
+  const master = (await loadDb(store)).master;
+  const user = (name: string) => userFromPerson(findPerson(master, name)!);
+  const trafficOf = (brand: string) => master.grups.find((g) => g.name === master.brands.find((b) => b.name === brand)?.grup)?.traffic || 'Evi';
+  const picOf = (brand: string) => {
+    const grup = master.brands.find((b) => b.name === brand)?.grup;
+    return master.people.find((p) => p.roles.includes('pic') && p.grup === grup)!.name;
+  };
+  const input = (brand: string, kategori: string, campaign: string, dueDays: number): svc.RequestInput => {
+    const def = CATEGORIES.find((c) => c.name === kategori)!;
+    const today = todayWib(new Date(realNow));
+    return {
+      brand,
+      campaignName: `${campaign} ${brand}`,
+      campaignType: 'Medium Campaign',
+      objective: 'Mendorong penjualan koleksi baru di marketplace dan Instagram.',
+      kategori: [kategori],
+      subJenis: { [kategori]: [def.subTypes[0]] },
+      details: { [kategori]: Object.fromEntries(def.fields.map((f) => [f.key, f.type === 'number' ? '4' : f.options?.[0] || 'Sesuai referensi'])) },
+      usp: 'Bahan premium, potongan regular fit.',
+      keyMessage: 'Tampil rapi tanpa ribet.',
+      creativeNote: 'Natural light, warna earth tone.',
+      targetAudience: 'Usia 20–30, urban.',
+      budget: '5000000',
+      dueDate: addWorkingDays(today, dueDays, master.holidays),
+      deliverables: 'Sesuai kebutuhan campaign',
+      supportingLink: '',
+      attachments: '',
+    };
+  };
+
+  type Step = 'baru' | 'kurang' | 'siap' | 'qc' | 'revisiInternal' | 'review' | 'revisiBrand' | 'acc' | 'final' | 'urgent';
+  const plan: [Step, string, string, string, number][] = [
+    ['baru', 'Heymale', 'Desain grafis', 'Flash Sale 11.11', 6],
+    ['kurang', 'Shuwa', 'Videografis', 'Launching Hijab Series', 8],
+    ['siap', 'Nostalgy', 'Fotoshoot', 'Lookbook Vintage', 9],
+    ['qc', 'Zoma', 'Desain grafis', 'Promo Gajian', 5],
+    ['revisiInternal', 'Heylocal', 'Moodboard', 'Campaign Akhir Tahun', 6],
+    ['review', 'Prepp Studio', 'Videografis', 'Back to Campus', 7],
+    ['revisiBrand', 'Prow', 'Desain grafis', 'Activewear Drop', 5],
+    ['acc', 'Ladyfit', '3D/Motion', 'Produk 360°', 10],
+    ['final', 'Boonaboo', 'Desain grafis', 'Kids Holiday Sale', 4],
+    ['urgent', 'Heymale', 'Fotoshoot', 'Katalog Restock Mendadak', 3],
+  ];
+
+  let base = realNow - 36 * H;
+  for (const [stage, brand, kategori, campaign, dueDays] of plan) {
+    let t = base;
+    base += 2.5 * H;
+    const tick = (h = 1) => {
+      t += h * H;
+      setClock(new Date(Math.min(t, realNow - 5 * 60 * 1000)));
+    };
+    tick(0);
+    const pic = picOf(brand);
+    const traffic = trafficOf(brand);
+    const r = await svc.submitRequest(store, user(pic), input(brand, kategori, campaign, dueDays));
+    if (!r.ok || !r.id || stage === 'baru') continue;
+    tick();
+    if (stage === 'kurang') {
+      await svc.cekBrief(store, user(traffic), { requestId: r.id, decision: 'Kurang', note: 'Mohon lampirkan referensi video dan durasi per platform.' });
+      continue;
+    }
+    await svc.cekBrief(store, user(traffic), { requestId: r.id, decision: 'Lengkap', note: '' });
+    const tasks = (await loadDb(store)).tasks.filter((x) => x['Request ID'] === r.id);
+    const task = tasks[0];
+    const id = task['Task ID'];
+    if (stage === 'siap' || stage === 'urgent') continue; // Foto belum di-assign lead
+    let assignee = task.Assignee;
+    if (!assignee) {
+      tick(0.5);
+      assignee = master.people.find((p) => p.active && p.divisi === task.Divisi && !p.isLead)?.name || task.Lead;
+      await svc.assignTask(store, user(task.Lead), id, assignee);
+    }
+    tick(3);
+    await svc.submitDraft(store, user(assignee), id, `https://drive.google.com/demo/${id}/v1`);
+    if (stage === 'qc') continue;
+    tick();
+    if (stage === 'revisiInternal') {
+      await svc.qcDecision(store, user(task.Lead), id, false, 'Komposisi terlalu ramai, kurangi elemen.');
+      continue;
+    }
+    await svc.qcDecision(store, user(task.Lead), id, true, '');
+    if (stage === 'review') continue;
+    tick(2);
+    if (stage === 'revisiBrand') {
+      await svc.brandReview(store, user(pic), id, 'REV', 'Warna kurang kontras, logo diperbesar.', 'WA');
+      continue;
+    }
+    await svc.brandReview(store, user(pic), id, 'ACC', '', 'WA');
+    if (stage === 'acc') continue;
+    tick();
+    await svc.submitFinal(store, user(assignee), id, `https://drive.google.com/demo/${id}/final`);
+  }
 }
 
 export const DEMO_PASSWORD = 'demo1234';

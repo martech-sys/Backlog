@@ -60,4 +60,13 @@ export class MemoryStore implements Store {
       }
     }
   }
+
+  async deleteWhere(name: SheetName, column: string, match: (value: string) => boolean): Promise<number> {
+    const t = this.table(name);
+    const c = t.headers.indexOf(column);
+    if (c < 0) return 0;
+    const before = t.rows.length;
+    t.rows = t.rows.filter((r) => !match(r[c] ?? ''));
+    return before - t.rows.length;
+  }
 }

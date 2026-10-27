@@ -6,6 +6,7 @@ import { CATEGORIES, TASK_STATUSES, type Status } from '@/lib/config';
 import * as accounts from '@/lib/accounts';
 import { loadDb } from '@/lib/db';
 import { env } from '@/lib/env';
+import * as sample from '@/lib/sample';
 import * as svc from '@/lib/service';
 import { clearSessionCookie, getSession, requireSuperadmin, requireUser, setSessionCookie } from '@/lib/session';
 import { getStore } from '@/lib/store';
@@ -217,6 +218,30 @@ export async function updateUserAction(fd: FormData) {
     nama: s(fd, 'nama') || undefined,
   });
   done(safeBack(fd, '/admin/users'), r);
+}
+
+export async function generateSampleAction() {
+  await requireSuperadmin();
+  let r: svc.ActionResult;
+  try {
+    const c = await sample.generateSample(await getStore());
+    r = {
+      ok: true,
+      message: `Data contoh dibuat: ${c.requests} request, ${c.tasks} task, ${c.statusLog} riwayat status, ${c.waLog} log WA, ${c.members} anggota contoh.`,
+    };
+  } catch (e) {
+    r = { ok: false, message: (e as Error).message };
+  }
+  done('/admin/users#data-contoh', r);
+}
+
+export async function purgeSampleAction() {
+  await requireSuperadmin();
+  const c = await sample.purgeSample(await getStore());
+  done('/admin/users#data-contoh', {
+    ok: true,
+    message: `Data contoh dihapus: ${c.requests} request, ${c.tasks} task, ${c.statusLog} riwayat status, ${c.waLog} log WA, ${c.members} anggota contoh.`,
+  });
 }
 
 /** Mode demo: masuk langsung sebagai persona (akun demo sudah dibuat saat seeding). */

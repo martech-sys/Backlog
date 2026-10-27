@@ -72,3 +72,31 @@ test('cache baca: dua kali baca berturut-turut = satu panggilan API, dibuang set
   await store.readAll(['Task']);
   assert.equal(calls.filter((c) => c.url.includes('batchGet')).length, 2, 'header dari cache, baca ulang setelah tulis');
 });
+
+test('deleteWhere menghapus baris cocok dari bawah ke atas dalam satu batch', async () => {
+  const { store, calls } = mockStore([
+    ['Task ID', 'Status'],
+    ['DEMO-1', 'x'],
+    ['DEMO-2', 'x'],
+    ['CR-1', 'x'],
+    ['DEMO-3', 'x'],
+  ]);
+  const realFetch2 = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    if (String(url).includes('fields=sheets.properties')) {
+      return new Response(JSON.stringify({ sheets: [{ properties: { sheetId: 7, title: 'Task' } }] }));
+    }
+    return realFetch2(url, init);
+  }) as typeof fetch;
+  const n = await store.deleteWhere('Task', 'Task ID', (v) => v.startsWith('DEMO-'));
+  assert.equal(n, 3);
+  const batch = calls.find((c) => c.url.endsWith(':batchUpdate'))!;
+  assert.deepEqual(
+    batch.body.requests.map((r: any) => [r.deleteDimension.range.startIndex, r.deleteDimension.range.endIndex]),
+    [
+      [4, 5],
+      [1, 3],
+    ],
+  );
+  assert.equal(batch.body.requests[0].deleteDimension.range.sheetId, 7);
+});
