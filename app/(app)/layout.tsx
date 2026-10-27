@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { logoutAction } from '@/app/actions';
 import { Nav } from '@/components/Nav';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { env } from '@/lib/env';
 import { requireUser } from '@/lib/session';
 import { ROLE_LABEL } from '@/lib/users';
@@ -39,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 {env.demoMode ? ' · DEMO' : ''}
               </small>
             </Link>
+            <ThemeToggle />
             <form action={logoutAction}>
               <button className="btn small" type="submit">
                 Keluar

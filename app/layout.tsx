@@ -11,15 +11,18 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#171b23' },
-  ],
+  themeColor: '#ffffff',
 };
+
+/** Terapkan pilihan tema sebelum halaman tampil (default terang) agar tidak berkedip. */
+const THEME_SCRIPT = `try{if(localStorage.getItem('ct_theme')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );
