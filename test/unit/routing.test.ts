@@ -51,3 +51,30 @@ test('ID tiket berurutan per bulan', () => {
   assert.equal(nextTicketId('CR', '2026-10-27', ['CR-2610-001', 'CR-2610-009', 'CR-2609-050']), 'CR-2610-010');
   assert.equal(nextTicketId('CR', '2026-11-01', ['CR-2610-010']), 'CR-2611-001');
 });
+
+test('REMINDER_DAYS tahan terhadap nilai rusak dari Sheets', async () => {
+  const { parseReminderDays } = await import('../../lib/master');
+  assert.deepEqual(parseReminderDays('2,1,0'), [2, 1, 0]);
+  assert.deepEqual(parseReminderDays('3; 1'), [3, 1]);
+  assert.deepEqual(parseReminderDays('2,1,2000'), [2, 1]);
+  assert.deepEqual(parseReminderDays('36527'), [2, 1, 0]);
+});
+
+test('email admin di Config boleh login walau di luar domain kantor', async () => {
+  const { buildMaster } = await import('../../lib/master');
+  const { isAllowedEmail, resolveUser } = await import('../../lib/users');
+  const master = buildMaster({
+    config: [{ Key: 'ADMIN_EMAILS', Value: 'Dodi.Wahyono@worldwhiteenterprise.com', Keterangan: '', _row: 2 }],
+    grup: [],
+    brand: [],
+    pic: [],
+    tim: [],
+    kategori: [],
+    libur: [],
+  });
+  assert.equal(isAllowedEmail(master, 'dodi.wahyono@worldwhiteenterprise.com'), true);
+  assert.equal(isAllowedEmail(master, 'orang.lain@worldwhiteenterprise.com'), false);
+  assert.equal(isAllowedEmail(master, 'siapa.saja@heymale.id'), true);
+  const u = resolveUser(master, 'dodi.wahyono@worldwhiteenterprise.com', 'Dodi Wahyono');
+  assert.deepEqual([u?.name, u?.roles.includes('admin')], ['Dodi Wahyono', true]);
+});

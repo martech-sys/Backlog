@@ -79,15 +79,25 @@ export function normalizeEmail(raw: string): string {
   return String(raw || '').trim().toLowerCase();
 }
 
+/**
+ * "2,1,0" → [2, 1, 0]. Nilai di luar 0–30 diabaikan (mis. bila Sheets mengubah teks jadi
+ * tanggal); bila tidak ada yang valid, pakai default H-2, H-1, hari H.
+ */
+export function parseReminderDays(raw: string): number[] {
+  const days = String(raw || '')
+    .split(/[,;\s]+/)
+    .filter(Boolean)
+    .map(Number)
+    .filter((x) => Number.isInteger(x) && x >= 0 && x <= 30);
+  return days.length ? [...new Set(days)] : [2, 1, 0];
+}
+
 export function parseConfig(rows: ConfigRow[]): AppConfig {
   const map = new Map(rows.map((r) => [String(r.Key).trim(), String(r.Value ?? '').trim()]));
   const get = (k: string, d: string) => (map.get(k) ? (map.get(k) as string) : d);
   return {
     ticketPrefix: get('TICKET_PREFIX', 'CR'),
-    reminderDays: get('REMINDER_DAYS', '2,1,0')
-      .split(',')
-      .map((x) => Number(x.trim()))
-      .filter((x) => Number.isFinite(x)),
+    reminderDays: parseReminderDays(get('REMINDER_DAYS', '2,1,0')),
     maxRevisi: num(get('MAX_REVISI', '2'), 2),
     escalateAfterDays: num(get('ESCALATE_AFTER_DAYS', '1'), 1),
     adminEmails: get('ADMIN_EMAILS', '')

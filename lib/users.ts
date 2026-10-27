@@ -12,7 +12,8 @@ export function isAllowedEmail(master: Master | null, email: string): boolean {
   const domain = e.split('@')[1] || '';
   if (env.allowedDomains.includes(domain)) return true;
   if (env.demoMode && domain === 'demo.local') return true;
-  return !!(master && findPersonByEmail(master, e));
+  // Email di luar domain kantor boleh masuk bila terdaftar sebagai admin (Config) atau di Master_PIC/Master_Tim.
+  return !!(master && (master.config.adminEmails.includes(e) || findPersonByEmail(master, e)));
 }
 
 /**

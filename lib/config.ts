@@ -319,7 +319,7 @@ export const DEFAULT_CONFIG: [string, string, string][] = [
   ['REMINDER_DAYS', '2,1,0', 'Reminder H-2, H-1, hari H'],
   ['MAX_REVISI', '2', 'Batas ronde revisi brand sebelum Traffic & Creative Head diberi tahu'],
   ['ESCALATE_AFTER_DAYS', '1', 'Overdue sekian hari → eskalasi ke Creative Head & Head of Creative Production'],
-  ['ADMIN_EMAILS', '', 'Email (dipisah koma) yang boleh melompati aturan alur status'],
+  ['ADMIN_EMAILS', 'dodi.wahyono@worldwhiteenterprise.com', 'Email (dipisah koma) yang boleh melompati aturan alur status'],
   ['DRIVE_FOLDER_URL', '', 'Folder Google Drive untuk draft & file final'],
 ];
 

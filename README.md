@@ -77,7 +77,7 @@ npm run demo          # http://localhost:3000
 
 ### 2. Login Google (OAuth)
 
-1. **APIs & Services → OAuth consent screen**: tipe **Internal** (khusus akun Workspace heymale.id).
+1. **APIs & Services → OAuth consent screen**: tipe **External** (agar email admin di luar heymale.id, mis. `dodi.wahyono@worldwhiteenterprise.com`, juga bisa masuk), lalu **Publish app**. Aplikasi tetap hanya menerima email `@heymale.id`, email di `Config → ADMIN_EMAILS`, dan email yang terdaftar di `Master_PIC` / `Master_Tim`.
 2. **Credentials → Create credentials → OAuth client ID → Web application**.
 3. Authorized redirect URI: `https://<domain-vercel-kamu>/api/auth/callback/google` (tambahkan juga `http://localhost:3000/api/auth/callback/google` untuk lokal).
 
@@ -141,7 +141,7 @@ Peran dibaca dari email login di master data:
 | Lead divisi | `Master_Tim` Lead = Ya | Assign/ganti anggota, QC draft, kerjakan task |
 | Tim creative | `Master_Tim` lainnya | Upload draft & file final untuk task miliknya |
 | Creative Head / Head of Creative Production | `Master_Tim` Peran | Semua pantauan, assign, QC, ubah prioritas, tutup tiket |
-| Admin | `Config` → `ADMIN_EMAILS` | Semua, termasuk koreksi status |
+| Admin | `Config` → `ADMIN_EMAILS` (saat ini `dodi.wahyono@worldwhiteenterprise.com`; boleh di luar domain kantor) | Semua, termasuk koreksi status |
 | Viewer | Email `@heymale.id` lain | Lihat dashboard, backlog, tracker |
 
 ## Pengembangan
