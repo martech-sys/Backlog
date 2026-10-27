@@ -83,7 +83,10 @@ npm run demo          # http://localhost:3000
 
 Tidak perlu Google OAuth. Siapkan dua nilai:
 
-- `AUTH_SECRET`: string acak minimal 32 karakter (`openssl rand -base64 32`) untuk menandatangani sesi.
+- `AUTH_SECRET`: string acak minimal 32 karakter untuk menandatangani sesi. Cara membuatnya:
+  - **Windows (PowerShell)**: `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`
+  - **Mac/Linux/Git Bash**: `openssl rand -base64 32`
+  - **Node.js**: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
 - `SUPERADMIN_PASSWORD`: password awal Superadmin `dodi.wahyono@worldwhiteenterprise.com` (sudah ada di tab `Users`).
 
 Login pertama Superadmin memakai password itu, lalu aplikasi meminta membuat password pribadi. Setelah itu Superadmin menambah user lain di **Kelola user**.
@@ -98,7 +101,7 @@ Login pertama Superadmin memakai password itu, lalu aplikasi meminta membuat pas
 | `SPREADSHEET_ID` | `1THrfMECihSohopWwCfgL91mGP5RsUl8YTBRW01VUbSE` |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | `client_email` dari file JSON |
 | `GOOGLE_PRIVATE_KEY` | `private_key` dari file JSON (tempel apa adanya) |
-| `AUTH_SECRET` | hasil `openssl rand -base64 32` |
+| `AUTH_SECRET` | teks acak dari perintah di langkah 2 |
 | `SUPERADMIN_EMAIL` | `dodi.wahyono@worldwhiteenterprise.com` |
 | `SUPERADMIN_PASSWORD` | password awal Superadmin (min. 8 karakter, huruf + angka) |
 | `APP_URL` | `https://<domain-vercel-kamu>` (untuk link di pesan WA) |
