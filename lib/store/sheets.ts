@@ -70,7 +70,7 @@ export class SheetsStore implements Store {
   ) {
     this.jwt = new JWT({
       email: clientEmail,
-      key: privateKey.replace(/\\n/g, '\n'),
+      key: privateKey,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
   }

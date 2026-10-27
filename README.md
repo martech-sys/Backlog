@@ -74,10 +74,26 @@ npm run demo          # http://localhost:3000
 
 ### 1. Service account untuk Google Sheets
 
-1. Buka [Google Cloud Console](https://console.cloud.google.com/), buat/pilih project.
-2. **APIs & Services → Library** → aktifkan **Google Sheets API**.
-3. **IAM & Admin → Service Accounts → Create**. Setelah dibuat, buka tab **Keys → Add key → JSON**, lalu unduh.
-4. Buka spreadsheet `DB_backlog` → **Share** → tambahkan email service account (`…@….iam.gserviceaccount.com`) sebagai **Editor**.
+Aplikasi membaca/menulis spreadsheet memakai **service account** (akun robot Google). Kuncinya berupa file JSON.
+
+1. Buka [Google Cloud Console](https://console.cloud.google.com/) → pilih/buat project (pojok kiri atas).
+2. Menu **APIs & Services → Library** → cari **Google Sheets API** → **Enable**.
+3. Menu **IAM & Admin → Service Accounts** → **+ Create service account** → isi nama (mis. `creative-tracker`) → **Create and continue** → **Done** (role tidak perlu diisi).
+4. Klik service account yang baru dibuat → tab **Keys** → **Add key → Create new key → JSON → Create**. File `.json` otomatis terunduh.
+5. Buka file itu dengan Notepad. Isinya kira-kira:
+   ```json
+   {
+     "type": "service_account",
+     "client_email": "creative-tracker@nama-project.iam.gserviceaccount.com",
+     "private_key": "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n",
+     ...
+   }
+   ```
+6. Buka spreadsheet `DB_backlog` → **Share** → tempel email `client_email` → peran **Editor** → **Send** (abaikan peringatan bahwa email tidak bisa menerima notifikasi).
+7. Di Vercel, buat variabel **`GOOGLE_SERVICE_ACCOUNT_JSON`** dan tempel **seluruh isi file JSON** (Ctrl+A, Ctrl+C dari Notepad) sebagai nilainya.
+   Alternatif: isi `GOOGLE_SERVICE_ACCOUNT_EMAIL` dengan `client_email` dan `GOOGLE_PRIVATE_KEY` dengan nilai `private_key` (tanda kutip dan `\n` boleh ikut tertempel).
+
+> File JSON ini adalah kunci akses ke spreadsheet. Simpan baik-baik: jangan dikirim lewat chat/email dan jangan di-commit ke GitHub. Bila bocor, hapus key-nya di tab **Keys** lalu buat yang baru.
 
 ### 2. Login (email + password)
 
@@ -99,8 +115,7 @@ Login pertama Superadmin memakai password itu, lalu aplikasi meminta membuat pas
 | Variabel | Isi |
 | --- | --- |
 | `SPREADSHEET_ID` | `1THrfMECihSohopWwCfgL91mGP5RsUl8YTBRW01VUbSE` |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | `client_email` dari file JSON |
-| `GOOGLE_PRIVATE_KEY` | `private_key` dari file JSON (tempel apa adanya) |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | seluruh isi file JSON service account (langkah 1) |
 | `AUTH_SECRET` | teks acak dari perintah di langkah 2 |
 | `SUPERADMIN_EMAIL` | `dodi.wahyono@worldwhiteenterprise.com` |
 | `SUPERADMIN_PASSWORD` | password awal Superadmin (min. 8 karakter, huruf + angka) |

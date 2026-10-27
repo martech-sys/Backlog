@@ -18,7 +18,7 @@ async function createStore(): Promise<Store> {
   }
   if (!env.serviceAccountEmail || !env.serviceAccountKey) {
     throw new Error(
-      'GOOGLE_SERVICE_ACCOUNT_EMAIL dan GOOGLE_PRIVATE_KEY belum diatur. Lihat README bagian "Setup Google Sheets".',
+      'Kredensial Google belum diatur: isi GOOGLE_SERVICE_ACCOUNT_JSON (seluruh isi file JSON service account). Lihat README langkah 1.',
     );
   }
   return new SheetsStore(env.spreadsheetId, env.serviceAccountEmail, env.serviceAccountKey);

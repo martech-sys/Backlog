@@ -10,7 +10,7 @@ import { SheetsStore } from '../lib/store/sheets';
 import type { Cell } from '../lib/store/types';
 
 if (!env.serviceAccountEmail || !env.serviceAccountKey) {
-  console.error('Isi GOOGLE_SERVICE_ACCOUNT_EMAIL dan GOOGLE_PRIVATE_KEY di .env.local terlebih dulu.');
+  console.error('Isi GOOGLE_SERVICE_ACCOUNT_JSON (atau GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY) di .env.local terlebih dulu.');
   process.exit(1);
 }
 
