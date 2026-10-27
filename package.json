@@ -1,0 +1,35 @@
+{
+  "name": "creative-backlog-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Creative Request Tracker & WA Bot — backlog tracker tim Creative (Next.js + Google Sheets + WhatsApp)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "node --import tsx --test test/unit/*.test.ts",
+    "test:e2e": "node --import tsx test/e2e/flow.mjs",
+    "demo": "DEMO_MODE=true next dev",
+    "setup-sheet": "node --env-file-if-exists=.env.local --import tsx scripts/setup-sheet.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "google-auth-library": "^10.9.1",
+    "next": "16.4.3",
+    "next-auth": "4.24.15",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "5.9.3"
+  }
+}
