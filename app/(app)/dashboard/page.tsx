@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { HBars, StatusBadge, UrgentBadge } from '@/components/ui';
+import { Flash, HBars, StatusBadge, UrgentBadge } from '@/components/ui';
 import { BOARD_COLORS } from '@/lib/backlog';
 import { now } from '@/lib/clock';
 import { computeDashboard, defaultFilters } from '@/lib/dashboard';
@@ -64,6 +64,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           {formatTanggal(f.from, false)} – {formatTanggal(f.to, false)}
         </div>
       </div>
+      <Flash ok={sp.ok} err={sp.err} />
 
       <form className="filters">
         <div className="field">

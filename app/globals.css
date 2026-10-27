@@ -550,6 +550,7 @@ td .title {
 }
 
 input[type='text'],
+input[type='password'],
 input[type='email'],
 input[type='url'],
 input[type='number'],
@@ -1249,4 +1250,15 @@ textarea:focus {
 }
 .mcard.plain .card-head {
   margin-bottom: 10px;
+}
+
+.userbox a.who {
+  display: block;
+}
+.userbox a.who:hover {
+  text-decoration: none;
+}
+
+.row > input {
+  flex: 1 1 auto;
 }

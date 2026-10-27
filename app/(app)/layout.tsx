@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { demoLogoutAction } from '@/app/actions';
+import { logoutAction } from '@/app/actions';
 import { Nav } from '@/components/Nav';
 import { env } from '@/lib/env';
 import { requireUser } from '@/lib/session';
@@ -17,8 +17,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: '/requests', label: 'Request' },
     ...(can.submitRequest(user) ? [{ href: '/requests/new', label: '+ Request baru' }] : []),
     { href: '/panduan', label: 'Panduan' },
+    ...(user.roles.includes('superadmin') ? [{ href: '/admin/users', label: 'Kelola user' }] : []),
   ];
-  const mainRole = user.roles.find((r) => r !== 'admin') || user.roles[0];
+  const mainRole = user.roles.find((r) => r !== 'admin' && r !== 'superadmin') || user.roles[0];
+  const akses = user.roles.includes('superadmin') ? ' · Superadmin' : user.roles.includes('admin') ? ' · Admin' : '';
   return (
     <>
       <header className="topbar">
@@ -29,25 +31,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
           <Nav items={items} />
           <div className="userbox">
-            <div className="who">
-              <strong>{user.name}</strong>
+            <Link href="/akun" className="who" title="Akun saya">
+              <strong style={{ color: 'var(--text)' }}>{user.name}</strong>
               <small>
                 {ROLE_LABEL[mainRole]}
-                {user.roles.includes('admin') && mainRole !== 'admin' ? ' · Admin' : ''}
+                {mainRole !== 'superadmin' && mainRole !== 'admin' ? akses : ''}
                 {env.demoMode ? ' · DEMO' : ''}
               </small>
-            </div>
-            {env.demoMode ? (
-              <form action={demoLogoutAction}>
-                <button className="btn small" type="submit">
-                  Ganti user
-                </button>
-              </form>
-            ) : (
-              <a className="btn small" href="/api/auth/signout">
+            </Link>
+            <form action={logoutAction}>
+              <button className="btn small" type="submit">
                 Keluar
-              </a>
-            )}
+              </button>
+            </form>
           </div>
         </div>
       </header>

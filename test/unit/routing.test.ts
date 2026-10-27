@@ -60,21 +60,14 @@ test('REMINDER_DAYS tahan terhadap nilai rusak dari Sheets', async () => {
   assert.deepEqual(parseReminderDays('36527'), [2, 1, 0]);
 });
 
-test('email admin di Config boleh login walau di luar domain kantor', async () => {
-  const { buildMaster } = await import('../../lib/master');
-  const { isAllowedEmail, resolveUser } = await import('../../lib/users');
-  const master = buildMaster({
-    config: [{ Key: 'ADMIN_EMAILS', Value: 'Dodi.Wahyono@worldwhiteenterprise.com', Keterangan: '', _row: 2 }],
-    grup: [],
-    brand: [],
-    pic: [],
-    tim: [],
-    kategori: [],
-    libur: [],
-  });
-  assert.equal(isAllowedEmail(master, 'dodi.wahyono@worldwhiteenterprise.com'), true);
-  assert.equal(isAllowedEmail(master, 'orang.lain@worldwhiteenterprise.com'), false);
-  assert.equal(isAllowedEmail(master, 'siapa.saja@heymale.id'), true);
-  const u = resolveUser(master, 'dodi.wahyono@worldwhiteenterprise.com', 'Dodi Wahyono');
-  assert.deepEqual([u?.name, u?.roles.includes('admin')], ['Dodi Wahyono', true]);
+test('akun login dipetakan ke peran master berdasarkan Nama', async () => {
+  const { loadDb } = await import('../../lib/db');
+  const { resolveUser } = await import('../../lib/users');
+  const db = await loadDb(testStore());
+  const evi = resolveUser(db.master, { email: 'evi.baru@gmail.com', nama: 'Evi', akses: 'User' });
+  assert.deepEqual([evi.name, evi.roles, evi.grup], ['Evi', ['traffic'], 'Menswear']);
+  const dodi = resolveUser(db.master, { email: 'dodi.wahyono@worldwhiteenterprise.com', nama: 'Dodi Wahyono', akses: 'Superadmin' });
+  assert.deepEqual(dodi.roles, ['superadmin', 'admin']);
+  const tamu = resolveUser(db.master, { email: 'tamu@x.com', nama: 'Tamu', akses: 'User' });
+  assert.deepEqual(tamu.roles, ['viewer']);
 });

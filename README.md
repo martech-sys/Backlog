@@ -4,7 +4,7 @@ Backlog tracker untuk semua permintaan konten dari brand ke tim Creative, dari p
 
 - **Web app**: Next.js 16 (App Router), di-hosting di **Vercel**
 - **Database**: Google Sheets [`DB_backlog`](https://docs.google.com/spreadsheets/d/1THrfMECihSohopWwCfgL91mGP5RsUl8YTBRW01VUbSE/edit)
-- **Login**: Google (akun `@heymale.id`, atau email yang terdaftar di master data)
+- **Login**: email + password; akun dikelola Superadmin di halaman **Kelola user** (tanpa Google login)
 - **WhatsApp**: gateway Fonnte atau Wablas (kirim notifikasi + terima balasan ACC/REV)
 - **Jadwal**: Vercel Cron untuk reminder H-2/H-1/hari H, digest pagi, dan rekap mingguan
 
@@ -21,6 +21,8 @@ Cakupan: 11 brand (Menswear & Womenswear), 7 PIC brand, tim creative, 5 kategori
 | **Request baru** `/requests/new` | Form pengajuan dengan field wajib per kategori (jumlah SKU untuk foto, durasi & rasio untuk video, dst.) dan deteksi URGENT otomatis. |
 | **Task** `/tasks/[id]` | Aksi sesuai peran & status: assign, upload draft per versi, QC lead, review ACC/REV, upload final, tutup tiket, ubah prioritas. |
 | **Panduan** `/panduan` | Alur kerja, format balasan WA, peran, 11 status, routing & SLA. |
+| **Kelola user** `/admin/users` | Khusus Superadmin: tambah user (password acak sekali klik), reset password, aktif/nonaktif, ubah akses, dan buat akun cepat untuk orang di master data yang belum punya akun. |
+| **Akun saya** `/akun` | Profil & ganti password. User baru / yang di-reset wajib ganti password di sini sebelum memakai aplikasi. |
 
 ## Alur
 
@@ -46,6 +48,7 @@ PIC balas ACC ──► assignee upload file final ──► WA ke PIC & Traffic
 | `Task` | Satu baris per task divisi (assignee, status, draft, revisi, final) | Aplikasi |
 | `Status` | Log setiap perpindahan status | Aplikasi |
 | `Log_WA` | Semua pesan WA keluar/masuk dan hasil kirimnya | Aplikasi |
+| `Users` | Akun login: email, nama, akses (Superadmin/Admin/User), hash password, aktif | Superadmin lewat halaman Kelola user |
 | `Master_Grup` | Grup → Traffic, Creative Head | Admin |
 | `Master_Brand` | 11 brand, kode, grup | Admin |
 | `Master_PIC` | PIC brand: email login, **No WA** | Admin |
@@ -55,11 +58,12 @@ PIC balas ACC ──► assignee upload file final ──► WA ke PIC & Traffic
 | `Config` | Prefix tiket, hari reminder, batas revisi, eskalasi, admin | Admin |
 
 > Aplikasi membaca kolom berdasarkan **nama header**. Urutan kolom boleh diubah, nama header jangan.
-> Data yang perlu dilengkapi sebelum go-live: **No WA dan email** semua orang, serta **anggota tim creative lainnya** (sampai 38 orang) di `Master_Tim`.
+> Data yang perlu dilengkapi sebelum go-live: **No WA** semua orang dan **anggota tim creative lainnya** (sampai 38 orang) di `Master_Tim`. Akun login dibuat Superadmin di aplikasi; kolom Nama di `Users` harus sama dengan nama di `Master_PIC` / `Master_Tim` agar perannya terbaca.
+> Jangan mengisi kolom `Password Hash` secara manual. Password hanya diatur lewat aplikasi.
 
 ## Coba lokal (mode demo)
 
-Mode demo memakai data contoh di memori (±6 minggu aktivitas hasil simulasi) dan login dengan memilih persona, tanpa Google atau WhatsApp.
+Mode demo memakai data contoh di memori (±6 minggu aktivitas hasil simulasi). Semua akun demo memakai password `demo1234`, atau pilih persona untuk masuk langsung. **Admin Demo** adalah Superadmin.
 
 ```bash
 npm install
@@ -75,11 +79,14 @@ npm run demo          # http://localhost:3000
 3. **IAM & Admin → Service Accounts → Create**. Setelah dibuat, buka tab **Keys → Add key → JSON**, lalu unduh.
 4. Buka spreadsheet `DB_backlog` → **Share** → tambahkan email service account (`…@….iam.gserviceaccount.com`) sebagai **Editor**.
 
-### 2. Login Google (OAuth)
+### 2. Login (email + password)
 
-1. **APIs & Services → OAuth consent screen**: tipe **External** (agar email admin di luar heymale.id, mis. `dodi.wahyono@worldwhiteenterprise.com`, juga bisa masuk), lalu **Publish app**. Aplikasi tetap hanya menerima email `@heymale.id`, email di `Config → ADMIN_EMAILS`, dan email yang terdaftar di `Master_PIC` / `Master_Tim`.
-2. **Credentials → Create credentials → OAuth client ID → Web application**.
-3. Authorized redirect URI: `https://<domain-vercel-kamu>/api/auth/callback/google` (tambahkan juga `http://localhost:3000/api/auth/callback/google` untuk lokal).
+Tidak perlu Google OAuth. Siapkan dua nilai:
+
+- `AUTH_SECRET`: string acak minimal 32 karakter (`openssl rand -base64 32`) untuk menandatangani sesi.
+- `SUPERADMIN_PASSWORD`: password awal Superadmin `dodi.wahyono@worldwhiteenterprise.com` (sudah ada di tab `Users`).
+
+Login pertama Superadmin memakai password itu, lalu aplikasi meminta membuat password pribadi. Setelah itu Superadmin menambah user lain di **Kelola user**.
 
 ### 3. Import ke Vercel
 
@@ -91,15 +98,16 @@ npm run demo          # http://localhost:3000
 | `SPREADSHEET_ID` | `1THrfMECihSohopWwCfgL91mGP5RsUl8YTBRW01VUbSE` |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | `client_email` dari file JSON |
 | `GOOGLE_PRIVATE_KEY` | `private_key` dari file JSON (tempel apa adanya) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | dari langkah 2 |
-| `NEXTAUTH_SECRET` | hasil `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | `https://<domain-vercel-kamu>` |
-| `ALLOWED_DOMAINS` | `heymale.id` |
+| `AUTH_SECRET` | hasil `openssl rand -base64 32` |
+| `SUPERADMIN_EMAIL` | `dodi.wahyono@worldwhiteenterprise.com` |
+| `SUPERADMIN_PASSWORD` | password awal Superadmin (min. 8 karakter, huruf + angka) |
+| `APP_URL` | `https://<domain-vercel-kamu>` (untuk link di pesan WA) |
 | `WA_PROVIDER`, `WA_TOKEN` | dari gateway WA (langkah 4); biarkan `WA_DRY_RUN=true` selama uji coba |
 | `WEBHOOK_KEY` | string acak, untuk mengamankan webhook WA |
 | `CRON_SECRET` | string acak; Vercel memakainya untuk memanggil cron |
 
-3. **Deploy**. Cek `https://<domain>/api/health`: semua nilai harus `true` / sesuai.
+3. **Deploy**. Cek `https://<domain>/api/health`: `mode` = `sheets`, `sheetsConfigured`, `authSecretConfigured`, dan `superadminBootstrap` = `true`.
+4. Buka aplikasi → login sebagai Superadmin → buat password pribadi → **Kelola user** → buat akun untuk tim.
 
 ### 4. WhatsApp gateway
 
@@ -130,25 +138,38 @@ Pakai ID request (`CR-2610-001`) untuk menjawab semua task request itu yang seda
 | `/api/cron/digest` | Senin–Sabtu 08.00 | Digest pagi untuk Traffic per grup |
 | `/api/cron/weekly` | Senin 09.00 | Rekap mingguan untuk Creative Head & Head of Creative Production |
 
-## Peran & hak akses
+## Akun, peran & hak akses
 
-Peran dibaca dari email login di master data:
+Setiap akun di tab `Users` punya **Akses**, sedangkan **peran kerja** dibaca dari `Master_PIC` / `Master_Tim` dengan mencocokkan **Nama**:
 
-| Peran | Dari | Bisa |
+| Akses | Bisa |
+| --- | --- |
+| **Superadmin** | Semua aksi + kelola user (tambah, reset password, nonaktifkan, ubah akses) |
+| **Admin** | Semua aksi termasuk koreksi status |
+| **User** | Sesuai peran kerja di bawah |
+
+| Peran kerja | Dari | Bisa |
 | --- | --- | --- |
 | PIC brand | `Master_PIC` | Buat request, lengkapi brief, review ACC/REV |
 | Traffic | `Master_Tim` Peran = Traffic | Buat request atas nama PIC, cek brief & konfirmasi deadline, review, tutup tiket, ubah prioritas |
 | Lead divisi | `Master_Tim` Lead = Ya | Assign/ganti anggota, QC draft, kerjakan task |
 | Tim creative | `Master_Tim` lainnya | Upload draft & file final untuk task miliknya |
 | Creative Head / Head of Creative Production | `Master_Tim` Peran | Semua pantauan, assign, QC, ubah prioritas, tutup tiket |
-| Admin | `Config` → `ADMIN_EMAILS` (saat ini `dodi.wahyono@worldwhiteenterprise.com`; boleh di luar domain kantor) | Semua, termasuk koreksi status |
-| Viewer | Email `@heymale.id` lain | Lihat dashboard, backlog, tracker |
+| Viewer | Akun yang namanya tidak ada di master | Lihat dashboard, backlog, tracker |
+
+Keamanan login:
+- Password di-hash dengan scrypt; teks aslinya tidak pernah disimpan.
+- User baru dan password yang di-reset wajib diganti saat login pertama.
+- Reset password atau menonaktifkan akun langsung menghentikan sesi user itu.
+- 5 kali salah password → akun dikunci 15 menit.
+- Superadmin tidak bisa menonaktifkan/menurunkan dirinya sendiri, dan harus selalu ada minimal satu Superadmin aktif.
+- `SUPERADMIN_PASSWORD` di env tetap bisa dipakai Superadmin sebagai akses darurat; hapus variabel itu bila tidak diperlukan.
 
 ## Pengembangan
 
 ```bash
 npm run lint        # typecheck
-npm test            # unit test (routing, hari kerja, alur status, WA, dashboard, adapter Sheets)
+npm test            # unit test (routing, hari kerja, alur status, WA, dashboard, adapter Sheets, akun & sesi)
 npm run build
 # E2E: jalankan server demo lalu uji alur lengkap lewat browser (butuh Playwright)
 DEMO_MODE=true WEBHOOK_KEY=testkey CRON_SECRET=testcron npm run build

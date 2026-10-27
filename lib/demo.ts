@@ -226,6 +226,29 @@ export async function seedDemoActivity(store: Store): Promise<void> {
 
 }
 
+export const DEMO_PASSWORD = 'demo1234';
+
+/** Akun login demo untuk semua persona (password demo1234). Admin Demo = Superadmin. */
+export async function seedDemoAccounts(store: Store): Promise<void> {
+  const { hashPassword } = await import('./accounts');
+  // Biaya hash rendah khusus demo agar server cepat siap; produksi memakai biaya default.
+  const hash = await hashPassword(DEMO_PASSWORD, 1024);
+  await store.append(
+    SHEETS.USERS,
+    demoPersonas().map((p) => ({
+      Email: p.email,
+      Nama: p.name,
+      Akses: p.name === 'Admin Demo' ? 'Superadmin' : 'User',
+      'Password Hash': hash,
+      Aktif: 'Ya',
+      'Wajib Ganti Password': 'Tidak',
+      Dibuat: '',
+      'Dibuat Oleh': 'Demo',
+      'Login Terakhir': '',
+    })),
+  );
+}
+
 /** Persona untuk halaman login demo. */
 export function demoPersonas(): { name: string; email: string; label: string }[] {
   const seed = demoSeedMaster();

@@ -47,6 +47,62 @@ async function taskStatus(taskId) {
   return (await page.locator('h1 .badge').first().textContent())?.trim();
 }
 
+// 0. Akun & login email + password
+step('Login: password salah ditolak, password benar masuk');
+await ctx.clearCookies();
+await page.goto(`${BASE}/dashboard`);
+assert.ok(page.url().includes('/login?next=%2Fdashboard'));
+await page.fill('#email', 'evi@demo.local');
+await page.fill('#password', 'salah123');
+await page.getByRole('button', { name: 'Masuk' }).click();
+await page.waitForSelector('.flash.err');
+assert.match(await flash(), /Email atau password salah/);
+await page.fill('#password', 'demo1234');
+await page.getByRole('button', { name: 'Masuk' }).click();
+await page.waitForURL(/\/dashboard/);
+assert.equal(await page.locator('nav a', { hasText: 'Kelola user' }).count(), 0, 'Traffic tidak melihat menu Kelola user');
+const denied = await page.goto(`${BASE}/admin/users`);
+assert.ok(!page.url().includes('/admin/users'), 'non-superadmin dialihkan');
+void denied;
+
+step('Superadmin: tambah user baru');
+await loginAs('Admin Demo');
+await page.goto(`${BASE}/admin/users`);
+await shot('00-kelola-user');
+await page.fill('#new-email', 'user.baru@heymale.id');
+await page.fill('#new-nama', 'Mey');
+await page.waitForFunction(() => document.querySelector('#new-pass')?.value?.length >= 8);
+const tempPass = await page.inputValue('#new-pass');
+await page.getByRole('button', { name: 'Tambah user' }).click();
+await page.waitForURL(/ok=/);
+assert.match(await flash(), /terhubung ke Mey/);
+
+step('User baru: login → wajib ganti password → bisa memakai aplikasi');
+const ctx2 = await browser.newContext();
+const p2 = await ctx2.newPage();
+await p2.goto(`${BASE}/login`);
+await p2.fill('#email', 'user.baru@heymale.id');
+await p2.fill('#password', tempPass);
+await p2.getByRole('button', { name: 'Masuk' }).click();
+await p2.waitForURL(/\/akun\?wajib=1/);
+await p2.goto(`${BASE}/requests`);
+assert.ok(p2.url().includes('/akun'), 'dipaksa ke /akun sebelum ganti password');
+await p2.fill('#current', tempPass);
+await p2.fill('#password', 'Pribadi123');
+await p2.fill('#confirm', 'Pribadi123');
+await p2.getByRole('button', { name: 'Simpan password' }).click();
+await p2.waitForURL((u) => !u.pathname.startsWith('/akun'));
+await p2.goto(`${BASE}/requests/new`);
+assert.ok(p2.url().endsWith('/requests/new'), 'PIC Mey bisa membuat request');
+
+step('Superadmin menonaktifkan user → sesinya langsung berhenti');
+await page.goto(`${BASE}/admin/users?q=user.baru`);
+await page.getByRole('button', { name: 'Nonaktifkan' }).click();
+await page.waitForURL(/ok=/);
+await p2.goto(`${BASE}/requests`);
+assert.ok(p2.url().includes('/login'), 'sesi user nonaktif ditolak');
+await ctx2.close();
+
 // 1. Validasi form
 step('PIC: form kosong menampilkan error & nilai tidak hilang');
 await loginAs('Brama');

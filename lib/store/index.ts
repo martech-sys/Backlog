@@ -10,8 +10,9 @@ const holder: Holder = (g.__creativeStore ||= {});
 
 async function createStore(): Promise<Store> {
   if (env.demoMode) {
-    const { demoSeedMaster, seedDemoActivity } = await import('../demo');
+    const { demoSeedMaster, seedDemoAccounts, seedDemoActivity } = await import('../demo');
     const store = new MemoryStore(HEADERS, demoSeedMaster());
+    await seedDemoAccounts(store);
     await seedDemoActivity(store);
     return store;
   }

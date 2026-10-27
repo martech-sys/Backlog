@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Flash } from '@/components/ui';
 import { BOARD_COLORS, buildBoards, LANES, type BoardCard, type GroupBy, type Sticky } from '@/lib/backlog';
 import { now } from '@/lib/clock';
 import { formatTanggal, formatWaktu, sisaLabel, todayWib } from '@/lib/dates';
@@ -161,7 +162,9 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
   const totals = Object.fromEntries(LANES.map((l) => [l.key, boards.reduce((s, b) => s + b.lanes[l.key].length, 0)]));
   const divisiOptions = [...new Set(db.master.kategori.map((k) => k.divisi))];
   const qs = (patch: Record<string, string>) => {
-    const p = new URLSearchParams(Object.entries({ ...sp, ...patch }).filter(([, v]) => v) as [string, string][]);
+    const p = new URLSearchParams(
+      Object.entries({ ...sp, ...patch }).filter(([k, v]) => v && k !== 'ok' && k !== 'err') as [string, string][],
+    );
     return `/backlog?${p}`;
   };
 
@@ -237,6 +240,9 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
           <div className="title-box">Creative Team · {sp.grup || 'Menswear & Womenswear'}</div>
         </div>
 
+        <div style={{ marginTop: 12 }}>
+          <Flash ok={sp.ok} err={sp.err} />
+        </div>
         <form className="filters" style={{ marginTop: 12 }}>
           <div className="field">
             <label htmlFor="by">Kelompokkan</label>

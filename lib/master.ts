@@ -10,7 +10,7 @@ import type {
 } from './config';
 import { normalizeCellDate } from './dates';
 
-export type Role = 'admin' | 'hocp' | 'head' | 'traffic' | 'lead' | 'tim' | 'pic' | 'viewer';
+export type Role = 'superadmin' | 'admin' | 'hocp' | 'head' | 'traffic' | 'lead' | 'tim' | 'pic' | 'viewer';
 
 export interface Person {
   name: string;

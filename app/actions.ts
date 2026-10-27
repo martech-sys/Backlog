@@ -1,12 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { CATEGORIES, TASK_STATUSES, type Status } from '@/lib/config';
+import * as accounts from '@/lib/accounts';
+import { loadDb } from '@/lib/db';
 import { env } from '@/lib/env';
 import * as svc from '@/lib/service';
-import { DEMO_COOKIE, requireUser } from '@/lib/session';
+import { clearSessionCookie, getSession, requireSuperadmin, requireUser, setSessionCookie } from '@/lib/session';
 import { getStore } from '@/lib/store';
 
 export interface FormState {
@@ -147,18 +148,84 @@ export async function overrideAction(fd: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// Login demo (hanya aktif bila DEMO_MODE=true)
+// Login, akun, dan kelola user
 // ---------------------------------------------------------------------------
 
+function safeNext(v: string): string {
+  return v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/login') ? v : '/';
+}
+
+export async function loginAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  const r = await accounts.authenticate(await getStore(), s(fd, 'email'), String(fd.get('password') ?? ''));
+  if (!r.ok || !r.session) return { ok: false, message: r.message };
+  try {
+    await setSessionCookie(r.session);
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+  redirect(r.session.m ? '/akun?wajib=1' : safeNext(s(fd, 'next')));
+}
+
+export async function logoutAction() {
+  await clearSessionCookie();
+  redirect('/login');
+}
+
+export async function changePasswordAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const session = await getSession();
+  const next = String(fd.get('password') ?? '');
+  if (next !== String(fd.get('confirm') ?? '')) return { ok: false, message: 'Konfirmasi password tidak sama.' };
+  const r = await accounts.changeOwnPassword(
+    await getStore(),
+    user.email,
+    String(fd.get('current') ?? ''),
+    next,
+    session?.v === accounts.ENV_VERSION,
+  );
+  if (!r.ok || !r.session) return { ok: false, message: r.message };
+  await setSessionCookie(r.session);
+  redirect('/?ok=' + encodeURIComponent(r.message));
+}
+
+async function actor(): Promise<accounts.Actor> {
+  const u = await requireSuperadmin();
+  return { email: u.email, name: u.name, isSuperadmin: true };
+}
+
+export async function createUserAction(fd: FormData) {
+  const r = await accounts.createAccount(await getStore(), await actor(), {
+    email: s(fd, 'email'),
+    nama: s(fd, 'nama'),
+    akses: s(fd, 'akses'),
+    password: String(fd.get('password') ?? ''),
+    mustChange: s(fd, 'mustChange') === 'Ya',
+  });
+  done(safeBack(fd, '/admin/users'), r);
+}
+
+export async function resetPasswordAction(fd: FormData) {
+  const r = await accounts.resetPassword(await getStore(), await actor(), s(fd, 'email'), String(fd.get('password') ?? ''));
+  done(safeBack(fd, '/admin/users'), r);
+}
+
+export async function updateUserAction(fd: FormData) {
+  const aktif = s(fd, 'aktif');
+  const r = await accounts.updateAccount(await getStore(), await actor(), s(fd, 'email'), {
+    aktif: aktif ? aktif === 'Ya' : undefined,
+    akses: s(fd, 'akses') || undefined,
+    nama: s(fd, 'nama') || undefined,
+  });
+  done(safeBack(fd, '/admin/users'), r);
+}
+
+/** Mode demo: masuk langsung sebagai persona (akun demo sudah dibuat saat seeding). */
 export async function demoLoginAction(fd: FormData) {
   if (!env.demoMode) redirect('/login');
   const email = s(fd, 'email').toLowerCase();
-  (await cookies()).set(DEMO_COOKIE, email, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 7 });
-  const next = s(fd, 'next');
-  redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/');
-}
-
-export async function demoLogoutAction() {
-  (await cookies()).delete(DEMO_COOKIE);
-  redirect('/login');
+  const db = await loadDb(await getStore(), { fresh: true });
+  const acc = db.accounts.find((a) => a.email === email);
+  if (!acc) redirect('/login');
+  await setSessionCookie({ e: email, v: accounts.passwordVersion(acc.hash), m: 0 });
+  redirect(safeNext(s(fd, 'next')));
 }

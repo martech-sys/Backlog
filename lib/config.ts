@@ -18,6 +18,7 @@ export const SHEETS = {
   TASK: 'Task',
   STATUS_LOG: 'Status',
   WA_LOG: 'Log_WA',
+  USERS: 'Users',
 } as const;
 
 export type SheetName = (typeof SHEETS)[keyof typeof SHEETS];
@@ -278,6 +279,19 @@ export const WA_LOG_HEADERS = [
   'Hasil',
 ] as const;
 
+/** Akun login. Password disimpan sebagai hash scrypt, tidak pernah teks asli. */
+export const USERS_HEADERS = [
+  'Email',
+  'Nama',
+  'Akses',
+  'Password Hash',
+  'Aktif',
+  'Wajib Ganti Password',
+  'Dibuat',
+  'Dibuat Oleh',
+  'Login Terakhir',
+] as const;
+
 export const HEADERS: Record<SheetName, readonly string[]> = {
   [SHEETS.CONFIG]: CONFIG_HEADERS,
   [SHEETS.GRUP]: GRUP_HEADERS,
@@ -290,6 +304,7 @@ export const HEADERS: Record<SheetName, readonly string[]> = {
   [SHEETS.TASK]: TASK_HEADERS,
   [SHEETS.STATUS_LOG]: STATUS_LOG_HEADERS,
   [SHEETS.WA_LOG]: WA_LOG_HEADERS,
+  [SHEETS.USERS]: USERS_HEADERS,
 };
 
 type RowOf<H extends readonly string[]> = { [K in H[number]]: string } & { _row: number };
@@ -305,6 +320,11 @@ export type RequestRow = RowOf<typeof REQUEST_HEADERS>;
 export type TaskRow = RowOf<typeof TASK_HEADERS>;
 export type StatusLogRow = RowOf<typeof STATUS_LOG_HEADERS>;
 export type WaLogRow = RowOf<typeof WA_LOG_HEADERS>;
+export type UserRow = RowOf<typeof USERS_HEADERS>;
+
+/** Tingkat akses akun. Peran kerja (PIC/Traffic/Lead/Tim) tetap dari Master_PIC/Master_Tim berdasarkan Nama. */
+export const AKSES = { SUPERADMIN: 'Superadmin', ADMIN: 'Admin', USER: 'User' } as const;
+export type Akses = (typeof AKSES)[keyof typeof AKSES];
 
 export type RequestField = (typeof REQUEST_HEADERS)[number];
 export type TaskField = (typeof TASK_HEADERS)[number];
@@ -319,7 +339,7 @@ export const DEFAULT_CONFIG: [string, string, string][] = [
   ['REMINDER_DAYS', '2,1,0', 'Reminder H-2, H-1, hari H'],
   ['MAX_REVISI', '2', 'Batas ronde revisi brand sebelum Traffic & Creative Head diberi tahu'],
   ['ESCALATE_AFTER_DAYS', '1', 'Overdue sekian hari → eskalasi ke Creative Head & Head of Creative Production'],
-  ['ADMIN_EMAILS', 'dodi.wahyono@worldwhiteenterprise.com', 'Email (dipisah koma) yang boleh melompati aturan alur status'],
+  ['ADMIN_EMAILS', '', 'Email tambahan (dipisah koma) dengan akses Admin. Utamanya atur akses di tab Users.'],
   ['DRIVE_FOLDER_URL', '', 'Folder Google Drive untuk draft & file final'],
 ];
 
@@ -411,6 +431,8 @@ export const CATEGORIES: CategoryDef[] = [
 
 export const SEED: Partial<Record<SheetName, (string | number)[][]>> = {
   [SHEETS.CONFIG]: DEFAULT_CONFIG,
+  // Superadmin awal. Password pertama diatur lewat env SUPERADMIN_PASSWORD (lihat README).
+  [SHEETS.USERS]: [['dodi.wahyono@worldwhiteenterprise.com', 'Dodi Wahyono', 'Superadmin', '', 'Ya', 'Ya', '', 'Sistem', '']],
   [SHEETS.GRUP]: [
     ['Menswear', 'Evi', 'Ammar Habibullah'],
     ['Womenswear', 'Nadia Syifa', 'Abdul Malik'],

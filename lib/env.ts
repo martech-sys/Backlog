@@ -8,10 +8,9 @@ export const env = {
   spreadsheetId: process.env.SPREADSHEET_ID || '1THrfMECihSohopWwCfgL91mGP5RsUl8YTBRW01VUbSE',
   serviceAccountEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '',
   serviceAccountKey: process.env.GOOGLE_PRIVATE_KEY || '',
-  allowedDomains: (process.env.ALLOWED_DOMAINS || 'heymale.id')
-    .split(',')
-    .map((d) => d.trim().toLowerCase())
-    .filter(Boolean),
+  /** Superadmin cadangan untuk login pertama / darurat (password tidak pernah disimpan di sheet). */
+  superadminEmail: process.env.SUPERADMIN_EMAIL || 'dodi.wahyono@worldwhiteenterprise.com',
+  superadminPassword: process.env.SUPERADMIN_PASSWORD || '',
   waProvider: (process.env.WA_PROVIDER || 'fonnte').toLowerCase(),
   waToken: process.env.WA_TOKEN || '',
   waApiUrl: process.env.WA_API_URL || '',
@@ -21,7 +20,6 @@ export const env = {
   cronSecret: process.env.CRON_SECRET || '',
   appUrl: (
     process.env.APP_URL ||
-    process.env.NEXTAUTH_URL ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '') ||
     'http://localhost:3000'
   ).replace(/\/$/, ''),

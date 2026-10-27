@@ -10,8 +10,10 @@ import {
   type StatusLogRow,
   type TaskRow,
   type TimRow,
+  type UserRow,
   type WaLogRow,
 } from './config';
+import { parseAccounts, type Account } from './account-model';
 import { buildMaster, type Master } from './master';
 import type { Store } from './store';
 
@@ -21,6 +23,9 @@ export interface Db {
   tasks: TaskRow[];
   statusLog: StatusLogRow[];
   waLog: WaLogRow[];
+  /** Akun login (tab Users). Berisi hash password: jangan pernah dikirim ke komponen client. */
+  accounts: Account[];
+  accountRows: UserRow[];
 }
 
 const ALL = [
@@ -35,6 +40,7 @@ const ALL = [
   SHEETS.TASK,
   SHEETS.STATUS_LOG,
   SHEETS.WA_LOG,
+  SHEETS.USERS,
 ];
 
 /** `fresh: true` untuk aksi yang menulis (lewati cache baca). */
@@ -56,6 +62,8 @@ export async function loadDb(store: Store, opts: { withWaLog?: boolean; fresh?: 
     tasks: (t[SHEETS.TASK] as unknown as TaskRow[]).filter((r) => r['Task ID']),
     statusLog: t[SHEETS.STATUS_LOG] as unknown as StatusLogRow[],
     waLog: (t[SHEETS.WA_LOG] || []) as unknown as WaLogRow[],
+    accounts: parseAccounts((t[SHEETS.USERS] || []) as unknown as UserRow[]),
+    accountRows: (t[SHEETS.USERS] || []) as unknown as UserRow[],
   };
 }
 

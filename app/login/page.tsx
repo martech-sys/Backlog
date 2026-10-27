@@ -3,15 +3,10 @@ import { demoLoginAction } from '@/app/actions';
 import { APP_NAME } from '@/lib/config';
 import { env } from '@/lib/env';
 import { getCurrentUser } from '@/lib/session';
-import { GoogleButton } from './GoogleButton';
+import { LoginForm } from './LoginForm';
 
 export const metadata = { title: 'Masuk' };
 export const dynamic = 'force-dynamic';
-
-const ERRORS: Record<string, string> = {
-  AccessDenied: 'Email ini tidak diizinkan. Gunakan email kantor atau minta Traffic mendaftarkan email kamu di Master_PIC / Master_Tim.',
-  Configuration: 'Login Google belum dikonfigurasi. Hubungi admin.',
-};
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -34,12 +29,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             </p>
           </div>
         </div>
-        {sp.error ? <div className="flash err">{ERRORS[sp.error] || 'Gagal masuk. Coba lagi.'}</div> : null}
+
+        <LoginForm next={next} />
+        <p className="subtle" style={{ marginTop: 10 }}>
+          Belum punya akun atau lupa password? Hubungi Superadmin.
+        </p>
 
         {env.demoMode ? (
           <>
             <div className="flash ok" style={{ marginTop: 12 }}>
-              Mode demo: data contoh di memori. Pilih peran untuk mencoba alur.
+              Mode demo: semua akun demo memakai password <b>demo1234</b>, atau pilih peran di bawah untuk masuk langsung.
             </div>
             <div className="persona-list">
               {personas.map((p) => (
@@ -54,14 +53,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               ))}
             </div>
           </>
-        ) : (
-          <div style={{ marginTop: 16 }}>
-            <GoogleButton callbackUrl={next} />
-            <p className="subtle" style={{ marginTop: 10 }}>
-              Masuk dengan akun Google kantor ({env.allowedDomains.map((d) => `@${d}`).join(', ')}).
-            </p>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
