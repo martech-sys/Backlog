@@ -41,9 +41,14 @@ export const env = {
   /** Superadmin cadangan untuk login pertama / darurat (password tidak pernah disimpan di sheet). */
   superadminEmail: process.env.SUPERADMIN_EMAIL || 'dodi.wahyono@worldwhiteenterprise.com',
   superadminPassword: process.env.SUPERADMIN_PASSWORD || '',
-  waProvider: (process.env.WA_PROVIDER || 'fonnte').toLowerCase(),
+  /** lixus (default) | fonnte | wablas | none */
+  waProvider: (process.env.WA_PROVIDER || 'lixus').toLowerCase(),
+  /** Lixus: API key consumer (header X-API-Key). Fonnte/Wablas: token. */
   waToken: process.env.WA_TOKEN || '',
-  waApiUrl: process.env.WA_API_URL || '',
+  /** Lixus: alamat dasar gateway, mis. https://wa-gateway.domain.com. Wablas: URL send-message. */
+  waApiUrl: (process.env.WA_API_URL || '').replace(/\/$/, ''),
+  /** Rahasia HMAC untuk memverifikasi header X-Gateway-Signature dari Lixus (opsional). */
+  waWebhookSecret: process.env.WA_WEBHOOK_SECRET || '',
   /** Default: dry-run bila token belum diisi. Pesan tetap tercatat di Log_WA. */
   waDryRun: process.env.WA_DRY_RUN ? bool(process.env.WA_DRY_RUN) : !process.env.WA_TOKEN,
   webhookKey: process.env.WEBHOOK_KEY || '',

@@ -2,14 +2,18 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { CATEGORIES, TASK_STATUSES, type Status } from '@/lib/config';
 import * as accounts from '@/lib/accounts';
+import { now } from '@/lib/clock';
+import { CATEGORIES, SHEETS, TASK_STATUSES, type Status } from '@/lib/config';
+import { formatWib } from '@/lib/dates';
 import { loadDb } from '@/lib/db';
 import { env } from '@/lib/env';
+import { findPersonByPhone, normalizePhone } from '@/lib/master';
 import * as sample from '@/lib/sample';
 import * as svc from '@/lib/service';
 import { clearSessionCookie, getSession, requireSuperadmin, requireUser, setSessionCookie } from '@/lib/session';
 import { getStore } from '@/lib/store';
+import { sendWa } from '@/lib/wa';
 
 export interface FormState {
   ok?: boolean;
@@ -241,6 +245,37 @@ export async function purgeSampleAction() {
   done('/admin/users#data-contoh', {
     ok: true,
     message: `Data contoh dihapus: ${c.requests} request, ${c.tasks} task, ${c.statusLog} riwayat status, ${c.waLog} log WA, ${c.members} anggota contoh.`,
+  });
+}
+
+/** Superadmin: kirim pesan uji ke satu nomor untuk memastikan gateway WA tersambung. */
+export async function testWaAction(fd: FormData) {
+  const u = await requireSuperadmin();
+  const to = normalizePhone(s(fd, 'to'));
+  if (!to) done('/admin/users#whatsapp', { ok: false, message: 'Isi nomor WA tujuan.' });
+  const text = s(fd, 'text') || `Tes dari Creative Request Tracker oleh ${u.name}.`;
+  const store = await getStore();
+  const db = await loadDb(store);
+  const r = await sendWa(to, text);
+  await store.append(SHEETS.WA_LOG, [
+    {
+      Timestamp: formatWib(now()),
+      Arah: 'OUT',
+      Nomor: to,
+      Nama: findPersonByPhone(db.master, to)?.name || '',
+      Jenis: 'Tes WA',
+      'Ref ID': '',
+      Pesan: text,
+      Hasil: r.ok ? r.detail : `GAGAL: ${r.detail}`,
+    },
+  ]);
+  done('/admin/users#whatsapp', {
+    ok: r.ok && r.detail !== 'DRY_RUN',
+    message: r.ok
+      ? r.detail.startsWith('DRY_RUN')
+        ? 'Mode uji aktif (WA_DRY_RUN): pesan hanya dicatat di Log_WA, tidak dikirim. Set WA_DRY_RUN=false di Vercel untuk mengirim sungguhan.'
+        : `Terkirim ke ${to} (${r.detail}).`
+      : `Gagal kirim ke ${to}: ${r.detail}`,
   });
 }
 

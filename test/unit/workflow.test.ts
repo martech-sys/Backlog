@@ -19,8 +19,8 @@ test('parse balasan WA', () => {
 });
 
 test('extractIncoming membaca payload Fonnte & Wablas', () => {
-  assert.deepEqual(extractIncoming({ sender: '081234', message: 'ACC X' }), { sender: '6281234', message: 'ACC X' });
-  assert.deepEqual(extractIncoming({ phone: '6281234@s.whatsapp.net', message: 'hi' }), { sender: '6281234', message: 'hi' });
+  assert.deepEqual(extractIncoming({ sender: '081234', message: 'ACC X' }), { sender: '6281234', replyTo: '6281234', message: 'ACC X' });
+  assert.deepEqual(extractIncoming({ phone: '6281234@s.whatsapp.net', message: 'hi' }), { sender: '6281234', replyTo: '6281234', message: 'hi' });
 });
 
 test('aturan transisi status', () => {

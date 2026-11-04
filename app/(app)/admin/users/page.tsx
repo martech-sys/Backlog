@@ -1,14 +1,23 @@
-import { createUserAction, generateSampleAction, purgeSampleAction, resetPasswordAction, updateUserAction } from '@/app/actions';
+import {
+  createUserAction,
+  generateSampleAction,
+  purgeSampleAction,
+  resetPasswordAction,
+  testWaAction,
+  updateUserAction,
+} from '@/app/actions';
 import { PasswordInput } from '@/components/PasswordInput';
 import { SubmitButton } from '@/components/SubmitButton';
 import { Flash } from '@/components/ui';
 import { BOARD_COLORS } from '@/lib/backlog';
 import { AKSES } from '@/lib/config';
 import { formatWaktu } from '@/lib/dates';
+import { env } from '@/lib/env';
 import { findPerson, findPersonByEmail } from '@/lib/master';
 import { countSample } from '@/lib/sample';
 import { getDb, requireSuperadmin } from '@/lib/session';
 import { getStore } from '@/lib/store';
+import { gatewayStatus } from '@/lib/wa';
 
 export const metadata = { title: 'Kelola user' };
 // Membuat data contoh bisa memakan beberapa detik.
@@ -38,6 +47,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
   const masterNames = db.master.people.filter((p) => p.active).map((p) => p.name);
   const sampleCounts = await countSample(await getStore());
   const hasSample = sampleCounts.requests + sampleCounts.tasks + sampleCounts.members > 0;
+  const wa = await gatewayStatus();
+  const webhookUrl = `${env.appUrl}/api/wa/webhook${env.webhookKey ? '?key=<WEBHOOK_KEY>' : ''}`;
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -301,6 +312,55 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
             </form>
           </>
         )}
+      </section>
+
+      <h2 className="section-title" id="whatsapp">
+        <span className="num">5</span> WhatsApp gateway
+        <span className="hint">· {wa.provider === 'lixus' ? 'Lixus WhatsApp Gateway' : wa.provider}</span>
+      </h2>
+      <section className="mcard plain" style={{ ['--c' as string]: BOARD_COLORS[2], marginTop: 22 }}>
+        <div className="tab">Status & tes kirim</div>
+        <dl className="kv" style={{ gridTemplateColumns: '170px minmax(0,1fr)' }}>
+          <dt>Koneksi sesi WA</dt>
+          <dd>
+            {wa.connected === true ? (
+              <span className="badge green">Terhubung{wa.phoneNumber ? ` · ${wa.phoneNumber}` : ''}{wa.uptime ? ` · ${wa.uptime}` : ''}</span>
+            ) : wa.connected === false ? (
+              <span className="badge red">Tidak terhubung{wa.error ? ` · ${wa.error}` : ''}</span>
+            ) : (
+              <span className="badge outline">{wa.configured ? 'Tidak dicek' : 'Belum dikonfigurasi (WA_API_URL & WA_TOKEN)'}</span>
+            )}
+          </dd>
+          <dt>Mode kirim</dt>
+          <dd>
+            {wa.dryRun ? (
+              <span className="badge amber">Uji (WA_DRY_RUN): pesan hanya dicatat di Log_WA</span>
+            ) : (
+              <span className="badge green">Kirim sungguhan</span>
+            )}
+          </dd>
+          <dt>URL webhook</dt>
+          <dd>
+            <code>{webhookUrl}</code>
+            <div className="subtle">
+              Daftarkan di Ops Panel Lixus untuk event <code>message.received</code> agar balasan ACC/REV dari PIC terbaca.
+              {env.webhookKey ? ' Ganti <WEBHOOK_KEY> dengan nilai env WEBHOOK_KEY.' : ' Isi env WEBHOOK_KEY atau WA_WEBHOOK_SECRET agar webhook diterima.'}
+            </div>
+          </dd>
+        </dl>
+        <form action={testWaAction} className="form-grid" style={{ marginTop: 14, alignItems: 'end' }}>
+          <div className="field">
+            <label htmlFor="wa-to">Nomor tujuan</label>
+            <input id="wa-to" name="to" type="text" inputMode="tel" placeholder="08123456789 atau 628123456789" required />
+          </div>
+          <div className="field">
+            <label htmlFor="wa-text">Pesan (opsional)</label>
+            <input id="wa-text" name="text" type="text" placeholder="Tes dari Creative Request Tracker" />
+          </div>
+          <div>
+            <SubmitButton pendingText="Mengirim…">Kirim pesan tes</SubmitButton>
+          </div>
+        </form>
       </section>
     </div>
   );

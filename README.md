@@ -5,7 +5,7 @@ Backlog tracker untuk semua permintaan konten dari brand ke tim Creative, dari p
 - **Web app**: Next.js 16 (App Router), di-hosting di **Vercel**
 - **Database**: Google Sheets [`DB_backlog`](https://docs.google.com/spreadsheets/d/1THrfMECihSohopWwCfgL91mGP5RsUl8YTBRW01VUbSE/edit)
 - **Login**: email + password; akun dikelola Superadmin di halaman **Kelola user** (tanpa Google login)
-- **WhatsApp**: gateway Fonnte atau Wablas (kirim notifikasi + terima balasan ACC/REV)
+- **WhatsApp**: **Lixus WhatsApp Gateway** (kirim notifikasi + terima balasan ACC/REV); Fonnte/Wablas tetap didukung
 - **Jadwal**: Vercel Cron untuk reminder H-2/H-1/hari H, digest pagi, dan rekap mingguan
 
 Cakupan: 11 brand (Menswear & Womenswear), 7 PIC brand, tim creative, 5 kategori pekerjaan.
@@ -131,22 +131,39 @@ Login pertama Superadmin memakai password itu, lalu aplikasi meminta membuat pas
 | `SUPERADMIN_EMAIL` | `dodi.wahyono@worldwhiteenterprise.com` |
 | `SUPERADMIN_PASSWORD` | password awal Superadmin (min. 8 karakter, huruf + angka) |
 | `APP_URL` | `https://<domain-vercel-kamu>` (untuk link di pesan WA) |
-| `WA_PROVIDER`, `WA_TOKEN` | dari gateway WA (langkah 4); biarkan `WA_DRY_RUN=true` selama uji coba |
+| `WA_PROVIDER`, `WA_API_URL`, `WA_TOKEN` | `lixus`, alamat gateway Lixus, API key (langkah 4); biarkan `WA_DRY_RUN=true` selama uji coba |
 | `WEBHOOK_KEY` | string acak, untuk mengamankan webhook WA |
 | `CRON_SECRET` | string acak; Vercel memakainya untuk memanggil cron |
 
 3. **Deploy**. Cek `https://<domain>/api/health`: `mode` = `sheets`, `sheetsConfigured`, `authSecretConfigured`, dan `superadminBootstrap` = `true`.
 4. Buka aplikasi → login sebagai Superadmin → buat password pribadi → **Kelola user** → buat akun untuk tim.
 
-### 4. WhatsApp gateway
+### 4. WhatsApp gateway (Lixus)
 
-**Fonnte** (disarankan): daftar di [fonnte.com](https://fonnte.com), hubungkan nomor khusus bot, salin **token device** ke `WA_TOKEN`. Di pengaturan device, isi **Webhook** dengan:
+Aplikasi memakai **Lixus WhatsApp Gateway**:
 
-```
-https://<domain-vercel-kamu>/api/wa/webhook?key=<WEBHOOK_KEY>
-```
+| Fungsi | Endpoint Lixus |
+| --- | --- |
+| Kirim notifikasi | `POST {WA_API_URL}/api/messages/send` dengan header `X-API-Key` dan body `{ "to": "628…", "text": "…" }` |
+| Status sesi (indikator di Kelola user) | `GET {WA_API_URL}/api/status` |
+| Terima balasan ACC/REV | webhook `message.received` ke aplikasi ini |
 
-**Wablas**: set `WA_PROVIDER=wablas`, `WA_API_URL=https://<server>.wablas.com/api/send-message`, token di `WA_TOKEN`, dan webhook ke URL yang sama.
+Langkah:
+
+1. Di **Ops Panel Lixus**, buat consumer baru (mis. "Creative Tracker") lalu salin **API key**-nya.
+2. Di Vercel, isi `WA_PROVIDER=lixus`, `WA_API_URL` = alamat gateway (mis. `https://wa-gateway.domainkamu.com`, tanpa `/` di akhir), `WA_TOKEN` = API key, dan `WEBHOOK_KEY` = string acak.
+3. Daftarkan URL webhook consumer di Ops Panel Lixus untuk event `message.received`:
+   ```
+   https://<domain-vercel-kamu>/api/wa/webhook?key=<WEBHOOK_KEY>
+   ```
+   Webhook juga diterima tanpa `?key=` bila header `X-Gateway-Signature` cocok (HMAC-SHA256 body dengan `WA_WEBHOOK_SECRET`, atau dengan API key bila secret tidak diisi).
+4. Redeploy, lalu buka **Kelola user → 5. WhatsApp gateway**: pastikan status **Terhubung**, kirim **pesan tes** ke nomormu sendiri.
+
+> `WA_API_URL` harus bisa diakses dari internet. Alamat berakhiran `.test`/`.local` atau IP lokal tidak bisa dihubungi server Vercel.
+
+Pesan dari grup, pesan yang dikirim nomor bot sendiri, dan event selain `message.received` (status terkirim, presence, dll.) diabaikan. Untuk akun WhatsApp yang hanya mengirim LID (`…@lid`), nomor diambil dari `senderPn`/`remoteJidAlt` bila disertakan gateway; bila tidak ada, bot membalas agar PIC memakai web.
+
+Provider lain masih didukung: `WA_PROVIDER=fonnte` (token device Fonnte di `WA_TOKEN`) atau `WA_PROVIDER=wablas` (`WA_API_URL` = URL send-message Wablas).
 
 Setelah nomor WA di `Master_PIC`/`Master_Tim` lengkap dan uji coba aman, ubah `WA_DRY_RUN=false` lalu redeploy.
 

@@ -1,3 +1,4 @@
+import { runSimulation } from '../clock';
 import { HEADERS } from '../config';
 import { env } from '../env';
 import { MemoryStore } from './memory';
@@ -13,7 +14,8 @@ async function createStore(): Promise<Store> {
     const { demoSeedMaster, seedDemoAccounts, seedDemoActivity } = await import('../demo');
     const store = new MemoryStore(HEADERS, demoSeedMaster());
     await seedDemoAccounts(store);
-    await seedDemoActivity(store);
+    // Simulasi terisolasi: jam sendiri dan tidak ada WA yang benar-benar dikirim.
+    await runSimulation(() => seedDemoActivity(store));
     return store;
   }
   if (!env.serviceAccountEmail || !env.serviceAccountKey) {
