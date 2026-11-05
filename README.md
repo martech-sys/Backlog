@@ -134,6 +134,8 @@ Login pertama Superadmin memakai password itu, lalu aplikasi meminta membuat pas
 | `WA_PROVIDER`, `WA_API_URL`, `WA_TOKEN` | `lixus`, alamat gateway Lixus, API key (langkah 4); biarkan `WA_DRY_RUN=true` selama uji coba |
 | `WEBHOOK_KEY` | string acak, untuk mengamankan webhook WA |
 | `CRON_SECRET` | string acak; Vercel memakainya untuk memanggil cron |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | SMTP untuk email undangan akun (lihat langkah 5); boleh dikosongkan dulu |
+| `BLOB_READ_WRITE_TOKEN` | otomatis terisi setelah Vercel Blob dihubungkan (langkah 6) |
 
 3. **Deploy**. Cek `https://<domain>/api/health`: `mode` = `sheets`, `sheetsConfigured`, `authSecretConfigured`, dan `superadminBootstrap` = `true`.
 4. Buka aplikasi → login sebagai Superadmin → buat password pribadi → **Kelola user** → buat akun untuk tim.
@@ -157,7 +159,7 @@ Langkah:
    https://<domain-vercel-kamu>/api/wa/webhook?key=<WEBHOOK_KEY>
    ```
    Webhook juga diterima tanpa `?key=` bila header `X-Gateway-Signature` cocok (HMAC-SHA256 body dengan `WA_WEBHOOK_SECRET`, atau dengan API key bila secret tidak diisi).
-4. Redeploy, lalu buka **Kelola user → 5. WhatsApp gateway**: pastikan status **Terhubung**, kirim **pesan tes** ke nomormu sendiri.
+4. Redeploy, lalu buka menu **Pengaturan WA**: pastikan status **Tersambung**, kirim **pesan tes** ke nomormu sendiri.
 
 > `WA_API_URL` harus bisa diakses dari internet. Alamat berakhiran `.test`/`.local` atau IP lokal tidak bisa dihubungi server Vercel.
 
@@ -165,18 +167,31 @@ Pesan dari grup, pesan yang dikirim nomor bot sendiri, dan event selain `message
 
 Provider lain masih didukung: `WA_PROVIDER=fonnte` (token device Fonnte di `WA_TOKEN`) atau `WA_PROVIDER=wablas` (`WA_API_URL` = URL send-message Wablas).
 
-Setelah nomor WA di `Master_PIC`/`Master_Tim` lengkap dan uji coba aman, ubah `WA_DRY_RUN=false` lalu redeploy.
+Setelah nomor WA tim lengkap dan uji coba aman, buka **Pengaturan WA → Kirim sungguhan** (tersimpan di tab Config, tanpa redeploy). Setiap pesan dicatat di Log_WA dengan status **Terkirim**, **Gagal** (dengan alasan; error sementara dicoba ulang otomatis maks. 3x), **Dilewati** (nomor kosong), atau **DRY_RUN**. Pesan dikirim berurutan dengan jeda `WA_DELAY_MS`, dan satu orang hanya menerima satu pesan per aksi.
 
 PIC membalas pesan "draft siap direview" dengan:
 
 ```
-ACC CR-2610-001-1
-REV CR-2610-001-1 warna background lebih terang
+ACC CR-2610-001-DG
+REV CR-2610-001-DG warna background lebih terang
 ```
 
 Pakai ID request (`CR-2610-001`) untuk menjawab semua task request itu yang sedang menunggu review. Hanya nomor yang terdaftar di master data yang diproses.
 
-### 5. Jadwal otomatis (sudah diatur di `vercel.json`)
+### 5. Email undangan (SMTP)
+
+Saat Superadmin menambah user, aplikasi mengirim email undangan berisi tombol **Atur password** (link sekali pakai, berlaku 72 jam). Isi `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` di Vercel:
+
+- **Google Workspace / Gmail kantor**: `smtp.gmail.com`, port `465`, user = alamat email kantor, password = *App Password* (aktifkan verifikasi 2 langkah → Akun Google → Keamanan → Sandi aplikasi). `EMAIL_FROM` mis. `Creative Tracker <creative@worldwhiteenterprise.com>`.
+- Alternatif: SendGrid, Resend, Brevo, atau SMTP hosting domain kantor.
+
+Selama SMTP belum diisi, link undangan tampil di Kelola user untuk disalin manual. Semua email (ke siapa, kapan, hasilnya) dicatat di tab **Log_Email**; perubahan peran/email user dicatat di **Log_Admin**.
+
+### 6. Upload gambar (Vercel Blob)
+
+Lampiran komentar dan preview draft disimpan di **Vercel Blob**: Vercel → project → **Storage → Create Database → Blob** → hubungkan ke project → Redeploy. `BLOB_READ_WRITE_TOKEN` terisi otomatis. Gambar JPG/PNG maks. 4 MB (foto besar diperkecil otomatis di browser). Tanpa Blob, pengguna tetap bisa menempel link Google Drive sebagai lampiran.
+
+### 7. Jadwal otomatis (sudah diatur di `vercel.json`)
 
 | Cron | Waktu (WIB) | Isi |
 | --- | --- | --- |

@@ -125,6 +125,20 @@ export function buildTaskDrafts(params: {
 
     drafts.push({ code: taskCode(rule), kategori: rule.kategori, divisi: rule.divisi, lead, assignee, deadline, targetDraft });
   }
+  // Kategori custom: tanpa routing otomatis. Task dibuat tanpa divisi/lead; Traffic yang mengaturnya.
+  if (wanted.includes(CUSTOM_CATEGORY.toLowerCase())) {
+    let targetDraft = addWorkingDays(deadline, -1, master.holidays);
+    if (targetDraft < today) targetDraft = today;
+    drafts.push({
+      code: DEFAULT_TASK_CODES[`${CUSTOM_CATEGORY}|`],
+      kategori: CUSTOM_CATEGORY,
+      divisi: '',
+      lead: '',
+      assignee: '',
+      deadline,
+      targetDraft,
+    });
+  }
   return drafts;
 }
 

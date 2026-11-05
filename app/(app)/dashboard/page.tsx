@@ -1,5 +1,9 @@
 import Link from 'next/link';
 import { Flash, HBars, StatusBadge, UrgentBadge } from '@/components/ui';
+import { RowLink } from '@/components/RowLink';
+import { WorkloadChart } from '@/components/WorkloadChart';
+import { ACTIVE_STATUSES, CUSTOM_CATEGORY, STATUS, type Status } from '@/lib/config';
+import { dashQuery, drill } from '@/lib/drill';
 import { BOARD_COLORS } from '@/lib/backlog';
 import { now } from '@/lib/clock';
 import { computeDashboard, defaultFilters } from '@/lib/dashboard';
@@ -16,19 +20,28 @@ function Kpi({
   hint,
   color,
   alert,
+  href,
 }: {
   label: string;
   value: React.ReactNode;
   hint: React.ReactNode;
   color: string;
   alert?: boolean;
+  href?: string;
 }) {
-  return (
+  const card = (
     <div className={`mcard plain kpi${alert ? ' alert' : ''}`} style={{ ['--c' as string]: color }}>
       <div className="tab">{label}</div>
       <div className="value">{value}</div>
       <div className="hint">{hint}</div>
     </div>
+  );
+  return href ? (
+    <Link href={href} className="kpi-link" title={`${label}: klik untuk lihat daftarnya`}>
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 
@@ -45,9 +58,74 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
     '90': { from: addDays(today, -89), to: today },
     bulan: { from: today.slice(0, 8) + '01', to: today },
   };
-  const range = presetRange[preset] || { from: sp.from || addDays(today, -29), to: sp.to || today };
-  const f = defaultFilters(today, { ...range, grup: sp.grup, brand: sp.brand, divisi: sp.divisi, anggota: sp.anggota });
-  const d = computeDashboard({ master: db.master, requests: db.requests, tasks: db.tasks, statusLog: db.statusLog, filters: f, now: n });
+  const range = presetRange[preset] || {
+    from: sp.from || addDays(today, -29),
+    to: sp.to || today,
+  };
+  const f = defaultFilters(today, {
+    ...range,
+    grup: sp.grup,
+    brand: sp.brand,
+    divisi: sp.divisi,
+    anggota: sp.anggota,
+  });
+  const d = computeDashboard({
+    master: db.master,
+    requests: db.requests,
+    tasks: db.tasks,
+    statusLog: db.statusLog,
+    filters: f,
+    now: n,
+  });
+
+  // Drill-down: filter dashboard ikut dibawa ke halaman tujuan.
+  const dq = dashQuery({ ...sp, from: f.from, to: f.to, periode: preset });
+  const scope = { grup: f.grup, brand: f.brand, divisi: f.divisi };
+  const taskScope = { ...scope, anggota: f.anggota };
+  // Angka request di dashboard tidak dipengaruhi filter divisi/anggota, jadi drill-down-nya juga tidak.
+  const reqHref = (extra: Record<string, string>) =>
+    drill(
+      '/requests',
+      {
+        view: 'semua',
+        grup: f.grup,
+        brand: f.brand,
+        from: f.from,
+        to: f.to,
+        ...extra,
+      },
+      dq,
+    );
+  const trackerHref = (extra: Record<string, string>) => drill('/tracker', { view: 'semua', ...taskScope, ...extra }, dq);
+  const statusHref = (status: string) =>
+    status === STATUS.BARU
+      ? drill('/requests', { view: 'cek', grup: f.grup, brand: f.brand }, dq)
+      : status === STATUS.BRIEF_KURANG
+        ? drill('/requests', { view: 'kurang', grup: f.grup, brand: f.brand }, dq)
+        : trackerHref({ status });
+  const stageHref = (stage: string) =>
+    stage === 'Cek brief'
+      ? drill('/requests', { view: 'cek', grup: f.grup, brand: f.brand }, dq)
+      : stage === 'Lengkapi brief'
+        ? drill('/requests', { view: 'kurang', grup: f.grup, brand: f.brand }, dq)
+        : trackerHref({ view: 'aktif', tahap: stage, sort: 'lama' });
+  const memberTasks = (name: string) =>
+    db.tasks
+      .filter(
+        (t) =>
+          t.Assignee === name &&
+          ACTIVE_STATUSES.includes(t.Status as Status) &&
+          (!f.grup || t.Grup === f.grup) &&
+          (!f.brand || t.Brand === f.brand) &&
+          (!f.divisi || t.Divisi === f.divisi),
+      )
+      .sort((a, b) => (a.Deadline || '9').localeCompare(b.Deadline || '9'))
+      .map((t) => ({
+        id: t['Task ID'],
+        brand: t.Brand,
+        status: t.Status,
+        deadline: t.Deadline ? formatTanggal(t.Deadline, false) : '',
+      }));
 
   const delta = d.kpi.requestsIn - d.kpi.requestsPrev;
   const maxLoad = Math.max(1, ...d.workload.map((w) => w.count));
@@ -129,7 +207,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         </Link>
       </form>
       <p className="subtle" style={{ marginTop: -8 }}>
-        Pilih &quot;Pilih tanggal&quot; agar kolom Dari/Sampai dipakai.
+        Pilih &quot;Pilih tanggal&quot; agar kolom Dari/Sampai dipakai. Semua angka, batang, dan kartu bisa diklik untuk melihat daftarnya;
+        filter di atas ikut terbawa.
       </p>
 
       <h2 className="section-title">
@@ -139,6 +218,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         <Kpi
           label="Request masuk"
           color={BOARD_COLORS[0]}
+          href={reqHref({})}
           value={d.kpi.requestsIn}
           hint={
             <>
@@ -154,18 +234,26 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         <Kpi
           label="Tepat waktu"
           color={BOARD_COLORS[2]}
+          href={trackerHref({ view: 'selesai', from: f.from, to: f.to })}
           value={d.kpi.onTimePct === null ? '–' : `${d.kpi.onTimePct}%`}
           hint={`${d.kpi.onTimeCount} dari ${d.kpi.doneCount} task selesai on time`}
         />
         <Kpi
           label="Rata-rata revisi"
           color={BOARD_COLORS[4]}
+          href={trackerHref({
+            view: 'selesai',
+            from: f.from,
+            to: f.to,
+            sort: 'revisi',
+          })}
           value={d.kpi.avgRevisi === null ? '–' : d.kpi.avgRevisi.toFixed(1)}
           hint="ronde revisi brand per task selesai"
         />
         <Kpi
           label="Task overdue"
           color={BOARD_COLORS[1]}
+          href={trackerHref({ view: 'overdue' })}
           value={d.kpi.overdueNow}
           hint={`saat ini · dari ${d.kpi.activeTasks} task terbuka`}
           alert={d.kpi.overdueNow > 0}
@@ -195,7 +283,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
             {(() => {
               const max = Math.max(1, ...d.requestsPerBrand.map((b) => b.count));
               return d.requestsPerBrand.map((b) => (
-                <div className="bar-row" key={b.brand}>
+                <Link
+                  className="bar-row"
+                  key={b.brand}
+                  href={reqHref({ brand: b.brand })}
+                  title={`${b.brand}: ${b.count} request · klik untuk lihat`}
+                >
                   <span className="name">{b.brand}</span>
                   <span className="bar-track">
                     <span
@@ -208,7 +301,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
                     />
                   </span>
                   <span className="num">{b.count}</span>
-                </div>
+                </Link>
               ));
             })()}
           </div>
@@ -218,7 +311,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           <div className="tab">Posisi pekerjaan saat ini</div>
           <div className="card-head">
             <p>Jumlah request/task di tiap status</p>
-            <Link href="/tracker" className="subtle">
+            <Link href={trackerHref({ view: 'aktif' })} className="subtle">
               Buka tracker →
             </Link>
           </div>
@@ -227,6 +320,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
               label: s.status,
               value: s.count,
               tone: s.status === 'Review Brand' || s.status === 'Brief Kurang' ? 'muted' : '',
+              href: statusHref(s.status),
             }))}
           />
           <div className="legend">
@@ -251,22 +345,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           </div>
           {workload.length ? (
             <>
-              <div className="vbars">
-                {workload.map((w) => (
-                  <div className="vbar" key={w.name} title={`${w.name} (${w.divisi}): ${w.count}/${w.capacity}`}>
-                    <span className="n">{w.count}</span>
-                    <span className={`col${w.over ? ' danger' : ''}`} style={{ height: `${(w.count / maxLoad) * 85}%` }} />
-                  </div>
-                ))}
-              </div>
-              <div className="vbar-labels">
-                {workload.map((w) => (
-                  <span key={w.name} title={w.name}>
-                    {w.name.split(' ')[0]}
-                    {w.name.split(' ')[1] && w.name.split(' ')[1].length <= 2 ? ` ${w.name.split(' ')[1]}` : ''}
-                  </span>
-                ))}
-              </div>
+              <WorkloadChart
+                items={workload.map((w) => ({
+                  ...w,
+                  tasks: w.count ? memberTasks(w.name) : [],
+                  href: trackerHref({ view: 'aktif', anggota: w.name }),
+                }))}
+                max={maxLoad}
+              />
             </>
           ) : (
             <div className="empty">Tidak ada task aktif.</div>
@@ -279,7 +365,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
             <p>Rata-rata hari; macet di tim atau di brand?</p>
           </div>
           <HBars
-            items={d.stageDurations.map((s) => ({ label: s.stage, value: s.avgDays ?? 0, tone: s.side === 'brand' ? 'muted' : '' }))}
+            items={d.stageDurations.map((s) => ({
+              label: s.stage,
+              value: s.avgDays ?? 0,
+              tone: s.side === 'brand' ? 'muted' : '',
+              href: stageHref(s.stage),
+            }))}
             format={(v) => (v ? `${v.toFixed(1)} hari` : '–')}
           />
           <div className="legend">
@@ -320,7 +411,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
               <tbody>
                 {d.watchlist.length ? (
                   d.watchlist.map((w) => (
-                    <tr key={w.taskId}>
+                    <RowLink key={w.taskId} href={`/tasks/${encodeURIComponent(w.taskId)}`}>
                       <td className="nowrap">
                         <Link className="title" href={`/tasks/${w.taskId}`}>
                           {w.taskId}
@@ -337,7 +428,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
                       <td className="nowrap">
                         <span className={`sisa ${w.daysLeft < 0 ? 'late' : w.daysLeft <= 1 ? 'soon' : ''}`}>{sisaLabel(w.daysLeft)}</span>
                       </td>
-                    </tr>
+                    </RowLink>
                   ))
                 ) : (
                   <tr>
@@ -357,10 +448,53 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
             <p>Brief mana yang sering tidak jelas?</p>
           </div>
           <HBars
-            items={d.revisiPerBrand.map((b) => ({ label: `${b.brand} (${b.tasks})`, value: b.avg }))}
+            items={d.revisiPerBrand.map((b) => ({
+              label: `${b.brand} (${b.tasks})`,
+              value: b.avg,
+              href: trackerHref({
+                view: 'selesai',
+                brand: b.brand,
+                from: f.from,
+                to: f.to,
+                sort: 'revisi',
+              }),
+            }))}
             format={(v) => v.toFixed(1)}
             empty="Belum ada task selesai di periode ini"
           />
+        </section>
+
+        <section className="mcard plain span-3" style={{ ['--c' as string]: BOARD_COLORS[5] }}>
+          <div className="tab">Pekerjaan custom</div>
+          <div className="card-head">
+            <p>
+              Request kategori &quot;Lainnya (custom)&quot; per jenis. Jenis yang muncul lebih dari 3x dalam sebulan layak dijadikan
+              kategori baru.
+            </p>
+          </div>
+          <HBars
+            items={d.customTypes.map((c) => ({
+              label: `${c.jenis}${c.candidate ? ' ★' : ''}`,
+              value: c.count,
+              tone: c.candidate ? 'danger' : '',
+              href: trackerHref({
+                view: 'semua',
+                kategori: CUSTOM_CATEGORY,
+                q: c.jenis === '(belum diatur)' ? '' : c.jenis,
+              }),
+            }))}
+            empty="Tidak ada request custom di periode ini."
+          />
+          {d.customTypes.some((c) => c.candidate) ? (
+            <p className="subtle" style={{ marginBottom: 0 }}>
+              ★ Kandidat kategori baru:{' '}
+              {d.customTypes
+                .filter((c) => c.candidate)
+                .map((c) => `${c.jenis} (maks. ${c.maxPerMonth}x/bulan)`)
+                .join(', ')}
+              . Tambahkan ke sheet Master_Kategori bila disetujui.
+            </p>
+          ) : null}
         </section>
       </div>
     </>

@@ -130,8 +130,11 @@ export const msg = {
     (p.busiest.length ? `\nBeban tertinggi: ${p.busiest.map((b) => `${b.name} (${b.count})`).join(', ')}` : '') +
     `\n\nDashboard: ${link('/dashboard')}`,
 
+  newComment: (t: TaskRow, by: string, jenis: string, isi: string, gambar: number) =>
+    `💬 *Komentar baru${jenis !== 'Catatan' ? ` · ${jenis}` : ''}*\n${taskLine(t)}\nDari: ${by}\n${isi ? `"${isi.length > 300 ? `${isi.slice(0, 300)}…` : isi}"` : ''}${gambar ? `\n📎 ${gambar} gambar` : ''}\n\nBalas di: ${taskLink(t['Task ID'])}#komentar`,
+
   waReplyResult: (lines: string[]) => lines.join('\n'),
 
   waHelp: () =>
-    `Format balasan:\n• *ACC <ID task>* — setujui draft\n• *REV <ID task> <catatan>* — minta revisi\n\nContoh: REV CR-2610-001-1 warna background lebih terang`,
+    `Format balasan:\n• *ACC <ID task>* — setujui draft\n• *REV <ID task> <catatan>* — minta revisi\n\nContoh: REV CR-2610-001-DG warna background lebih terang`,
 };

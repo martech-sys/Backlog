@@ -1,5 +1,6 @@
 import {
   ACTIVE_STATUSES,
+  CUSTOM_CATEGORY,
   DONE_STATUSES,
   STAGES,
   STATUS,
@@ -37,6 +38,8 @@ export interface DashboardData {
   workload: { name: string; divisi: string; count: number; capacity: number; over: boolean }[];
   stageDurations: { stage: string; side: 'tim' | 'brand'; avgDays: number | null; samples: number }[];
   revisiPerBrand: { brand: string; avg: number; tasks: number }[];
+  /** Pekerjaan kategori custom per jenis; kandidat = pernah > 3x dalam satu bulan. */
+  customTypes: { jenis: string; count: number; maxPerMonth: number; candidate: boolean }[];
   watchlist: {
     taskId: string;
     requestId: string;
@@ -223,8 +226,28 @@ export function computeDashboard(params: {
     .map(([brand, v]) => ({ brand, avg: round1(v.sum / v.n), tasks: v.n }))
     .sort((a, b) => b.avg - a.avg || a.brand.localeCompare(b.brand));
 
+  // Rekap pekerjaan custom (dibuat di periode ini)
+  const customByJenis = new Map<string, { label: string; months: Map<string, number>; count: number }>();
+  for (const t of tasks) {
+    if (t.Kategori !== CUSTOM_CATEGORY || !inRange(t.Dibuat, f.from, f.to)) continue;
+    const label = String(t['Jenis Custom'] || '').trim() || '(belum diatur)';
+    const key = label.toLowerCase();
+    const cur = customByJenis.get(key) || { label, months: new Map<string, number>(), count: 0 };
+    const m = t.Dibuat.slice(0, 7);
+    cur.months.set(m, (cur.months.get(m) || 0) + 1);
+    cur.count++;
+    customByJenis.set(key, cur);
+  }
+  const customTypes = [...customByJenis.values()]
+    .map((c) => {
+      const maxPerMonth = Math.max(...c.months.values());
+      return { jenis: c.label, count: c.count, maxPerMonth, candidate: c.label !== '(belum diatur)' && maxPerMonth > 3 };
+    })
+    .sort((a, b) => b.count - a.count || a.jenis.localeCompare(b.jenis));
+
   return {
     filters: f,
+    customTypes,
     kpi: {
       requestsIn: reqInPeriod.length,
       requestsPrev,

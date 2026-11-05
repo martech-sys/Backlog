@@ -25,7 +25,9 @@ export function ballHolder(
     case 'PIC Brand':
       return task['PIC Brand'] ? `PIC Brand (${task['PIC Brand']})` : 'PIC Brand';
     case 'Lead':
-      return task.Lead ? `Lead (${task.Lead})` : 'Lead';
+      // Task custom yang belum diatur Traffic (belum ada lead): bola di Traffic.
+      if (!task.Lead) return traffic ? `Traffic (${traffic})` : 'Traffic';
+      return `Lead (${task.Lead})`;
     case 'Assignee':
       return task.Assignee ? task.Assignee : 'Belum di-assign';
     default:

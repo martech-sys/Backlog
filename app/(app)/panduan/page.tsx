@@ -82,7 +82,7 @@ export default async function PanduanPage() {
       <div className="frame">
         <p style={{ marginTop: 0 }}>Saat draft siap direview, PIC menerima pesan WA dan cukup membalas:</p>
         <pre className="pre" style={{ background: 'var(--surface-2)', padding: 12, borderRadius: 4 }}>
-          {`ACC CR-2610-001-1\nREV CR-2610-001-1 warna background lebih terang, logo diperbesar`}
+          {`ACC CR-2610-001-DG\nREV CR-2610-001-DG warna background lebih terang, logo diperbesar`}
         </pre>
         <p className="muted">Pakai ID request (mis. CR-2610-001) untuk menjawab semua task request itu yang sedang menunggu review sekaligus.</p>
       </div>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { diffDays, sisaLabel } from '@/lib/dates';
 
 const STATUS_TONE: Record<string, string> = {
@@ -47,7 +48,7 @@ export function HBars({
   format = (n: number) => String(n),
   empty = 'Belum ada data',
 }: {
-  items: { label: string; value: number; tone?: 'muted' | 'danger' | '' }[];
+  items: { label: string; value: number; tone?: 'muted' | 'danger' | ''; href?: string }[];
   tone?: 'muted' | 'danger' | '';
   format?: (n: number) => string;
   empty?: string;
@@ -56,18 +57,29 @@ export function HBars({
   if (!items.length) return <div className="empty">{empty}</div>;
   return (
     <div className="bars">
-      {items.map((i) => (
-        <div className="bar-row" key={i.label} title={`${i.label}: ${format(i.value)}`}>
-          <span className="name">{i.label}</span>
-          <span className="bar-track">
-            <span
-              className={`bar-fill ${i.tone ?? tone ?? ''}`}
-              style={{ width: max ? `${(i.value / max) * 100}%` : '0%', display: 'block' }}
-            />
-          </span>
-          <span className="num">{format(i.value)}</span>
-        </div>
-      ))}
+      {items.map((i) => {
+        const inner = (
+          <>
+            <span className="name">{i.label}</span>
+            <span className="bar-track">
+              <span
+                className={`bar-fill ${i.tone ?? tone ?? ''}`}
+                style={{ width: max ? `${(i.value / max) * 100}%` : '0%', display: 'block' }}
+              />
+            </span>
+            <span className="num">{format(i.value)}</span>
+          </>
+        );
+        return i.href ? (
+          <Link className="bar-row" key={i.label} href={i.href} title={`${i.label}: ${format(i.value)} · klik untuk lihat daftar`}>
+            {inner}
+          </Link>
+        ) : (
+          <div className="bar-row" key={i.label} title={`${i.label}: ${format(i.value)}`}>
+            {inner}
+          </div>
+        );
+      })}
     </div>
   );
 }

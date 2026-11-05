@@ -12,7 +12,7 @@ export function InviteLinks({ links }: { links: { email: string; nama: string; l
           <span className="subtle" style={{ minWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.email}>
             {l.nama || l.email}
           </span>
-          <input type="text" readOnly value={l.link} onFocus={(e) => e.currentTarget.select()} style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 }} />
+          <input type="text" className="invite-link" readOnly value={l.link} onFocus={(e) => e.currentTarget.select()} style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 }} />
           <button
             type="button"
             className="btn small"

@@ -65,35 +65,33 @@ const denied = await page.goto(`${BASE}/admin/users`);
 assert.ok(!page.url().includes('/admin/users'), 'non-superadmin dialihkan');
 void denied;
 
-step('Superadmin: tambah user baru');
+step('Superadmin: tambah user baru (peran terisi otomatis) → link undangan');
 await loginAs('Admin Demo');
 await page.goto(`${BASE}/admin/users`);
+await page.waitForLoadState('networkidle');
 await shot('00-kelola-user');
 await page.fill('#new-email', 'user.baru@heymale.id');
-await page.fill('#new-nama', 'Mey');
-await page.waitForFunction(() => document.querySelector('#new-pass')?.value?.length >= 8);
-const tempPass = await page.inputValue('#new-pass');
-await page.getByRole('button', { name: 'Tambah user' }).click();
-await page.waitForURL(/ok=/);
-assert.match(await flash(), /terhubung ke Mey/);
+await page.locator('#new-nama').pressSequentially('Mey');
+await page.waitForFunction(() => document.querySelector('#new-peran')?.value === 'PIC brand', null, { timeout: 5000 }).catch(() => {});
+assert.equal(await page.inputValue('#new-peran'), 'PIC brand', 'peran Mey terisi dari Master_PIC');
+await page.getByRole('button', { name: 'Tambah user & kirim undangan' }).click();
+const linkBox = page.locator('input.invite-link').first();
+await linkBox.waitFor();
+assert.match(await page.locator('form .flash.ok').first().textContent(), /PIC brand/);
+const inviteLink = await linkBox.inputValue();
 
-step('User baru: login → wajib ganti password → bisa memakai aplikasi');
+step('User baru: buka link undangan → atur password → langsung masuk');
 const ctx2 = await browser.newContext();
 const p2 = await ctx2.newPage();
-await p2.goto(`${BASE}/login`);
-await p2.fill('#email', 'user.baru@heymale.id');
-await p2.fill('#password', tempPass);
-await p2.getByRole('button', { name: 'Masuk' }).click();
-await p2.waitForURL(/\/akun\?wajib=1/);
-await p2.goto(`${BASE}/requests`);
-assert.ok(p2.url().includes('/akun'), 'dipaksa ke /akun sebelum ganti password');
-await p2.fill('#current', tempPass);
+await p2.goto(inviteLink.replace(/^https?:\/\/[^/]+/, BASE));
 await p2.fill('#password', 'Pribadi123');
 await p2.fill('#confirm', 'Pribadi123');
-await p2.getByRole('button', { name: 'Simpan password' }).click();
-await p2.waitForURL((u) => !u.pathname.startsWith('/akun'));
+await p2.getByRole('button', { name: 'Simpan password & masuk' }).click();
+await p2.waitForURL((u) => !u.pathname.startsWith('/undangan'));
 await p2.goto(`${BASE}/requests/new`);
 assert.ok(p2.url().endsWith('/requests/new'), 'PIC Mey bisa membuat request');
+await p2.goto(inviteLink.replace(/^https?:\/\/[^/]+/, BASE));
+assert.equal(await p2.locator('h1', { hasText: 'Link tidak berlaku' }).count(), 1, 'link undangan sekali pakai');
 
 step('Superadmin menonaktifkan user → sesinya langsung berhenti');
 await page.goto(`${BASE}/admin/users?q=user.baru`);
@@ -145,14 +143,26 @@ await shot('02-cek-brief');
 await page.getByRole('button', { name: 'Brief lengkap, proses' }).click();
 await page.waitForURL(/ok=/);
 assert.match(await flash(), /1 task dibuat/);
-const taskId = `${requestId}-1`;
+const taskId = `${requestId}-DG`;
 const assignee = (await page.locator('table tbody tr td').nth(3).textContent()).trim();
 assert.match(assignee, /^Desainer|^Intern/);
 console.log(`  ${taskId} → ${assignee}`);
 
 // 4. Assignee upload draft
-step('Assignee: upload draft v1');
+step('Assignee: badge menu, Tugas kamu, deskripsi, upload draft v1');
 await loginAs(assignee);
+await page.goto(`${BASE}/tracker`);
+assert.ok(Number(await page.locator('.nav .nav-badge').first().textContent()) >= 1, 'badge tugas di menu');
+await page.goto(`${BASE}/tracker?view=bola`);
+const myRow = page.locator('tr.mine-row', { hasText: taskId });
+assert.equal(await myRow.count(), 1);
+assert.equal(await myRow.locator('.badge', { hasText: 'Baru' }).count(), 1, 'tanda Baru sebelum dibuka');
+await page.goto(`${BASE}/tasks/${taskId}`);
+await page.fill('[name="deskripsi"]', 'Pakai template Payday, font tebal');
+await page.getByRole('button', { name: 'Simpan deskripsi' }).click();
+await page.waitForURL(/ok=/);
+await page.goto(`${BASE}/tracker?view=bola`);
+assert.equal(await page.locator('tr.mine-row', { hasText: taskId }).locator('.badge', { hasText: 'Baru' }).count(), 0, 'Baru hilang setelah dibuka');
 await page.goto(`${BASE}/tasks/${taskId}`);
 await page.fill('#link', 'https://drive.google.com/e2e/v1');
 await page.getByRole('button', { name: 'Kirim ke QC' }).click();
@@ -166,6 +176,22 @@ await page.goto(`${BASE}/tasks/${taskId}`);
 await page.getByRole('button', { name: 'Lolos QC, kirim ke brand' }).click();
 await page.waitForURL(/ok=/);
 assert.equal(await taskStatus(taskId), 'Review Brand');
+
+// 5b. PIC berkomentar dengan lampiran gambar
+step('PIC: komentar + upload gambar (thumbnail)');
+await loginAs('Brama');
+await page.goto(`${BASE}/tasks/${taskId}`);
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+await page.locator('#komentar input[type="file"]').setInputFiles({ name: 'catatan.png', mimeType: 'image/png', buffer: png });
+await page.locator('#komentar .thumb img').first().waitFor();
+await page.fill('#isi', 'Logo tolong lebih besar ya');
+await page.getByRole('button', { name: 'Kirim komentar' }).click();
+await page.waitForURL(/ok=/);
+assert.equal(await page.locator('#komentar .comment', { hasText: 'Logo tolong lebih besar' }).locator('a.thumb img').count(), 1);
+await shot('03b-komentar');
 
 // 6. PIC REV lewat webhook WhatsApp
 step('Webhook WA: PIC membalas REV');
@@ -181,6 +207,11 @@ const res = await fetch(`${BASE}/api/wa/webhook?key=${WEBHOOK_KEY}`, {
 const body = await res.json();
 assert.equal(body.handled, true, JSON.stringify(body));
 assert.equal(await taskStatus(taskId), 'Revisi Brand');
+assert.equal(await page.locator('.comment.rev', { hasText: 'logo diperbesar' }).count() >= 1, true, 'REV via WA masuk ke panel revisi');
+await page.goto(`${BASE}/requests?view=revisi`);
+assert.equal(await page.locator('tr.clickable', { hasText: taskId }).count(), 1, 'muncul di tab Revisi');
+await page.locator('tr.clickable', { hasText: taskId }).locator('td').nth(3).click();
+await page.waitForURL(new RegExp(`/tasks/${taskId}`));
 
 // 7. Revisi → QC → ACC lewat web
 step('Assignee revisi → lead QC → PIC ACC lewat web');
@@ -234,9 +265,22 @@ for (const job of ['reminders', 'digest', 'weekly']) {
   console.log(`  ${job}: ${j.messages} pesan`);
 }
 
+// 10b. Dashboard drill-down
+step('Dashboard: kartu & batang bisa diklik, filter terbawa');
+await loginAs('Evi');
+await page.goto(`${BASE}/dashboard?periode=90`);
+await page.locator('a.kpi-link').first().click();
+await page.waitForURL(/\/requests\?.*src=dash/);
+assert.ok(new URL(page.url()).searchParams.get('from'), 'periode ikut terbawa');
+await page.getByRole('link', { name: '← Kembali ke dashboard' }).click();
+await page.waitForURL(/\/dashboard\?.*periode=90/);
+await page.locator('a.bar-row').first().click();
+await page.waitForURL(/src=dash/);
+assert.ok((await page.locator('.chips .chip').count()) >= 1, 'chip filter tampil');
+
 // 11. Halaman utama tanpa error
 step('Halaman utama tampil tanpa error');
-for (const p of ['/backlog', '/backlog?by=brand', '/dashboard?periode=7', '/tracker?view=overdue', '/requests?view=semua', '/panduan']) {
+for (const p of ['/backlog', '/backlog?by=brand', '/dashboard?periode=7', '/tracker?view=overdue', '/tracker?tahap=Produksi&sort=lama', '/requests?view=semua', '/requests?view=revisi', '/panduan', '/akun']) {
   const r = await page.goto(`${BASE}${p}`);
   assert.equal(r.status(), 200, p);
 }

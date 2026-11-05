@@ -44,7 +44,13 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
     .map((a) => ({ a, person: personOf(a.email, a.nama) }))
     .filter(({ a }) => !q || `${a.email} ${a.nama}`.toLowerCase().includes(q))
     .filter(({ a, person }) =>
-      filter === 'belum-login' ? a.aktif && !a.lastLogin : filter === 'tanpa-wa' ? a.aktif && !person?.phone : filter === 'tanpa-peran' ? !person : true,
+      filter === 'belum-login'
+        ? a.aktif && !a.lastLogin
+        : filter === 'tanpa-wa'
+          ? a.aktif && !person?.phone
+          : filter === 'tanpa-peran'
+            ? !person
+            : true,
     )
     .sort((x, y) => Number(y.a.aktif) - Number(x.a.aktif) || x.a.nama.localeCompare(y.a.nama));
 
@@ -83,7 +89,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
       {!emailConfigured() ? (
         <div className="flash err">
           Email undangan belum bisa dikirim karena SMTP belum diatur (env <code>SMTP_HOST</code>, <code>SMTP_USER</code>,{' '}
-          <code>SMTP_PASS</code>, <code>EMAIL_FROM</code>). Sementara itu, link undangan ditampilkan di sini untuk disalin dan dikirim manual.
+          <code>SMTP_PASS</code>, <code>EMAIL_FROM</code>). Sementara itu, link undangan ditampilkan di sini untuk disalin dan dikirim
+          manual.
         </div>
       ) : null}
 
@@ -98,7 +105,14 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
       <h2 className="section-title" id="daftar">
         <span className="num">2</span> Daftar user
       </h2>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+      <div
+        className="row"
+        style={{
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 10,
+        }}
+      >
         <div className="tabs" style={{ marginBottom: 0 }}>
           {tab('', 'Semua', db.accounts.length)}
           {tab('belum-login', 'Belum pernah login', neverLoggedIn.length)}
@@ -154,7 +168,9 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                         <form action={changeEmailAction} className="stack" style={{ marginTop: 6, gap: 6 }}>
                           <input type="hidden" name="email" value={a.email} />
                           <input type="email" name="newEmail" required placeholder="email baru" />
-                          <span className="subtle">Password tetap; email lama tidak bisa dipakai login lagi. Pemberitahuan dikirim ke kedua email.</span>
+                          <span className="subtle">
+                            Password tetap; email lama tidak bisa dipakai login lagi. Pemberitahuan dikirim ke kedua email.
+                          </span>
                           <SubmitButton className="btn small primary">Simpan email</SubmitButton>
                         </form>
                       </details>
@@ -182,7 +198,9 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                           <input type="hidden" name="nama" value={person.name} />
                           <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#${anchor}`} />
                           <span>{person.phone}</span>
-                          <button className="btn small" title="Kirim pesan tes ke nomor ini">Tes WA</button>
+                          <button className="btn small" title="Kirim pesan tes ke nomor ini">
+                            Tes WA
+                          </button>
                         </form>
                       ) : (
                         <span className="badge red">No WA kosong</span>
@@ -233,7 +251,11 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                       )}
                     </td>
                     <td style={{ minWidth: 120 }}>
-                      {!a.hash ? <div className="subtle">belum dibuat</div> : a.mustChange ? <div className="subtle">wajib ganti</div> : null}
+                      {!a.hash ? (
+                        <div className="subtle">belum dibuat</div>
+                      ) : a.mustChange ? (
+                        <div className="subtle">wajib ganti</div>
+                      ) : null}
                       <details>
                         <summary className="btn small">Reset</summary>
                         <form action={resetPasswordAction} className="stack" style={{ marginTop: 8, minWidth: 260 }}>
@@ -314,8 +336,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
           <>
             <p style={{ marginTop: 0 }}>
               Saat ini ada <b>{sampleCounts.requests}</b> request, <b>{sampleCounts.tasks}</b> task, <b>{sampleCounts.statusLog}</b> riwayat
-              status, <b>{sampleCounts.waLog}</b> log WA, dan <b>{sampleCounts.members}</b> anggota tim bertanda &quot;(contoh)&quot;. Data asli
-              (ID berawalan selain DEMO-) tidak ikut terhapus.
+              status, <b>{sampleCounts.waLog}</b> log WA, dan <b>{sampleCounts.members}</b> anggota tim bertanda &quot;(contoh)&quot;. Data
+              asli (ID berawalan selain DEMO-) tidak ikut terhapus.
             </p>
             <form action={purgeSampleAction}>
               <SubmitButton className="btn danger" pendingText="Menghapus…">
