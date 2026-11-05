@@ -22,7 +22,7 @@ const ROLES = [
     role: 'Lead divisi',
     who: 'Hamzah Benoti & Ahmad Husen (foto), Aulia Pramudya (desain, moodboard, 3D), Ilham Almando (video), Salsa Rosyidah (styling)',
     tasks: 'Assign anggota (desain dipilih otomatis, bisa diganti); QC draft sebelum dikirim ke brand.',
-    wa: 'Task baru di divisinya; draft menunggu QC; task anggota overdue.',
+    wa: 'Tugas baru di divisinya; draft menunggu QC; task anggota overdue.',
   },
   {
     role: 'Tim creative',

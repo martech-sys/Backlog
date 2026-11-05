@@ -9,7 +9,9 @@ import { now } from './clock';
 import { formatWib } from './dates';
 import { loadDb } from './db';
 import { env } from './env';
-import { findPerson, normalizeEmail } from './master';
+import { emailLayout, escapeHtml, sendMail, type MailResult } from './mail';
+import { findPerson, findPersonByEmail, normalizeEmail } from './master';
+import { describe, logAdmin, profileOf, renameEmailInMaster, saveProfile, validateProfile, type WorkProfile } from './people';
 import type { Store } from './store';
 import type { SessionPayload } from './token';
 
@@ -118,6 +120,10 @@ export async function authenticate(
   const acc = db.accounts.find((a) => a.email === email);
 
   if (acc && !acc.aktif) return { ok: false, message: 'Akun ini dinonaktifkan. Hubungi Superadmin.' };
+  const boot0 = envSuperadmin();
+  if (acc && !acc.hash && !(boot0 && boot0.email === email)) {
+    return { ok: false, message: 'Akun ini belum aktif. Buka email undangan untuk membuat password, atau minta Superadmin mengirim ulang undangan.' };
+  }
 
   if (acc?.hash && (await verifyPassword(password, acc.hash))) {
     attempts.delete(email);
@@ -156,38 +162,212 @@ export interface Actor {
 const deny: Result = { ok: false, message: 'Hanya Superadmin yang bisa mengelola user.' };
 const isEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
+export interface CreateInput {
+  email: string;
+  akses: string;
+  profile: WorkProfile;
+  /** Opsional: password awal (cadangan bila email undangan tidak sampai). */
+  password: string;
+  mustChange: boolean;
+}
+
+export interface InviteOutcome {
+  /** Link atur password (tampilkan ke admin bila email tidak terkirim). */
+  link: string;
+  mail: MailResult;
+}
+
 export async function createAccount(
   store: Store,
   actor: Actor,
-  p: { email: string; nama: string; akses: string; password: string; mustChange: boolean },
-): Promise<Result> {
+  p: CreateInput,
+): Promise<Result & { invite?: InviteOutcome }> {
   if (!actor.isSuperadmin) return deny;
   const email = normalizeEmail(p.email);
-  const nama = p.nama.trim();
+  const akses = parseAkses(p.akses);
   if (!isEmail(email)) return { ok: false, message: 'Format email tidak valid.' };
-  if (!nama) return { ok: false, message: 'Nama wajib diisi.' };
-  const bad = validateNewPassword(p.password);
-  if (bad) return { ok: false, message: bad };
   const db = await loadDb(store, { fresh: true });
+  const bad = validateProfile(p.profile, akses !== AKSES.USER, db.master.brands.map((b) => b.name));
+  if (bad) return { ok: false, message: bad };
+  if (p.password) {
+    const weak = validateNewPassword(p.password);
+    if (weak) return { ok: false, message: weak };
+  }
   if (db.accounts.some((a) => a.email === email)) return { ok: false, message: `Email ${email} sudah terdaftar.` };
+  const nama = p.profile.nama.trim();
+
   await store.append(SHEETS.USERS, [
     {
       Email: email,
       Nama: nama,
-      Akses: parseAkses(p.akses),
-      'Password Hash': await hashPassword(p.password),
+      Akses: akses,
+      'Password Hash': p.password ? await hashPassword(p.password) : '',
       Aktif: 'Ya',
-      'Wajib Ganti Password': p.mustChange ? 'Ya' : 'Tidak',
+      'Wajib Ganti Password': p.password && p.mustChange ? 'Ya' : 'Tidak',
       Dibuat: formatWib(now()),
       'Dibuat Oleh': actor.name,
       'Login Terakhir': '',
     },
   ]);
-  const linked = findPerson(db.master, nama);
+  const saved = await saveProfile(store, { email, profile: p.profile, by: actor.name });
+  await logAdmin(store, { by: actor.name, aksi: 'Tambah user', target: email, dari: '', ke: `${akses} · ${saved.to}` });
+
+  const invite = await sendInvite(store, email, actor.name);
+  const sent = invite.mail.ok && !invite.mail.detail.startsWith('DRY_RUN');
   return {
     ok: true,
-    message: `Akun ${email} dibuat${linked ? ` dan terhubung ke ${linked.name} (${linked.peran})` : ' (nama tidak ada di master data: akses lihat saja)'}. Bagikan password-nya ke user.`,
+    message: `Akun ${email} dibuat (${saved.to}). ${
+      sent ? 'Email undangan terkirim.' : `Email undangan belum terkirim (${invite.mail.detail}); salin link undangan di bawah dan kirim ke user.`
+    }`,
+    invite,
   };
+}
+
+/** Ubah data kerja user (peran, sisi, divisi, brand, No WA, nama, jabatan, kapasitas). */
+export async function editProfile(store: Store, actor: Actor, emailRaw: string, profile: WorkProfile): Promise<Result> {
+  if (!actor.isSuperadmin) return deny;
+  const email = normalizeEmail(emailRaw);
+  const db = await loadDb(store, { fresh: true });
+  const acc = db.accounts.find((a) => a.email === email);
+  if (!acc) return { ok: false, message: 'Akun tidak ditemukan.' };
+  const bad = validateProfile(profile, acc.akses !== AKSES.USER, db.master.brands.map((b) => b.name));
+  if (bad) return { ok: false, message: bad };
+  const saved = await saveProfile(store, { email, oldName: acc.nama, profile, by: actor.name });
+  if (profile.nama.trim() && profile.nama.trim() !== acc.nama) {
+    await store.update(SHEETS.USERS, 'Email', [{ key: rowKey(db.accountRows, email), patch: { Nama: profile.nama.trim() } }]);
+  }
+  if (saved.from !== saved.to) await logAdmin(store, { by: actor.name, aksi: 'Ubah peran kerja', target: email, dari: saved.from, ke: saved.to });
+  return { ok: true, message: `Data kerja ${profile.nama.trim() || email} disimpan: ${saved.to}.` };
+}
+
+/** Superadmin mengganti email login user. Riwayat request/task tetap (tertaut lewat nama). */
+export async function changeEmail(store: Store, actor: Actor, oldRaw: string, newRaw: string): Promise<Result> {
+  if (!actor.isSuperadmin) return deny;
+  const oldEmail = normalizeEmail(oldRaw);
+  const newEmail = normalizeEmail(newRaw);
+  if (!isEmail(newEmail)) return { ok: false, message: 'Format email baru tidak valid.' };
+  if (oldEmail === newEmail) return { ok: false, message: 'Email baru sama dengan email lama.' };
+  const db = await loadDb(store, { fresh: true });
+  const acc = db.accounts.find((a) => a.email === oldEmail);
+  if (!acc) return { ok: false, message: 'Akun tidak ditemukan.' };
+  if (db.accounts.some((a) => a.email === newEmail)) return { ok: false, message: `Email ${newEmail} sudah terdaftar di akun lain.` };
+
+  await store.update(SHEETS.USERS, 'Email', [{ key: rowKey(db.accountRows, oldEmail), patch: { Email: newEmail } }]);
+  await renameEmailInMaster(store, oldEmail, newEmail);
+  await logAdmin(store, { by: actor.name, aksi: 'Ganti email', target: acc.nama, dari: oldEmail, ke: newEmail });
+
+  const body = (who: string) =>
+    emailLayout('Email akun kamu telah diubah', [
+      `Halo ${escapeHtml(acc.nama)},`,
+      `Email login Creative Request Tracker milikmu diubah oleh ${escapeHtml(actor.name)} dari <b>${escapeHtml(oldEmail)}</b> menjadi <b>${escapeHtml(newEmail)}</b>.`,
+      who === 'new'
+        ? 'Mulai sekarang, login memakai email ini dengan password yang sama.'
+        : 'Email ini tidak bisa dipakai login lagi. Bila kamu tidak merasa meminta perubahan ini, hubungi Superadmin.',
+    ], { label: 'Buka Creative Tracker', href: `${env.appUrl}/login` });
+  const text = `Email login Creative Request Tracker diubah dari ${oldEmail} menjadi ${newEmail} oleh ${actor.name}.`;
+  await sendMail(store, { to: oldEmail, nama: acc.nama, jenis: 'Ganti email (lama)', subject: 'Email akun Creative Tracker diubah', html: body('old'), text });
+  await sendMail(store, { to: newEmail, nama: acc.nama, jenis: 'Ganti email (baru)', subject: 'Email akun Creative Tracker diubah', html: body('new'), text });
+  return { ok: true, message: `Email ${acc.nama} diganti ke ${newEmail}. Login berikutnya memakai email baru.` };
+}
+
+// ---------------------------------------------------------------------------
+// Undangan: link atur password sekali pakai, berlaku 72 jam
+// ---------------------------------------------------------------------------
+
+export const INVITE_HOURS = 72;
+const tokenHash = (t: string) => createHash('sha256').update(t).digest('hex');
+
+/** Buat token undangan baru (token lama otomatis tidak berlaku) dan kirim email. */
+export async function sendInvite(store: Store, emailRaw: string, by: string): Promise<InviteOutcome> {
+  const email = normalizeEmail(emailRaw);
+  const db = await loadDb(store, { fresh: true });
+  const acc = db.accounts.find((a) => a.email === email);
+  const token = randomBytes(24).toString('base64url');
+  const expires = new Date(now().getTime() + INVITE_HOURS * 3600e3);
+  await store.update(SHEETS.USERS, 'Email', [
+    {
+      key: rowKey(db.accountRows, email),
+      patch: { 'Token Undangan': tokenHash(token), 'Token Kedaluwarsa': expires.toISOString(), 'Undangan Terkirim': formatWib(now()) },
+    },
+  ]);
+  const link = `${env.appUrl}/undangan?token=${token}`;
+  const nama = acc?.nama || email;
+  const person = findPersonByEmail(db.master, email) || findPerson(db.master, nama);
+  const peran = person ? describe(profileOf(person)) : acc?.akses || 'User';
+  const mail = await sendMail(store, {
+    to: email,
+    nama,
+    jenis: 'Undangan akun',
+    subject: 'Undangan Creative Request Tracker: atur password akunmu',
+    html: emailLayout(
+      'Akun Creative Tracker kamu sudah siap',
+      [
+        `Halo ${escapeHtml(nama)},`,
+        `${escapeHtml(by)} membuatkan akun Creative Request Tracker untukmu dengan peran <b>${escapeHtml(peran)}</b>.`,
+        `Login memakai email <b>${escapeHtml(email)}</b>. Klik tombol di bawah untuk membuat password sendiri.`,
+      ],
+      { label: 'Atur password', href: link },
+      `Link ini hanya bisa dipakai sekali dan berlaku ${INVITE_HOURS} jam. Bila sudah kedaluwarsa, minta Superadmin mengirim ulang undangan. Halaman login: ${escapeHtml(env.appUrl)}/login`,
+    ),
+    text: `Halo ${nama},\n\nAkun Creative Request Tracker kamu sudah dibuat (peran: ${peran}). Login dengan email ${email}.\nBuat password di: ${link}\n(berlaku ${INVITE_HOURS} jam, sekali pakai)`,
+  });
+  return { link, mail };
+}
+
+/** Kirim undangan ke semua akun aktif yang belum pernah login. */
+export async function blastInvites(store: Store, actor: Actor): Promise<Result & { results: { email: string; nama: string; link: string; detail: string }[] }> {
+  if (!actor.isSuperadmin) return { ...deny, results: [] };
+  const db = await loadDb(store, { fresh: true });
+  const targets = db.accounts.filter((a) => a.aktif && !a.lastLogin && a.email !== actor.email);
+  const results: { email: string; nama: string; link: string; detail: string }[] = [];
+  for (const a of targets) {
+    const r = await sendInvite(store, a.email, actor.name);
+    results.push({ email: a.email, nama: a.nama, link: r.link, detail: r.mail.detail });
+  }
+  const sent = results.filter((r) => r.detail.startsWith('Terkirim')).length;
+  if (targets.length) await logAdmin(store, { by: actor.name, aksi: 'Kirim undangan massal', target: `${targets.length} akun`, dari: '', ke: `${sent} terkirim` });
+  return {
+    ok: true,
+    message: targets.length ? `Undangan dibuat untuk ${targets.length} akun yang belum pernah login (${sent} email terkirim).` : 'Semua akun aktif sudah pernah login.',
+    results,
+  };
+}
+
+export type InviteCheck = { ok: true; email: string; nama: string } | { ok: false; message: string };
+
+export async function checkInvite(store: Store, token: string): Promise<InviteCheck> {
+  if (!token) return { ok: false, message: 'Link undangan tidak lengkap.' };
+  const db = await loadDb(store, { fresh: true });
+  const acc = db.accounts.find((a) => a.inviteHash && a.inviteHash === tokenHash(token));
+  if (!acc) return { ok: false, message: 'Link undangan tidak berlaku atau sudah dipakai. Minta Superadmin mengirim undangan baru.' };
+  if (!acc.aktif) return { ok: false, message: 'Akun ini dinonaktifkan. Hubungi Superadmin.' };
+  if (!acc.inviteExpires || Date.parse(acc.inviteExpires) < now().getTime()) {
+    return { ok: false, message: `Link undangan sudah lewat ${INVITE_HOURS} jam. Minta Superadmin mengirim undangan baru.` };
+  }
+  return { ok: true, email: acc.email, nama: acc.nama };
+}
+
+/** Pakai undangan: simpan password baru, hapus token (sekali pakai), lalu kembalikan sesi login. */
+export async function acceptInvite(store: Store, token: string, password: string): Promise<Result & { session?: Omit<SessionPayload, 'x'> }> {
+  const check = await checkInvite(store, token);
+  if (!check.ok) return { ok: false, message: check.message };
+  const weak = validateNewPassword(password);
+  if (weak) return { ok: false, message: weak };
+  const db = await loadDb(store, { fresh: true });
+  const hash = await hashPassword(password);
+  await store.update(SHEETS.USERS, 'Email', [
+    {
+      key: rowKey(db.accountRows, check.email),
+      patch: {
+        'Password Hash': hash,
+        'Wajib Ganti Password': 'Tidak',
+        'Token Undangan': '',
+        'Token Kedaluwarsa': '',
+        'Login Terakhir': formatWib(now()),
+      },
+    },
+  ]);
+  return { ok: true, message: 'Password dibuat. Selamat datang!', session: { e: check.email, v: passwordVersion(hash), m: 0 } };
 }
 
 export async function resetPassword(store: Store, actor: Actor, emailRaw: string, password: string): Promise<Result> {

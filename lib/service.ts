@@ -17,7 +17,7 @@ import { findRequest, findTask, loadDb, tasksOf, type Db } from './db';
 import { findPerson, type Master } from './master';
 import { msg } from './messages';
 import { Notifier } from './notify';
-import { buildTaskDrafts, isUrgent, nextTicketId, routeRequest } from './routing';
+import { buildTaskDrafts, isUrgent, nextTicketId, routeRequest, taskIds } from './routing';
 import type { Cell, Store } from './store';
 import { ballHolder, can, canTransition, type CurrentUser } from './workflow';
 
@@ -285,9 +285,10 @@ export async function cekBrief(
     return chosen.filter((s) => def?.subTypes.includes(s)).join(', ');
   };
 
+  const ids = taskIds(r['Request ID'], drafts.map((d) => d.code));
   const newTasks: TaskRow[] = drafts.map((d, i) => {
     const t = {
-      'Task ID': `${r['Request ID']}-${i + 1}`,
+      'Task ID': ids[i],
       'Request ID': r['Request ID'],
       Dibuat: tx.ts,
       Brand: r.Brand,
@@ -343,7 +344,8 @@ export async function cekBrief(
   for (const t of newTasks) {
     tx.log(t['Task ID'], 'Task', '', STATUS.SIAP_ASSIGN, `Routing ke ${t.Divisi} (lead ${t.Lead})`);
     if (t.Assignee) tx.log(t['Task ID'], 'Task', STATUS.SIAP_ASSIGN, STATUS.DIKERJAKAN, `Auto-assign ke ${t.Assignee}`);
-    tx.notify.to(t.Lead, 'Task baru', t['Task ID'], msg.newTaskLead(t, r));
+    // Lead yang sekaligus assignee cukup menerima satu pesan "Tugas baru untukmu".
+    if (t.Lead && t.Lead !== t.Assignee) tx.notify.to(t.Lead, 'Tugas baru (lead)', t['Task ID'], msg.newTaskLead(t, r));
     if (t.Assignee) tx.notify.to(t.Assignee, 'Tugas baru', t['Task ID'], msg.taskAssigned(t, r));
   }
   await tx.commit();

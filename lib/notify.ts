@@ -3,7 +3,8 @@ import { now } from './clock';
 import { formatWib } from './dates';
 import { findPerson, type Master, type Person } from './master';
 import type { Store } from './store';
-import { sendWa } from './wa';
+import { env } from './env';
+import { isDryRun, sendWa, type SendResult } from './wa';
 
 interface Outgoing {
   to: Person | { name: string; phone: string };
@@ -45,24 +46,48 @@ export class Notifier {
     return this.queue.length;
   }
 
+  /**
+   * Kirim semua pesan yang terkumpul. Satu orang hanya menerima SATU pesan per aksi: bila ada
+   * beberapa pesan untuk orang yang sama (mis. lead sekaligus assignee), isinya digabung.
+   * Pesan dikirim berurutan dengan jeda (WA_DELAY_MS) agar tidak dianggap spam.
+   */
   async flush(store: Store): Promise<number> {
     const items = this.queue.splice(0);
     if (!items.length) return 0;
-    const results = await Promise.all(items.map((i) => sendWa(i.to.phone, i.message)));
+    const groups: Outgoing[] = [];
+    for (const i of items) {
+      const key = (i.to.phone || i.to.name).toLowerCase();
+      const g = groups.find((x) => (x.to.phone || x.to.name).toLowerCase() === key);
+      if (!g) groups.push({ ...i });
+      else {
+        if (!g.message.includes(i.message)) g.message = `${g.message}\n\n────────\n\n${i.message}`;
+        if (!g.jenis.split(' + ').includes(i.jenis)) g.jenis = `${g.jenis} + ${i.jenis}`;
+        if (i.refId && !g.refId.split(', ').includes(i.refId)) g.refId = g.refId ? `${g.refId}, ${i.refId}` : i.refId;
+      }
+    }
+    const dryRun = isDryRun(this.master.config.waDryRun);
+    const results: SendResult[] = [];
+    let sentBefore = false;
+    for (const g of groups) {
+      if (sentBefore && !dryRun && g.to.phone && env.waDelayMs > 0) await new Promise((r) => setTimeout(r, env.waDelayMs));
+      const r = await sendWa(g.to.phone, g.message, { dryRun });
+      if (!r.skipped) sentBefore = true;
+      results.push(r);
+    }
     const ts = formatWib(now());
     await store.append(
       SHEETS.WA_LOG,
-      items.map((i, idx) => ({
+      groups.map((g, idx) => ({
         Timestamp: ts,
         Arah: 'OUT',
-        Nomor: i.to.phone,
-        Nama: i.to.name,
-        Jenis: i.jenis,
-        'Ref ID': i.refId,
-        Pesan: i.message,
-        Hasil: results[idx].ok ? results[idx].detail || 'OK' : `GAGAL: ${results[idx].detail}`,
+        Nomor: g.to.phone,
+        Nama: g.to.name,
+        Jenis: g.jenis,
+        'Ref ID': g.refId,
+        Pesan: g.message,
+        Hasil: results[idx].detail,
       })),
     );
-    return items.length;
+    return groups.length;
   }
 }

@@ -77,7 +77,7 @@ test('kirim lewat Lixus: endpoint, header X-API-Key, body {to,text}, dan pesan e
     return new Response(JSON.stringify(reply), { status });
   }) as typeof fetch;
 
-  assert.deepEqual(await sendWa('6281234', 'Halo'), { ok: true, detail: 'OK 3EB0ABC' });
+  assert.deepEqual(await sendWa('6281234', 'Halo'), { ok: true, detail: 'Terkirim · 3EB0ABC' });
   assert.equal(calls[0].url, 'https://wa.example.com/api/messages/send');
   assert.equal((calls[0].init.headers as Record<string, string>)['X-API-Key'], 'key-123');
   assert.deepEqual(JSON.parse(String(calls[0].init.body)), { to: '6281234', text: 'Halo' });
@@ -91,9 +91,18 @@ test('kirim lewat Lixus: endpoint, header X-API-Key, body {to,text}, dan pesan e
   assert.equal(r.ok, false);
   assert.match(r.detail, /tidak aktif \(503\)/);
 
+  // 500 = error sementara → dicoba ulang 3x
+  status = 500;
+  reply = { error: 'boom' };
+  const r5 = await sendWa('6281234', 'x', { backoffMs: 1 });
+  assert.match(r5.detail, /^Gagal: HTTP 500.*dicoba 3x/);
+  assert.equal(calls.length, 6);
+  assert.deepEqual(await sendWa('', 'x'), { ok: false, skipped: true, detail: 'Dilewati: nomor WA kosong' });
+
   env.waDryRun = true;
   assert.equal((await sendWa('6281234', 'x')).detail, 'DRY_RUN');
-  assert.equal(calls.length, 3, 'dry-run tidak memanggil gateway');
+  assert.equal((await sendWa('6281234', 'x', { dryRun: false, backoffMs: 1 })).ok, false, 'Config mengalahkan env');
+  assert.equal(calls.length, 9, 'dry-run tidak memanggil gateway');
 });
 
 test('status gateway Lixus', async () => {
@@ -120,5 +129,5 @@ test('balasan bot dikirim ke JID asli pengirim (termasuk akun LID)', async () =>
   assert.match(sent[0].text, /tidak terbaca/);
   const db = await loadDb(store, { withWaLog: true });
   assert.ok(db.waLog.some((w) => w.Arah === 'IN' && w.Nomor === '1234567@lid'));
-  assert.ok(db.waLog.some((w) => w.Arah === 'OUT' && w.Hasil === 'OK m1'));
+  assert.ok(db.waLog.some((w) => w.Arah === 'OUT' && w.Hasil === 'Terkirim · m1'));
 });

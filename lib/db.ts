@@ -4,6 +4,7 @@ import {
   type ConfigRow,
   type GrupRow,
   type KategoriRow,
+  type KomentarRow,
   type LiburRow,
   type PicRow,
   type RequestRow,
@@ -26,6 +27,7 @@ export interface Db {
   /** Akun login (tab Users). Berisi hash password: jangan pernah dikirim ke komponen client. */
   accounts: Account[];
   accountRows: UserRow[];
+  komentar: KomentarRow[];
 }
 
 const ALL = [
@@ -41,6 +43,7 @@ const ALL = [
   SHEETS.STATUS_LOG,
   SHEETS.WA_LOG,
   SHEETS.USERS,
+  SHEETS.KOMENTAR,
 ];
 
 /** `fresh: true` untuk aksi yang menulis (lewati cache baca). */
@@ -64,6 +67,7 @@ export async function loadDb(store: Store, opts: { withWaLog?: boolean; fresh?: 
     waLog: (t[SHEETS.WA_LOG] || []) as unknown as WaLogRow[],
     accounts: parseAccounts((t[SHEETS.USERS] || []) as unknown as UserRow[]),
     accountRows: (t[SHEETS.USERS] || []) as unknown as UserRow[],
+    komentar: ((t[SHEETS.KOMENTAR] || []) as unknown as KomentarRow[]).filter((k) => k['Komentar ID']),
   };
 }
 

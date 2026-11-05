@@ -18,7 +18,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: '/requests', label: 'Request' },
     ...(can.submitRequest(user) ? [{ href: '/requests/new', label: '+ Request baru' }] : []),
     { href: '/panduan', label: 'Panduan' },
-    ...(user.roles.includes('superadmin') ? [{ href: '/admin/users', label: 'Kelola user' }] : []),
+    ...(user.roles.includes('superadmin')
+      ? [
+          { href: '/admin/users', label: 'Kelola user' },
+          { href: '/admin/whatsapp', label: 'Pengaturan WA' },
+        ]
+      : []),
   ];
   const mainRole = user.roles.find((r) => r !== 'admin' && r !== 'superadmin') || user.roles[0];
   const akses = user.roles.includes('superadmin') ? ' · Superadmin' : user.roles.includes('admin') ? ' · Admin' : '';

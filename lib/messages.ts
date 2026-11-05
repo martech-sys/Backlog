@@ -28,7 +28,7 @@ export const msg = {
     `🔁 *Brief sudah dilengkapi*\n*${r['Request ID']}* · ${r.Brand}\nPIC: ${r['PIC Brand']}\nCek ulang: ${reqLink(r['Request ID'])}`,
 
   newTaskLead: (t: TaskRow, r: RequestRow) =>
-    `🆕 *Task baru di divisi ${t.Divisi}*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nDeadline: ${formatTanggal(t.Deadline)} · target draft ${formatTanggal(t['Target Draft'])}\n${t.Assignee ? `Auto-assign ke *${t.Assignee}* (bisa diganti).` : 'Silakan pilih anggota.'}\n${taskLink(t['Task ID'])}`,
+    `🆕 *Tugas baru di divisi ${t.Divisi}*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nDeadline: ${formatTanggal(t.Deadline)} · target draft ${formatTanggal(t['Target Draft'])}\n${t.Assignee ? `Auto-assign ke *${t.Assignee}* (bisa diganti).` : 'Silakan pilih anggota.'}\n${taskLink(t['Task ID'])}`,
 
   taskAssigned: (t: TaskRow, r: RequestRow) =>
     `🎯 *Tugas baru untukmu*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nSub-jenis: ${t['Sub-jenis'] || '-'}\nDeliverables: ${r.Deliverables || '-'}\nTarget draft: ${formatTanggal(t['Target Draft'])}\nDeadline: ${formatTanggal(t.Deadline)}\n\nBrief & upload draft: ${taskLink(t['Task ID'])}`,

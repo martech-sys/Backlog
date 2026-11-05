@@ -3,23 +3,57 @@ import { env } from './env';
 
 export interface SendResult {
   ok: boolean;
+  /** Terkirim · <id> | DRY_RUN | Gagal: <alasan> | Dilewati: nomor WA kosong */
   detail: string;
+  /** Tidak dicoba sama sekali (nomor kosong). */
+  skipped?: boolean;
+  /** Error sementara (jaringan/5xx/429): layak dicoba ulang. */
+  transient?: boolean;
 }
 
+export const WA_MAX_TRIES = 3;
+
+/** Mode uji efektif: pengaturan di Config (halaman Pengaturan WA) menang atas env WA_DRY_RUN. */
+export function isDryRun(configDryRun: boolean | null | undefined = null): boolean {
+  if (env.waProvider === 'none' || inSimulation()) return true;
+  return configDryRun ?? env.waDryRun;
+}
+
+/** Status ringkas untuk satu baris Log_WA. */
+export function waStatus(hasil: string): 'Terkirim' | 'Gagal' | 'Dilewati' | 'DRY_RUN' | 'Masuk' {
+  const h = String(hasil || '');
+  if (/^DRY_RUN/.test(h)) return 'DRY_RUN';
+  if (/^(Dilewati)/i.test(h)) return 'Dilewati';
+  if (/^(GAGAL|Gagal|ERROR)/.test(h)) return 'Gagal';
+  if (!h) return 'Masuk';
+  return 'Terkirim';
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
- * Kirim pesan WhatsApp lewat gateway.
+ * Kirim pesan WhatsApp lewat gateway, dengan coba ulang otomatis (maks. 3x) untuk error sementara.
  *  - lixus  : POST <WA_API_URL>/api/messages/send  (header X-API-Key: <WA_TOKEN>, body {to, text})
  *  - fonnte : POST https://api.fonnte.com/send     (header Authorization: <token>)
  *  - wablas : POST <WA_API_URL>                    (header Authorization: <token>)
  * `to` boleh nomor (628…) atau JID lengkap (…@s.whatsapp.net / …@lid) untuk membalas pengirim.
- * Saat dry-run, pesan tidak dikirim (tetap dicatat di Log_WA oleh pemanggil).
  */
-export async function sendWa(to: string, message: string): Promise<SendResult> {
-  if (env.waDryRun || env.waProvider === 'none' || inSimulation()) {
-    return { ok: true, detail: to ? 'DRY_RUN' : 'DRY_RUN · nomor WA belum diisi' };
+export async function sendWa(to: string, message: string, opts: { dryRun?: boolean; backoffMs?: number } = {}): Promise<SendResult> {
+  if (inSimulation()) return { ok: true, detail: 'DRY_RUN' };
+  if (!to) return { ok: false, skipped: true, detail: 'Dilewati: nomor WA kosong' };
+  if (opts.dryRun ?? isDryRun()) return { ok: true, detail: 'DRY_RUN' };
+  let last: SendResult = { ok: false, detail: 'Gagal' };
+  for (let attempt = 1; attempt <= WA_MAX_TRIES; attempt++) {
+    last = await sendOnce(to, message);
+    if (last.ok || !last.transient) break;
+    if (attempt < WA_MAX_TRIES) await sleep((opts.backoffMs ?? 800) * attempt);
   }
-  if (!to) return { ok: false, detail: 'Nomor WA belum diisi di master data' };
+  if (last.ok) return last;
+  const tries = last.transient ? ` (dicoba ${WA_MAX_TRIES}x)` : '';
+  return { ok: false, detail: `Gagal: ${last.detail}${tries}`.slice(0, 300) };
+}
 
+async function sendOnce(to: string, message: string): Promise<SendResult> {
   try {
     if (env.waProvider === 'lixus') return await sendLixus(to, message);
 
@@ -31,6 +65,7 @@ export async function sendWa(to: string, message: string): Promise<SendResult> {
         headers: { Authorization: env.waToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: to, message }),
         cache: 'no-store',
+        signal: AbortSignal.timeout(15000),
       });
     } else {
       const body = new URLSearchParams({ target: to, message, countryCode: '62' });
@@ -39,14 +74,16 @@ export async function sendWa(to: string, message: string): Promise<SendResult> {
         headers: { Authorization: env.waToken },
         body,
         cache: 'no-store',
+        signal: AbortSignal.timeout(15000),
       });
     }
     const text = (await res.text()).slice(0, 200);
     // Fonnte mengembalikan HTTP 200 dengan {"status":false,...} saat gagal.
     const failed = !res.ok || /"status"\s*:\s*false/.test(text);
-    return { ok: !failed, detail: `${res.status} ${text}` };
+    if (!failed) return { ok: true, detail: `Terkirim · ${res.status}` };
+    return { ok: false, detail: `${res.status} ${text}`, transient: res.status >= 500 || res.status === 429 };
   } catch (e) {
-    return { ok: false, detail: `ERROR ${(e as Error).message}` };
+    return { ok: false, detail: `Gateway tidak bisa dihubungi: ${(e as Error).message}`, transient: true };
   }
 }
 
@@ -73,9 +110,14 @@ async function sendLixus(to: string, text: string): Promise<SendResult> {
   } catch {
     // respons bukan JSON
   }
-  if (res.ok && body.success !== false) return { ok: true, detail: `OK ${body.messageId || ''}`.trim() };
+  if (res.ok && body.success !== false) return { ok: true, detail: `Terkirim · ${body.messageId || res.status}` };
   const reason = LIXUS_ERRORS[res.status] || `HTTP ${res.status}`;
-  return { ok: false, detail: `${reason}${body.error ? `: ${body.error}` : raw ? `: ${raw.slice(0, 120)}` : ''}` };
+  return {
+    ok: false,
+    detail: `${reason}${body.error ? `: ${body.error}` : raw ? `: ${raw.slice(0, 120)}` : ''}`,
+    // 503 = sesi WA gateway mati: tidak akan pulih dalam hitungan detik.
+    transient: (res.status >= 500 && res.status !== 503) || res.status === 429,
+  };
 }
 
 export interface GatewayStatus {
@@ -89,11 +131,11 @@ export interface GatewayStatus {
 }
 
 /** Status sesi WA di gateway (khusus Lixus: GET /api/status). */
-export async function gatewayStatus(): Promise<GatewayStatus> {
+export async function gatewayStatus(configDryRun: boolean | null = null): Promise<GatewayStatus> {
   const base: GatewayStatus = {
     provider: env.waProvider,
     configured: env.waProvider === 'lixus' ? !!(env.waApiUrl && env.waToken) : !!env.waToken,
-    dryRun: env.waDryRun,
+    dryRun: isDryRun(configDryRun),
     connected: null,
     phoneNumber: null,
     uptime: null,

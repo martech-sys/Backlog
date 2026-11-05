@@ -51,7 +51,15 @@ export const env = {
   waWebhookSecret: process.env.WA_WEBHOOK_SECRET || '',
   /** Default: dry-run bila token belum diisi. Pesan tetap tercatat di Log_WA. */
   waDryRun: process.env.WA_DRY_RUN ? bool(process.env.WA_DRY_RUN) : !process.env.WA_TOKEN,
+  /** Jeda antar pesan WA dalam satu kiriman (ms), agar tidak dianggap spam oleh WhatsApp. */
+  waDelayMs: Number(process.env.WA_DELAY_MS || 1200),
   webhookKey: process.env.WEBHOOK_KEY || '',
+  /** Email (undangan akun, pemberitahuan ganti email) lewat SMTP: Google Workspace, Gmail, SendGrid, Resend, dll. */
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  emailFrom: process.env.EMAIL_FROM || '',
   cronSecret: process.env.CRON_SECRET || '',
   appUrl: (
     process.env.APP_URL ||

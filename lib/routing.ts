@@ -1,7 +1,7 @@
-import { ACTIVE_STATUSES, type TaskRow } from './config';
+import { ACTIVE_STATUSES, CUSTOM_CATEGORY, DEFAULT_TASK_CODES, type TaskRow } from './config';
 import { addWorkingDays, workingDaysBetween } from './dates';
 import type { KategoriRule, Master, Person } from './master';
-import { brandOf, findPerson, grupOf } from './master';
+import { brandOf, findPerson, headsFor, leadFor, trafficsFor } from './master';
 
 export interface RouteResult {
   grup: string;
@@ -15,13 +15,12 @@ export interface RouteResult {
 export function routeRequest(master: Master, brand: string, kategoriList: string[]): RouteResult {
   const b = brandOf(master, brand);
   const grupName = b?.grup || '';
-  const g = grupOf(master, grupName);
   const wanted = kategoriList.map((k) => k.toLowerCase());
   const rules = master.kategori.filter((r) => wanted.includes(r.kategori.toLowerCase()));
   return {
     grup: grupName,
-    traffic: g?.traffic || '',
-    creativeHead: g?.creativeHead || '',
+    traffic: trafficsFor(master, grupName)[0]?.name || '',
+    creativeHead: headsFor(master, grupName)[0]?.name || '',
     rules,
     leadTimeMin: rules.reduce((max, r) => Math.max(max, r.leadTimeMin), 0),
   };
@@ -53,6 +52,7 @@ export function pickLeastLoaded(
   divisi: string,
   grup: string,
   load: Map<string, number>,
+  filterPeran = '',
 ): Person | undefined {
   const inDivisi = master.people.filter(
     (p) =>
@@ -60,7 +60,10 @@ export function pickLeastLoaded(
       p.divisi.toLowerCase() === divisi.toLowerCase() &&
       (p.grup === 'Semua' || !p.grup || p.grup.toLowerCase() === grup.toLowerCase()),
   );
-  const members = inDivisi.filter((p) => !p.isLead);
+  const f = filterPeran.toLowerCase();
+  // Dengan filter jabatan (mis. "Photo Editor"), hanya anggota yang cocok yang dipilih; tanpa yang cocok → lead memilih.
+  const members = inDivisi.filter((p) => !p.isLead && (!f || p.peran.toLowerCase().includes(f)));
+  if (f && !members.length) return undefined;
   const pool = members.length ? members : inDivisi;
   if (!pool.length) return undefined;
   return [...pool].sort((a, b) => {
@@ -75,6 +78,7 @@ export function pickLeastLoaded(
 }
 
 export interface TaskDraft {
+  code: string;
   kategori: string;
   divisi: string;
   lead: string;
@@ -100,23 +104,26 @@ export function buildTaskDrafts(params: {
   const wanted = kategoriList.map((k) => k.toLowerCase());
   const drafts: TaskDraft[] = [];
 
-  for (const rule of master.kategori.filter((r) => wanted.includes(r.kategori.toLowerCase()))) {
+  for (const rule of master.kategori.filter(
+    (r) => wanted.includes(r.kategori.toLowerCase()) && r.kategori !== CUSTOM_CATEGORY,
+  )) {
     const isWomens = grup.toLowerCase().startsWith('women');
-    const lead = (isWomens ? rule.leadWomenswear : rule.leadMenswear) || rule.leadMenswear || rule.leadWomenswear;
+    const preferred = (isWomens ? rule.leadWomenswear : rule.leadMenswear) || rule.leadMenswear || rule.leadWomenswear;
+    const lead = leadFor(master, rule.divisi, grup, preferred);
 
     let assignee = '';
     if (rule.modeAssign === 'Default' && rule.assigneeDefault) {
       assignee = rule.assigneeDefault;
     } else if (rule.modeAssign === 'Otomatis beban') {
-      assignee = pickLeastLoaded(master, rule.divisi, grup, load)?.name || '';
+      assignee = pickLeastLoaded(master, rule.divisi, grup, load, rule.filterPeran)?.name || '';
     }
-    if (assignee && !findPerson(master, assignee)) assignee = '';
+    if (assignee && !findPerson(master, assignee)?.active) assignee = '';
     if (assignee) load.set(assignee, (load.get(assignee) || 0) + 1);
 
     let targetDraft = addWorkingDays(deadline, -rule.bufferReview, master.holidays);
     if (targetDraft < today) targetDraft = today;
 
-    drafts.push({ kategori: rule.kategori, divisi: rule.divisi, lead, assignee, deadline, targetDraft });
+    drafts.push({ code: taskCode(rule), kategori: rule.kategori, divisi: rule.divisi, lead, assignee, deadline, targetDraft });
   }
   return drafts;
 }
@@ -132,4 +139,25 @@ export function nextTicketId(prefix: string, today: string, existingIds: string[
     if (Number.isFinite(n) && n > max) max = n;
   }
   return `${base}${String(max + 1).padStart(3, '0')}`;
+}
+
+/** Kode akhiran ID task untuk satu aturan kategori/divisi. */
+export function taskCode(rule: Pick<KategoriRule, 'code' | 'kategori' | 'divisi'>): string {
+  return (
+    rule.code ||
+    DEFAULT_TASK_CODES[`${rule.kategori}|${rule.divisi}`] ||
+    DEFAULT_TASK_CODES[`${rule.kategori}|`] ||
+    rule.kategori.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() ||
+    'TS'
+  );
+}
+
+/** ID task unik: CR-2611-001-PE; bila kode sama dipakai dua kali → CR-2611-001-PE2. */
+export function taskIds(requestId: string, codes: string[]): string[] {
+  const seen = new Map<string, number>();
+  return codes.map((c) => {
+    const n = (seen.get(c) || 0) + 1;
+    seen.set(c, n);
+    return `${requestId}-${c}${n > 1 ? n : ''}`;
+  });
 }
