@@ -21,6 +21,13 @@ export function serviceAccount(e: Record<string, string | undefined> = process.e
   return { email: String(e.GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim(), key: normalizeKey(e.GOOGLE_PRIVATE_KEY || '') };
 }
 
+/** Terima ID folder atau URL folder Drive yang ditempel utuh. */
+export function driveFolderId(v: string): string {
+  const t = String(v || '').trim();
+  const m = t.match(/folders\/([\w-]{10,})/) || t.match(/[?&]id=([\w-]{10,})/);
+  return m ? m[1] : /^[\w-]{10,}$/.test(t) ? t : '';
+}
+
 /** Rapikan private key yang ditempel: buang tanda kutip pembungkus dan ubah "\n" menjadi baris baru. */
 export function normalizeKey(k: string): string {
   return String(k || '')
@@ -60,6 +67,8 @@ export const env = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
   emailFrom: process.env.EMAIL_FROM || '',
+  /** Folder Google Drive (sebaiknya di Shared Drive) untuk lampiran gambar; service account harus jadi anggotanya. */
+  driveFolderId: driveFolderId(process.env.DRIVE_UPLOAD_FOLDER_ID || ''),
   cronSecret: process.env.CRON_SECRET || '',
   appUrl: (
     process.env.APP_URL ||

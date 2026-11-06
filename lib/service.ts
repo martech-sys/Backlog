@@ -29,7 +29,7 @@ export type KomentarJenis = (typeof KOMENTAR_JENIS)[number];
 function cleanAttachments(list: string[] = []): string[] {
   return list
     .map((x) => String(x || '').trim())
-    .filter((x) => /^(https?:\/\/|\/api\/upload\/)\S+$/i.test(x))
+    .filter((x) => /^(https?:\/\/|\/api\/(upload|drive)\/)\S+$/i.test(x))
     .slice(0, 6);
 }
 
