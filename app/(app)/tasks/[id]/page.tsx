@@ -16,6 +16,7 @@ import {
 import { SubmitButton } from '@/components/SubmitButton';
 import { MarkSeen } from '@/components/SeenMarker';
 import { ImagePicker } from '@/components/task/ImagePicker';
+import { ThumbImg } from '@/components/task/ThumbImg';
 import { Flash, LinkOrDash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
 import { ACTIVE_STATUSES, CUSTOM_CATEGORY, DIVISI, DONE_STATUSES, STATUS, TASK_STATUSES, type Status } from '@/lib/config';
 import { now } from '@/lib/clock';
@@ -24,7 +25,7 @@ import { findRequest, findTask } from '@/lib/db';
 import { getDbWithWa, requireUser } from '@/lib/session';
 import { seenKey } from '@/lib/mine';
 import { canComment, needsCustomSetup } from '@/lib/service';
-import { previewUrl } from '@/lib/upload';
+import { previewUrl, uploadConfigured } from '@/lib/upload';
 import { availableActions, can } from '@/lib/workflow';
 
 type Params = Promise<{ id: string }>;
@@ -71,14 +72,7 @@ function Thumbs({ urls, size = '' }: { urls: string[]; size?: string }) {
         const src = previewUrl(u);
         return (
           <a key={u + i} href={u} target="_blank" rel="noreferrer" className={`thumb ${size}`} title="Buka ukuran penuh">
-            {src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={src} alt={`Lampiran ${i + 1}`} loading="lazy" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="subtle" style={{ fontSize: 12, padding: 4, textAlign: 'center' }}>
-                Buka link
-              </span>
-            )}
+            <ThumbImg src={src} alt={`Lampiran ${i + 1}`} />
           </a>
         );
       })}
@@ -107,6 +101,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
       .map((x) => x.trim())
       .filter(Boolean);
   const mayComment = canComment(db, user, t);
+  const canUpload = uploadConfigured();
   const mayEditDesc = !done && (can.work(user, t) || can.qc(user, t));
   const jenisOptions = [
     'Catatan',
@@ -262,12 +257,20 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   <label htmlFor="link">Link draft v{(Number(t['Versi Draft']) || 0) + 1}</label>
                   <input id="link" type="url" name="link" required placeholder="https://drive.google.com/…" />
                 </div>
-                <ImagePicker folder={id} label="Preview draft (opsional, agar lead & PIC bisa lihat tanpa buka Drive)" allowLink={false}>
+                {canUpload ? (
+                  <ImagePicker folder={id} label="Preview draft (opsional, agar lead & PIC bisa lihat tanpa buka Drive)" allowLink={false} canUpload>
+                    <div className="field">
+                      <label htmlFor="dnote">Catatan untuk lead (opsional)</label>
+                      <textarea id="dnote" name="note" rows={2} placeholder="Mis. sudah ganti warna background sesuai revisi R1" />
+                    </div>
+                  </ImagePicker>
+                ) : (
                   <div className="field">
                     <label htmlFor="dnote">Catatan untuk lead (opsional)</label>
                     <textarea id="dnote" name="note" rows={2} placeholder="Mis. sudah ganti warna background sesuai revisi R1" />
+                    <span className="help">Bila link draft berupa gambar di Drive yang sudah dibagikan, pratinjaunya tampil otomatis di daftar versi.</span>
                   </div>
-                </ImagePicker>
+                )}
                 <div>
                   <SubmitButton>Kirim ke QC</SubmitButton>
                 </div>
@@ -287,7 +290,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   <label htmlFor="qcnote">Catatan QC</label>
                   <textarea id="qcnote" name="note" placeholder="Wajib bila belum lolos" />
                 </div>
-                <ImagePicker folder={id} label="Lampiran (opsional, mis. screenshot yang ditandai)" />
+                <ImagePicker folder={id} canUpload={canUpload} label="Lampiran (opsional, mis. screenshot yang ditandai)" />
                 <div className="actions-row">
                   <SubmitButton name="decision" value="pass" className="btn success">
                     Lolos QC, kirim ke brand
@@ -317,7 +320,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                     Ronde revisi saat ini: {Number(t['Ronde Revisi']) || 0} (batas {db.master.config.maxRevisi})
                   </span>
                 </div>
-                <ImagePicker folder={id} label="Lampiran revisi (opsional, mis. screenshot yang ditandai)" />
+                <ImagePicker folder={id} canUpload={canUpload} label="Lampiran revisi (opsional, mis. screenshot yang ditandai)" />
                 <div className="actions-row">
                   <SubmitButton name="decision" value="ACC" className="btn success">
                     ACC
@@ -518,7 +521,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             {mayComment ? (
               <form action={commentAction} key={komentar.length} className="stack" style={{ marginTop: 14 }}>
                 <input type="hidden" name="taskId" value={id} />
-                <ImagePicker folder={id}>
+                <ImagePicker folder={id} canUpload={canUpload}>
                   <div className="field">
                     <label htmlFor="isi">Tulis komentar</label>
                     <textarea id="isi" name="isi" rows={3} placeholder="Tulis komentar… (bisa tempel screenshot dengan Ctrl/Cmd + V)" />

@@ -135,7 +135,7 @@ Login pertama Superadmin memakai password itu, lalu aplikasi meminta membuat pas
 | `WEBHOOK_KEY` | string acak, untuk mengamankan webhook WA |
 | `CRON_SECRET` | string acak; Vercel memakainya untuk memanggil cron |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | SMTP untuk email undangan akun (lihat langkah 5); boleh dikosongkan dulu |
-| `DRIVE_UPLOAD_FOLDER_ID` | URL/ID folder di Shared Drive untuk lampiran gambar (langkah 6) |
+| `DRIVE_UPLOAD_FOLDER_ID` | opsional: folder Shared Drive untuk upload gambar langsung (langkah 6); kosongkan bila cukup tempel link Drive |
 
 3. **Deploy**. Cek `https://<domain>/api/health`: `mode` = `sheets`, `sheetsConfigured`, `authSecretConfigured`, dan `superadminBootstrap` = `true`.
 4. Buka aplikasi → login sebagai Superadmin → buat password pribadi → **Kelola user** → buat akun untuk tim.
@@ -187,22 +187,16 @@ Saat Superadmin menambah user, aplikasi mengirim email undangan berisi tombol **
 
 Selama SMTP belum diisi, link undangan tampil di Kelola user untuk disalin manual. Semua email (ke siapa, kapan, hasilnya) dicatat di tab **Log_Email**; perubahan peran/email user dicatat di **Log_Admin**.
 
-### 6. Upload gambar ke Google Drive tim
+### 6. Lampiran gambar
 
-Lampiran komentar (mis. screenshot yang ditandai) dan preview draft disimpan di **Google Drive tim**, memakai service account yang sama dengan Google Sheets:
+Cara bawaan: **tempel link dari Google Drive masing-masing**. Pengguna upload gambar (screenshot revisi, preview draft) ke Drive-nya sendiri → **Bagikan** → Akses umum *siapa saja di organisasi* atau *siapa saja yang memiliki link* → salin link → tempel di kolom lampiran komentar. Thumbnail tampil otomatis; bila file belum dibagikan, yang tampil tulisan "Buka link". Untuk draft, cukup tempel link file draft; bila berupa gambar, pratinjaunya muncul di daftar versi. Tidak perlu setup apa pun.
 
-1. Di Google Drive, buat **Shared Drive** (Drive bersama), mis. `Creative Tracker`, lalu buat folder `Lampiran` di dalamnya.
-2. **Kelola anggota** Shared Drive → tambahkan email service account (`client_email` di file JSON, mis. `creative-tracker@…iam.gserviceaccount.com`) sebagai **Content manager**.
-3. Buka folder `Lampiran`, salin URL-nya (`https://drive.google.com/drive/folders/<ID>`).
-4. Di Vercel, isi `DRIVE_UPLOAD_FOLDER_ID` dengan URL atau ID folder itu → Redeploy. Cek `https://<domain>/api/health`: `uploads` = `drive`.
+Opsional, bila nanti ingin tombol **+ Gambar** dan tempel screenshot langsung (Ctrl/Cmd + V) di aplikasi, aktifkan salah satu penyimpanan berikut:
 
-Catatan:
-- Harus **Shared Drive**, bukan folder di My Drive: service account tidak punya kuota penyimpanan sendiri, jadi upload ke My Drive akan ditolak Google.
-- Gambar **tidak dibuat publik**. Aplikasi menampilkannya lewat `/api/drive/<id>` yang hanya bisa dibuka user yang sudah login, dan hanya untuk gambar di folder lampiran itu. Anggota Shared Drive juga bisa melihat semua lampiran langsung di Drive.
-- Nama file: `<ID task>_<tanggal>_<acak>.jpg`, jadi mudah dicari per task.
-- Gambar JPG/PNG maks. 4 MB (foto besar diperkecil otomatis di browser).
+- **Folder di Shared Drive tim**: buat Shared Drive (mis. `Creative Tracker`) dan folder `Lampiran`, tambahkan email service account (`client_email` di file JSON) sebagai **Content manager**, lalu isi `DRIVE_UPLOAD_FOLDER_ID` di Vercel dengan URL/ID folder itu. Harus Shared Drive, bukan My Drive (service account tidak punya kuota sendiri). Gambar tidak dipublikasikan: ditampilkan lewat `/api/drive/<id>` khusus user login.
+- **Vercel Blob**: Storage → Create → Blob → hubungkan ke project (`BLOB_READ_WRITE_TOKEN` terisi otomatis).
 
-Alternatif bila tidak ada Shared Drive: hubungkan **Vercel Blob** (Storage → Create → Blob) agar `BLOB_READ_WRITE_TOKEN` terisi. Tanpa keduanya, pengguna tetap bisa menempel link Google Drive sebagai lampiran.
+Setelah Redeploy, `https://<domain>/api/health` menunjukkan `uploads` = `drive` atau `blob` (`off` = hanya tempel link).
 
 ### 7. Jadwal otomatis (sudah diatur di `vercel.json`)
 

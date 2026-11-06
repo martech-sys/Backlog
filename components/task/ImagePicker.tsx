@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { ThumbImg } from './ThumbImg';
 
 const MAX_SIDE = 2000;
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -34,12 +35,15 @@ export function ImagePicker({
   folder,
   label = 'Lampiran gambar',
   allowLink = true,
+  canUpload = false,
   children,
 }: {
   name?: string;
   folder: string;
   label?: string;
   allowLink?: boolean;
+  /** Upload langsung aktif (penyimpanan dikonfigurasi). Bila tidak, lampiran lewat link Google Drive saja. */
+  canUpload?: boolean;
   children?: React.ReactNode;
 }) {
   const [items, setItems] = useState<{ url: string; preview: string }[]>([]);
@@ -93,10 +97,10 @@ export function ImagePicker({
       className="image-picker"
       onPaste={(e) => {
         const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
-        if (files.length) {
-          e.preventDefault();
-          void upload(files);
-        }
+        if (!files.length) return;
+        e.preventDefault();
+        if (canUpload) void upload(files);
+        else setError('Gambar tidak bisa ditempel langsung. Simpan dulu ke Google Drive-mu, lalu tempel link-nya di kolom di bawah.');
       }}
     >
       {children}
@@ -105,15 +109,14 @@ export function ImagePicker({
         <div className="thumbs">
           {items.map((it, i) => (
             <span key={it.url + i} className="thumb">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={it.preview} alt={`Lampiran ${i + 1}`} referrerPolicy="no-referrer" />
+              <ThumbImg src={it.preview} alt={`Lampiran ${i + 1}`} />
               <button type="button" aria-label="Hapus lampiran" onClick={() => setItems((xs) => xs.filter((_, j) => j !== i))}>
                 ×
               </button>
               <input type="hidden" name={name} value={it.url} />
             </span>
           ))}
-          {items.length < 6 ? (
+          {canUpload && items.length < 6 ? (
             <button type="button" className="thumb add" onClick={() => input.current?.click()} disabled={busy > 0}>
               {busy ? 'Upload…' : '+ Gambar'}
             </button>
@@ -130,9 +133,9 @@ export function ImagePicker({
             e.target.value = '';
           }}
         />
-        <span className="help">
-          JPG/PNG maks. 4 MB (foto besar diperkecil otomatis). Bisa juga tempel screenshot dengan Ctrl/Cmd + V di sini.
-        </span>
+        {canUpload ? (
+          <span className="help">JPG/PNG maks. 4 MB (foto besar diperkecil otomatis). Bisa juga tempel screenshot dengan Ctrl/Cmd + V di sini.</span>
+        ) : null}
         {allowLink ? (
           <div className="row" style={{ gap: 6, marginTop: 4, flexWrap: 'nowrap' }}>
             <input
@@ -145,13 +148,19 @@ export function ImagePicker({
                   addLink();
                 }
               }}
-              placeholder="atau tempel link gambar / Google Drive"
+              placeholder={canUpload ? 'atau tempel link gambar / Google Drive' : 'Tempel link gambar dari Google Drive-mu'}
               style={{ flex: 1 }}
             />
             <button type="button" className="btn small" onClick={addLink} disabled={!link.trim()}>
               Tambah
             </button>
           </div>
+        ) : null}
+        {allowLink ? (
+          <span className="help">
+            Upload gambar ke Google Drive-mu → klik kanan → <b>Bagikan</b> → Akses umum: <b>siapa saja di organisasi</b> atau{' '}
+            <b>siapa saja yang memiliki link</b> → <b>Salin link</b>. Tanpa itu, tim hanya melihat tulisan &quot;Buka link&quot;.
+          </span>
         ) : null}
         {error ? (
           <span className="help" style={{ color: 'var(--danger)' }}>
