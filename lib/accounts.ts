@@ -254,6 +254,10 @@ export async function changeEmail(store: Store, actor: Actor, oldRaw: string, ne
 
   await store.update(SHEETS.USERS, 'Email', [{ key: rowKey(db.accountRows, oldEmail), patch: { Email: newEmail } }]);
   await renameEmailInMaster(store, oldEmail, newEmail);
+  // Riwayat tetap melekat: request yang diajukan dengan email lama ikut memakai email baru.
+  const reqs = db.requests.filter((r) => normalizeEmail(r['Email Requestor']) === oldEmail);
+  if (reqs.length)
+    await store.update(SHEETS.REQUEST, 'Request ID', reqs.map((r) => ({ key: r['Request ID'], patch: { 'Email Requestor': newEmail } })));
   await logAdmin(store, { by: actor.name, aksi: 'Ganti email', target: acc.nama, dari: oldEmail, ke: newEmail });
 
   const body = (who: string) =>

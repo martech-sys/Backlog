@@ -44,6 +44,8 @@ test('komentar, deskripsi, preview draft, dan revisi brand lewat komentar', asyn
   await svc.submitDraft(store, desA, id, 'https://drive.google.com/file/d/2AbCdEfGhIjKlMnOpQrStUvWxYz12345/view');
   await svc.qcDecision(store, aulia, id, true, '');
   assert.match((await svc.addComment(store, desA, id, { jenis: 'Revisi brand', isi: 'x', lampiran: [] })).message, /PIC brand/);
+  const forV1 = await svc.addComment(store, aulia, id, { jenis: 'QC lead', isi: 'Catatan tambahan untuk v1', lampiran: [], versi: '1' });
+  assert.equal(forV1.ok, true, forV1.message);
   const rev = await svc.addComment(store, brama, id, { jenis: 'Revisi brand', isi: 'Background lebih terang', lampiran: [] });
   assert.equal(rev.ok, true, rev.message);
 
@@ -59,11 +61,12 @@ test('komentar, deskripsi, preview draft, dan revisi brand lewat komentar', asyn
       ['QC lead', '1', 'Lead'],
       ['Draft', '2', 'Assignee'],
       ['QC lead', '2', 'Lead'],
+      ['QC lead', '1', 'Lead'],
       ['Revisi brand', '2', 'PIC brand'],
     ],
   );
   assert.equal(k[0].Lampiran, 'https://x.public.blob.vercel-storage.com/a.jpg', 'URL non-http dibuang');
-  assert.match(k[5].Isi, /^R1: Background lebih terang/);
+  assert.match(k[6].Isi, /^R1: Background lebih terang/);
   assert.ok(db.waLog.some((w) => w.Jenis === 'Komentar baru' && w.Nama === 'Desainer A'));
 });
 

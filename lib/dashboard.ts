@@ -19,6 +19,7 @@ export interface DashboardFilters {
   brand: string;
   divisi: string;
   anggota: string;
+  kategori: string;
 }
 
 export interface DashboardData {
@@ -51,7 +52,7 @@ export interface DashboardData {
     daysLeft: number;
     urgent: boolean;
   }[];
-  options: { grups: string[]; brands: string[]; divisi: string[]; anggota: string[] };
+  options: { grups: string[]; brands: string[]; divisi: string[]; anggota: string[]; kategori: string[] };
 }
 
 const NON_CREATIVE_DIVISI = ['management', 'traffic', 'brand'];
@@ -64,6 +65,7 @@ export function defaultFilters(today: string, overrides: Partial<DashboardFilter
     brand: '',
     divisi: '',
     anggota: '',
+    kategori: '',
   };
   for (const [k, v] of Object.entries(overrides)) {
     if (typeof v === 'string' && v.trim()) (f as unknown as Record<string, string>)[k] = v.trim();
@@ -91,10 +93,15 @@ export function computeDashboard(params: {
   const nowTs = formatWib(params.now);
   const today = nowTs.slice(0, 10);
 
-  const matchReq = (r: Pick<RequestRow, 'Grup' | 'Brand'>) =>
+  const matchScope = (r: Pick<RequestRow, 'Grup' | 'Brand'>) =>
     (!f.grup || r.Grup === f.grup) && (!f.brand || r.Brand === f.brand);
+  const matchReq = (r: RequestRow) =>
+    matchScope(r) && (!f.kategori || String(r.Kategori || '').split(',').map((k) => k.trim()).includes(f.kategori));
   const matchTask = (t: TaskRow) =>
-    matchReq(t) && (!f.divisi || t.Divisi === f.divisi) && (!f.anggota || t.Assignee === f.anggota);
+    matchScope(t) &&
+    (!f.divisi || t.Divisi === f.divisi) &&
+    (!f.anggota || t.Assignee === f.anggota) &&
+    (!f.kategori || t.Kategori === f.kategori);
 
   const requests = params.requests.filter(matchReq);
   const tasks = params.tasks.filter(matchTask);
@@ -267,7 +274,8 @@ export function computeDashboard(params: {
     options: {
       grups: master.grups.map((g) => g.name),
       brands: master.brands.filter((b) => !f.grup || b.grup === f.grup).map((b) => b.name),
-      divisi: [...new Set(master.kategori.map((k) => k.divisi))],
+      divisi: [...new Set(master.kategori.map((k) => k.divisi).filter(Boolean))],
+      kategori: [...new Set(master.kategori.map((k) => k.kategori))],
       anggota: master.people
         .filter((p) => p.active && !NON_CREATIVE_DIVISI.includes(p.divisi.toLowerCase()))
         .map((p) => p.name)

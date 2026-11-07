@@ -2,7 +2,7 @@
  * Drill-down dari dashboard: filter dashboard ikut dibawa ke halaman tujuan lewat URL
  * (bisa dibagikan / dibuka di tab baru) dan bisa dikembalikan dengan "Kembali ke dashboard".
  */
-export const DASH_KEYS = ['periode', 'from', 'to', 'grup', 'brand', 'divisi', 'anggota'] as const;
+export const DASH_KEYS = ['periode', 'from', 'to', 'grup', 'brand', 'divisi', 'anggota', 'kategori'] as const;
 
 type SP = Record<string, string | undefined>;
 

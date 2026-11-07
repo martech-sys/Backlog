@@ -143,6 +143,7 @@ export async function commentAction(fd: FormData) {
     jenis: s(fd, 'jenis'),
     isi: s(fd, 'isi'),
     lampiran: list(fd, 'lampiran'),
+    versi: s(fd, 'versi'),
   });
   done(`/tasks/${encodeURIComponent(taskId)}#komentar`, r);
 }

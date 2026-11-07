@@ -804,7 +804,7 @@ export async function addComment(
   store: Store,
   user: CurrentUser,
   taskId: string,
-  c: { jenis: string; isi: string; lampiran: string[] },
+  c: { jenis: string; isi: string; lampiran: string[]; versi?: string },
 ): Promise<ActionResult> {
   const jenis = (KOMENTAR_JENIS as readonly string[]).includes(c.jenis) ? (c.jenis as KomentarJenis) : 'Catatan';
   const isi = c.isi.trim().slice(0, 4000);
@@ -825,11 +825,16 @@ export async function addComment(
   return withTask(store, user, taskId, async (tx, t) => {
     if (!canComment(tx.db, user, t)) return fail('Kamu tidak terlibat di task ini.');
     if (jenis === 'QC lead' && !can.qc(user, t)) return fail('Label QC lead hanya untuk lead divisi.');
+    // Komentar boleh ditujukan ke versi draft tertentu (mis. "untuk v1"); default versi terbaru.
+    const latest = Number(t['Versi Draft']) || 0;
+    const wanted = Number(c.versi);
+    const versi = Number.isInteger(wanted) && wanted >= 1 && wanted <= latest ? String(wanted) : String(latest);
     tx.comment(t, {
       peran: roleOnTask(tx.db, user.name, t),
       jenis,
       isi,
       lampiran,
+      versi,
     });
     const holder = holderName(t['Bola di']);
     const targets = holder && holder !== user.name ? [holder] : [t.Assignee, t.Lead].filter((n) => n && n !== user.name).slice(0, 1);

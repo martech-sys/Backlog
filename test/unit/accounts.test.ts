@@ -194,12 +194,14 @@ test('ganti email: unik, akun & master ikut, email lama tidak bisa login', async
   await acc.createAccount(store, boss, mk('lain@heymale.id', 'Lain', 'User', 'Lain12345', false));
   assert.match((await acc.changeEmail(store, boss, 'daniel@preppstudio.com', 'LAIN@heymale.id')).message, /sudah terdaftar/);
   assert.match((await acc.changeEmail(store, boss, 'daniel@preppstudio.com', 'bukan')).message, /tidak valid/);
+  await store.append('Request', [{ 'Request ID': 'CR-2611-900', 'Email Requestor': 'daniel@preppstudio.com', 'PIC Brand': 'Daniel Pranata' }]);
   const r = await acc.changeEmail(store, boss, 'daniel@preppstudio.com', 'daniel.pranata@worldwhiteenterprise.com');
   assert.equal(r.ok, true, r.message);
   assert.equal((await acc.authenticate(store, 'daniel@preppstudio.com', 'Daniel123')).ok, false);
   assert.equal((await acc.authenticate(store, 'daniel.pranata@worldwhiteenterprise.com', 'Daniel123')).ok, true);
   const db = await loadDb(store);
   assert.equal(db.master.people.find((x) => x.name === 'Daniel Pranata')!.email, 'daniel.pranata@worldwhiteenterprise.com');
+  assert.equal(db.requests.find((x) => x['Request ID'] === 'CR-2611-900')!['Email Requestor'], 'daniel.pranata@worldwhiteenterprise.com');
   const mails = (await store.readAll(['Log_Email'])).Log_Email;
   assert.deepEqual(mails.filter((m) => m.Jenis.startsWith('Ganti email')).map((m) => m.Ke).sort(), ['daniel.pranata@worldwhiteenterprise.com', 'daniel@preppstudio.com']);
 });

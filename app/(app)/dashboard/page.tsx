@@ -68,6 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
     brand: sp.brand,
     divisi: sp.divisi,
     anggota: sp.anggota,
+    kategori: sp.kategori,
   });
   const d = computeDashboard({
     master: db.master,
@@ -80,7 +81,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
 
   // Drill-down: filter dashboard ikut dibawa ke halaman tujuan.
   const dq = dashQuery({ ...sp, from: f.from, to: f.to, periode: preset });
-  const scope = { grup: f.grup, brand: f.brand, divisi: f.divisi };
+  const scope = { grup: f.grup, brand: f.brand, divisi: f.divisi, kategori: f.kategori };
   const taskScope = { ...scope, anggota: f.anggota };
   // Angka request di dashboard tidak dipengaruhi filter divisi/anggota, jadi drill-down-nya juga tidak.
   const reqHref = (extra: Record<string, string>) =>
@@ -90,6 +91,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         view: 'semua',
         grup: f.grup,
         brand: f.brand,
+        kategori: f.kategori,
         from: f.from,
         to: f.to,
         ...extra,
@@ -99,15 +101,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
   const trackerHref = (extra: Record<string, string>) => drill('/tracker', { view: 'semua', ...taskScope, ...extra }, dq);
   const statusHref = (status: string) =>
     status === STATUS.BARU
-      ? drill('/requests', { view: 'cek', grup: f.grup, brand: f.brand }, dq)
+      ? drill('/requests', { view: 'cek', grup: f.grup, brand: f.brand, kategori: f.kategori }, dq)
       : status === STATUS.BRIEF_KURANG
-        ? drill('/requests', { view: 'kurang', grup: f.grup, brand: f.brand }, dq)
+        ? drill('/requests', { view: 'kurang', grup: f.grup, brand: f.brand, kategori: f.kategori }, dq)
         : trackerHref({ status });
   const stageHref = (stage: string) =>
     stage === 'Cek brief'
-      ? drill('/requests', { view: 'cek', grup: f.grup, brand: f.brand }, dq)
+      ? drill('/requests', { view: 'cek', grup: f.grup, brand: f.brand, kategori: f.kategori }, dq)
       : stage === 'Lengkapi brief'
-        ? drill('/requests', { view: 'kurang', grup: f.grup, brand: f.brand }, dq)
+        ? drill('/requests', { view: 'kurang', grup: f.grup, brand: f.brand, kategori: f.kategori }, dq)
         : trackerHref({ view: 'aktif', tahap: stage, sort: 'lama' });
   const memberTasks = (name: string) =>
     db.tasks
@@ -117,7 +119,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           ACTIVE_STATUSES.includes(t.Status as Status) &&
           (!f.grup || t.Grup === f.grup) &&
           (!f.brand || t.Brand === f.brand) &&
-          (!f.divisi || t.Divisi === f.divisi),
+          (!f.divisi || t.Divisi === f.divisi) &&
+          (!f.kategori || t.Kategori === f.kategori),
       )
       .sort((a, b) => (a.Deadline || '9').localeCompare(b.Deadline || '9'))
       .map((t) => ({
@@ -186,6 +189,15 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           <select id="divisi" name="divisi" defaultValue={f.divisi}>
             <option value="">Semua divisi</option>
             {d.options.divisi.map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="kategori">Kategori</label>
+          <select id="kategori" name="kategori" defaultValue={f.kategori}>
+            <option value="">Semua kategori</option>
+            {d.options.kategori.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>
