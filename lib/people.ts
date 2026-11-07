@@ -202,3 +202,17 @@ export async function setPhone(store: Store, email: string, name: string, phone:
   if (!hit) return { ok: false, message: 'Akunmu belum terhubung ke data tim/PIC. Minta superadmin mengisi peran kerjamu dulu.', from };
   return { ok: true, message: phone ? `Nomor WA disimpan: ${phone}.` : 'Nomor WA dikosongkan; kamu tidak akan menerima notifikasi WA.', from };
 }
+
+/** Nonaktifkan seseorang di Master_Tim & Master_PIC (berhenti menerima tugas & WA). Baris tidak dihapus agar riwayat utuh. */
+export async function deactivatePerson(store: Store, email: string, name: string): Promise<number> {
+  const t = await store.readAll([SHEETS.TIM, SHEETS.PIC], { fresh: true });
+  let n = 0;
+  for (const sheet of [SHEETS.TIM, SHEETS.PIC] as const) {
+    const row = findRow(t[sheet], email, [name]);
+    if (row && String(row.Aktif || 'Ya') !== 'Tidak') {
+      await store.update(sheet, 'Nama', [{ key: row.Nama, patch: { Aktif: 'Tidak' } }]);
+      n++;
+    }
+  }
+  return n;
+}

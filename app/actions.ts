@@ -372,6 +372,11 @@ export async function updateUserAction(fd: FormData) {
   done(safeBack(fd, '/admin/users'), r);
 }
 
+export async function deleteUserAction(fd: FormData) {
+  const r = await accounts.deleteAccount(await getStore(), await actor(), s(fd, 'email'), { deactivate: s(fd, 'deactivate') === 'Ya' });
+  done(safeBack(fd, '/admin/users#daftar'), r);
+}
+
 export async function generateSampleAction() {
   await requireSuperadmin();
   let r: svc.ActionResult;
@@ -466,6 +471,20 @@ export async function setWaModeAction(fd: FormData) {
           ? 'Mode uji dinyalakan: pesan WA hanya dicatat di Log_WA.'
           : 'Mode WA mengikuti variabel WA_DRY_RUN di Vercel.',
   });
+}
+
+/** Superadmin: tambah/ubah No WA seseorang langsung dari daftar user. */
+export async function setPhoneAction(fd: FormData) {
+  const u = await requireSuperadmin();
+  const back = safeBack(fd, '/admin/users#daftar');
+  const raw = s(fd, 'phone');
+  const phone = normalizePhone(raw);
+  if (raw && phone.length < 9) done(back, { ok: false, message: 'Nomor WA tidak valid. Contoh: 0812 3456 7890.' });
+  const store = await getStore();
+  const email = s(fd, 'email').toLowerCase();
+  const r = await setPhone(store, email, s(fd, 'nama'), phone);
+  if (r.ok && r.from !== phone) await logAdmin(store, { by: u.name, aksi: 'Ubah No WA', target: email, dari: r.from, ke: phone });
+  done(back, { ok: r.ok, message: r.ok ? (phone ? `No WA ${s(fd, 'nama')} disimpan: ${phone}.` : `No WA ${s(fd, 'nama')} dikosongkan.`) : r.message });
 }
 
 /** Setiap user: ubah nomor WA miliknya sendiri (halaman Akun). */

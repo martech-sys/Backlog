@@ -11,7 +11,7 @@ import { loadDb } from './db';
 import { env } from './env';
 import { emailLayout, escapeHtml, sendMail, type MailResult } from './mail';
 import { findPerson, findPersonByEmail, normalizeEmail } from './master';
-import { describe, logAdmin, profileOf, renameEmailInMaster, saveProfile, validateProfile, type WorkProfile } from './people';
+import { deactivatePerson, describe, logAdmin, profileOf, renameEmailInMaster, saveProfile, validateProfile, type WorkProfile } from './people';
 import type { Store } from './store';
 import type { SessionPayload } from './token';
 
@@ -387,6 +387,14 @@ function activeSuperadmins(accounts: Account[]): Account[] {
   return accounts.filter((a) => a.aktif && a.akses === AKSES.SUPERADMIN);
 }
 
+/** Superadmin dari env masih bisa login bila emailnya tidak punya akun, atau akunnya Superadmin aktif. */
+function envSuperadminUsable(accounts: Account[]): boolean {
+  const boot = envSuperadmin();
+  if (!boot) return false;
+  const own = accounts.find((a) => a.email === boot.email);
+  return !own || (own.aktif && own.akses === AKSES.SUPERADMIN);
+}
+
 export async function updateAccount(
   store: Store,
   actor: Actor,
@@ -407,13 +415,47 @@ export async function updateAccount(
   if (email === actor.email && (!next.aktif || next.akses !== AKSES.SUPERADMIN)) {
     return { ok: false, message: 'Kamu tidak bisa menonaktifkan atau menurunkan akses akunmu sendiri.' };
   }
-  const remaining = activeSuperadmins(db.accounts.map((a) => (a.email === email ? next : a)));
-  if (!remaining.length) return { ok: false, message: 'Harus ada minimal satu Superadmin aktif.' };
+  // Hanya relevan bila yang diubah adalah Superadmin aktif; Superadmin dari env juga dihitung.
+  const wasActiveSuper = acc.aktif && acc.akses === AKSES.SUPERADMIN;
+  const after = db.accounts.map((a) => (a.email === email ? next : a));
+  if (wasActiveSuper && !activeSuperadmins(after).length && !envSuperadminUsable(after)) return { ok: false, message: 'Harus ada minimal satu Superadmin aktif.' };
 
   await store.update(SHEETS.USERS, 'Email', [
     { key: rowKey(db.accountRows, email), patch: { Aktif: next.aktif ? 'Ya' : 'Tidak', Akses: next.akses, Nama: next.nama } },
   ]);
   return { ok: true, message: `Akun ${email} diperbarui.` };
+}
+
+/**
+ * Hapus akun login secara permanen. Riwayat request/task/komentar tetap (memakai nama).
+ * Bila `deactivate`, orangnya juga dinonaktifkan di Master_Tim/Master_PIC agar tidak menerima tugas & WA lagi.
+ */
+export async function deleteAccount(store: Store, actor: Actor, emailRaw: string, opts: { deactivate: boolean }): Promise<Result> {
+  if (!actor.isSuperadmin) return deny;
+  const email = normalizeEmail(emailRaw);
+  if (email === normalizeEmail(actor.email)) return { ok: false, message: 'Kamu tidak bisa menghapus akunmu sendiri.' };
+  const db = await loadDb(store, { fresh: true });
+  const acc = db.accounts.find((a) => a.email === email);
+  if (!acc) return { ok: false, message: 'Akun tidak ditemukan.' };
+  const isActiveSuper = acc.aktif && acc.akses === AKSES.SUPERADMIN;
+  const after = db.accounts.filter((a) => a.email !== email);
+  if (isActiveSuper && !activeSuperadmins(after).length && !envSuperadminUsable(after))
+    return { ok: false, message: 'Harus ada minimal satu Superadmin aktif.' };
+
+  const removed = await store.deleteWhere(SHEETS.USERS, 'Email', (v) => normalizeEmail(v) === email);
+  if (!removed) return { ok: false, message: 'Akun tidak ditemukan.' };
+  const off = opts.deactivate ? await deactivatePerson(store, email, acc.nama) : 0;
+  await logAdmin(store, {
+    by: actor.name,
+    aksi: 'Hapus user',
+    target: email,
+    dari: `${acc.nama} · ${acc.akses}`,
+    ke: off ? 'dihapus; dinonaktifkan dari tim/PIC' : 'dihapus',
+  });
+  return {
+    ok: true,
+    message: `Akun ${acc.nama} (${email}) dihapus.${off ? ' Juga dinonaktifkan dari tim/PIC, jadi tidak menerima tugas & WA lagi.' : ''}`,
+  };
 }
 
 export async function changeOwnPassword(
