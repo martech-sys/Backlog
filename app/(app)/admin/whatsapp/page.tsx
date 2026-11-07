@@ -115,6 +115,9 @@ export default async function WhatsappPage({ searchParams }: { searchParams: SP 
 
         <section className="mcard plain" id="tes" style={{ ['--c' as string]: BOARD_COLORS[6] }}>
           <div className="tab">Kirim pesan tes</div>
+          <p className="subtle" style={{ marginTop: 0 }}>
+            Pesan tes selalu dikirim sungguhan, juga saat mode uji aktif. Notifikasi tugas tetap mengikuti mode di atas.
+          </p>
           <form action={testWaAction} className="form-grid" style={{ display: 'grid', gap: 10 }}>
             <div className="field">
               <label htmlFor="to">Nomor tujuan</label>
