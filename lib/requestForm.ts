@@ -81,3 +81,19 @@ export function defaultsFromRequest(r: RequestRow): RequestFormDefaults {
     attachments: r.Attachments,
   };
 }
+
+/**
+ * PIC yang bisa dipilih untuk sebuah brand: yang daftar brand-nya memuat brand itu, atau yang tidak punya
+ * daftar brand dan grupnya sama / "Semua". PIC dengan daftar brand ditampilkan lebih dulu.
+ */
+export function picsForBrand<T extends { name: string; grup: string; brands: string[] }>(pics: T[], brand: string, grup: string): T[] {
+  return pics
+    .filter((x) =>
+      !brand
+        ? true
+        : x.brands.length
+          ? x.brands.some((b) => b.toLowerCase() === brand.toLowerCase())
+          : !x.grup || x.grup === 'Semua' || !grup || x.grup === grup,
+    )
+    .sort((a, b) => Number(b.brands.length > 0) - Number(a.brands.length > 0) || a.name.localeCompare(b.name));
+}

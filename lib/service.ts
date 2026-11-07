@@ -175,7 +175,7 @@ export function validateRequestInput(input: RequestInput, master: Master, today:
     if (!isYmd(input.dueDate)) errors.dueDate = 'Format tanggal tidak valid';
     else if (input.dueDate < today) errors.dueDate = 'Due date tidak boleh di masa lalu';
   }
-  if (input.budget && !/^\d+$/.test(String(input.budget).replace(/[.\s]/g, ''))) errors.budget = 'Budget harus berupa angka (Rp)';
+  if (input.budget && !/^\d+$/.test(String(input.budget).replace(/[.,\s]|^rp/gi, ''))) errors.budget = 'Budget harus berupa angka (Rp)';
   if (input.supportingLink && !isUrl(input.supportingLink)) errors.supportingLink = 'Link harus diawali http:// atau https://';
 
   for (const k of input.kategori || []) {
@@ -222,6 +222,8 @@ export async function submitRequest(
   const picName = String(input.picName || '').trim() || (user.roles.includes('pic') ? user.name : '');
   const pic = findPerson(master, picName);
   if (!pic || !pic.roles.includes('pic')) errors.picName = 'Pilih PIC brand';
+  else if (input.brand && pic.brands.length && !pic.brands.some((b) => b.toLowerCase() === input.brand.toLowerCase()))
+    errors.picName = `${pic.name} tidak memegang brand ${input.brand}. Atur brand-nya di Kelola user.`;
   if (Object.keys(errors).length) return { ok: false, message: 'Periksa kembali isian form.', errors };
 
   const route = routeRequest(master, input.brand, input.kategori);
@@ -249,7 +251,7 @@ export async function submitRequest(
     'Key Message': input.keyMessage.trim(),
     'Creative Note': input.creativeNote.trim(),
     'Target Audience': input.targetAudience.trim(),
-    Budget: Number(String(input.budget).replace(/[.\s]/g, '')) || 0,
+    Budget: Number(String(input.budget).replace(/[.,\s]|^rp/gi, '')) || 0,
     'Due Date': input.dueDate,
     Deliverables: input.deliverables.trim(),
     'Detail Kategori': formatDetails(input),
@@ -458,7 +460,7 @@ export async function updateBrief(
     'Key Message': input.keyMessage.trim(),
     'Creative Note': input.creativeNote.trim(),
     'Target Audience': input.targetAudience.trim(),
-    Budget: Number(String(input.budget).replace(/[.\s]/g, '')) || 0,
+    Budget: Number(String(input.budget).replace(/[.,\s]|^rp/gi, '')) || 0,
     'Due Date': input.dueDate,
     Deadline: input.dueDate,
     Deliverables: input.deliverables.trim(),

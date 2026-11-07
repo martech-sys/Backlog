@@ -1600,3 +1600,26 @@ table.users td {
     transform: rotate(360deg);
   }
 }
+
+/* Input dengan awalan (mis. Rp) */
+.input-prefix {
+  display: flex;
+  align-items: stretch;
+}
+.input-prefix > span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-right: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-weight: 600;
+}
+.input-prefix > input {
+  flex: 1;
+  min-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}

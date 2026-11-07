@@ -3,13 +3,14 @@
 import { startTransition, useActionState, useEffect, useMemo, useState } from 'react';
 import type { FormState } from '@/app/actions';
 import { CAMPAIGN_TYPES, CATEGORIES, CUSTOM_CATEGORY, type CategoryField } from '@/lib/config';
-import type { RequestFormDefaults } from '@/lib/requestForm';
+import { picsForBrand, type RequestFormDefaults } from '@/lib/requestForm';
 import { Field } from './ui';
 
 interface Props {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   brands: { name: string; grup: string }[];
-  pics: { name: string; grup: string }[];
+  /** PIC brand aktif; `brands` = brand yang dipegang (kosong = semua brand di grupnya). */
+  pics: { name: string; grup: string; brands: string[] }[];
   /** Traffic/admin boleh memilih PIC; PIC brand otomatis dirinya sendiri. */
   choosePic: boolean;
   currentUser: string;
@@ -18,6 +19,31 @@ interface Props {
   today: string;
   submitLabel: string;
   leadTimes: Record<string, number>;
+}
+
+const formatRibuan = (v: string) => {
+  const digits = String(v || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  return digits ? Number(digits).toLocaleString('id-ID') : '';
+};
+
+/** Input rupiah: titik ribuan otomatis saat mengetik (2000000 → 2.000.000). */
+function BudgetInput({ defaultValue }: { defaultValue: string }) {
+  const [value, setValue] = useState(formatRibuan(defaultValue));
+  return (
+    <div className="input-prefix">
+      <span>Rp</span>
+      <input
+        id="budget"
+        name="budget"
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="0"
+        value={value}
+        onChange={(e) => setValue(formatRibuan(e.target.value))}
+      />
+    </div>
+  );
 }
 
 function workingDaysUntil(today: string, due: string): number {
@@ -44,7 +70,7 @@ export function RequestForm(p: Props) {
   const e = Object.fromEntries(Object.entries(state.errors || {}).filter(([k]) => !touched.has(k)));
 
   const grup = p.brands.find((b) => b.name === brand)?.grup || '';
-  const picOptions = p.pics.filter((x) => !grup || x.grup === grup);
+  const picOptions = picsForBrand(p.pics, brand, grup);
   const leadTime = useMemo(() => Math.max(0, ...kategori.map((k) => p.leadTimes[k] || 0)), [kategori, p.leadTimes]);
   const daysLeft = due ? workingDaysUntil(p.today, due) : null;
   const urgent = daysLeft !== null && daysLeft >= 0 && kategori.length > 0 && daysLeft < leadTime;
@@ -227,7 +253,7 @@ export function RequestForm(p: Props) {
             <input id="targetAudience" name="targetAudience" type="text" defaultValue={p.defaults.targetAudience} />
           </Field>
           <Field label="Budget (Rp)" required error={e.budget} htmlFor="budget">
-            <input id="budget" name="budget" type="text" inputMode="numeric" placeholder="Rp" defaultValue={p.defaults.budget} />
+            <BudgetInput defaultValue={p.defaults.budget} />
           </Field>
         </div>
       </div>

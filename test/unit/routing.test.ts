@@ -71,3 +71,17 @@ test('akun login dipetakan ke peran master berdasarkan Nama', async () => {
   const tamu = resolveUser(db.master, { email: 'tamu@x.com', nama: 'Tamu', akses: 'User' });
   assert.deepEqual(tamu.roles, ['viewer']);
 });
+
+test('pilihan PIC per brand: brand yang dipegang, grup sama, atau grup Semua', async () => {
+  const { picsForBrand } = await import('../../lib/requestForm');
+  const pics = [
+    { name: 'Brama', grup: 'Menswear', brands: [] },
+    { name: 'Dea', grup: 'Womenswear', brands: [] },
+    { name: 'MArtech', grup: 'Semua', brands: ['Heymale', 'Heylocal'] },
+    { name: 'Umum', grup: 'Semua', brands: [] },
+    { name: 'Khusus Zoma', grup: 'Menswear', brands: ['Zoma'] },
+  ];
+  assert.deepEqual(picsForBrand(pics, 'Heymale', 'Menswear').map((p) => p.name), ['MArtech', 'Brama', 'Umum']);
+  assert.deepEqual(picsForBrand(pics, 'Zoma', 'Menswear').map((p) => p.name), ['Khusus Zoma', 'Brama', 'Umum']);
+  assert.deepEqual(picsForBrand(pics, 'Ladyfit', 'Womenswear').map((p) => p.name), ['Dea', 'Umum']);
+});

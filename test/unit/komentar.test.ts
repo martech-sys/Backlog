@@ -114,3 +114,22 @@ test('kategori custom: masuk ke Traffic, lalu Traffic atur divisi & lead atau ub
   assert.ok(db.waLog.some((w) => w['Ref ID'] === t['Task ID'] && w.Nama === t.Lead));
   assert.equal(svc.needsCustomSetup(t), false);
 });
+
+test('PIC baru dari Kelola user (grup Semua + daftar brand) bisa dipakai di request; budget bertitik diterima', async () => {
+  const store = testStore();
+  const { saveProfile } = await import('../../lib/people');
+  await saveProfile(store, {
+    email: 'martech@heymale.id',
+    by: 'Dodi',
+    profile: { nama: 'MArtech', peran: 'PIC brand', sisi: 'Semua', divisi: '', jabatan: '', brands: ['Heymale', 'Heylocal'], phone: '6281200001111', kapasitas: '' },
+  });
+  const evi = await userOf(store, 'Evi');
+  at('2026-10-27T02:00:00Z');
+  const ok = await svc.submitRequest(store, evi, requestInput({ brand: 'Heymale', picName: 'MArtech', budget: '2.000.000', dueDate: '2026-11-13' }));
+  assert.equal(ok.ok, true, ok.message + JSON.stringify(ok.errors));
+  const db = await loadDb(store);
+  const r = db.requests.find((x) => x['Request ID'] === ok.id)!;
+  assert.deepEqual([r['PIC Brand'], String(r.Budget)], ['MArtech', '2000000']);
+  const bad = await svc.submitRequest(store, evi, requestInput({ brand: 'Zoma', picName: 'MArtech', dueDate: '2026-11-13' }));
+  assert.match(bad.errors?.picName || '', /tidak memegang brand Zoma/);
+});
