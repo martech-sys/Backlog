@@ -14,7 +14,7 @@ import * as sample from '@/lib/sample';
 import * as svc from '@/lib/service';
 import { clearSessionCookie, getSession, requireSuperadmin, requireUser, setSessionCookie } from '@/lib/session';
 import { getStore } from '@/lib/store';
-import { isDryRun, sendWa } from '@/lib/wa';
+import { sendWa } from '@/lib/wa';
 
 export interface FormState {
   ok?: boolean;
@@ -405,9 +405,9 @@ export async function testWaAction(fd: FormData) {
   const text = s(fd, 'text') || `Tes dari Creative Request Tracker oleh ${u.name}. Bila pesan ini masuk, notifikasi WA sudah aktif.`;
   const store = await getStore();
   const db = await loadDb(store);
-  const r = await sendWa(to, text, {
-    dryRun: isDryRun(db.master.config.waDryRun),
-  });
+  // Pesan tes selalu dikirim sungguhan (juga saat mode uji), agar gateway bisa dicek sebelum notifikasi diaktifkan.
+  // Hanya mode demo yang tidak pernah mengirim.
+  const r = await sendWa(to, text, { dryRun: env.demoMode });
   const nama = findPersonByPhone(db.master, to)?.name || s(fd, 'nama');
   await store.append(SHEETS.WA_LOG, [
     {
@@ -425,7 +425,7 @@ export async function testWaAction(fd: FormData) {
     ok: r.ok && r.detail !== 'DRY_RUN',
     message: r.ok
       ? r.detail === 'DRY_RUN'
-        ? `Mode uji (DRY_RUN) aktif: pesan ke ${nama || to} hanya dicatat di Log_WA, tidak dikirim. Matikan mode uji di Pengaturan WA untuk mengirim sungguhan.`
+        ? `Mode demo: pesan ke ${nama || to} hanya dicatat di Log_WA, tidak dikirim.`
         : `Terkirim ke ${nama || to} (${to}).`
       : `Gagal kirim ke ${nama || to}: ${r.detail}`,
   });
