@@ -91,6 +91,21 @@ test('kirim lewat Lixus: endpoint, header X-API-Key, body {to,text}, dan pesan e
   assert.equal(r.ok, false);
   assert.match(r.detail, /tidak aktif \(503\)/);
 
+  // Halaman error HTML Cloudflare → pesan singkat yang jelas, tanpa potongan HTML
+  status = 530;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Response('<!DOCTYPE html><html><head><title>Cloudflare Tunnel error</title>', { status: 530 });
+  }) as typeof fetch;
+  const cf = await sendWa('6281234', 'x', { backoffMs: 1 });
+  assert.match(cf.detail, /^Gagal: Gateway Lixus tidak bisa dihubungi \(Cloudflare 530\).*\(dicoba 3x\)$/);
+  assert.doesNotMatch(cf.detail, /<html|DOCTYPE/i);
+  calls.length = 3;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify(reply), { status });
+  }) as typeof fetch;
+
   // 500 = error sementara → dicoba ulang 3x
   status = 500;
   reply = { error: 'boom' };

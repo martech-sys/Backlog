@@ -87,7 +87,15 @@ async function sendOnce(to: string, message: string): Promise<SendResult> {
   }
 }
 
+/** Halaman error HTML (mis. dari Cloudflare) tidak ikut ditulis ke log; cukup alasan singkatnya. */
+const looksLikeHtml = (raw: string) => /^\s*<(!doctype|html)/i.test(raw);
+
 const LIXUS_ERRORS: Record<number, string> = {
+  502: 'Gateway Lixus tidak merespons (502). Server gateway mungkin sedang mati',
+  521: 'Server gateway Lixus mati (Cloudflare 521)',
+  522: 'Server gateway Lixus tidak menjawab (Cloudflare 522)',
+  523: 'Server gateway Lixus tidak bisa dijangkau (Cloudflare 523)',
+  530: 'Gateway Lixus tidak bisa dihubungi (Cloudflare 530): server atau Cloudflare Tunnel gateway sedang mati',
   400: 'Data pesan tidak lengkap (400)',
   401: 'API key Lixus salah atau belum diisi (401)',
   503: 'Sesi WhatsApp di gateway Lixus tidak aktif (503)',
@@ -114,7 +122,7 @@ async function sendLixus(to: string, text: string): Promise<SendResult> {
   const reason = LIXUS_ERRORS[res.status] || `HTTP ${res.status}`;
   return {
     ok: false,
-    detail: `${reason}${body.error ? `: ${body.error}` : raw ? `: ${raw.slice(0, 120)}` : ''}`,
+    detail: `${reason}${body.error ? `: ${body.error}` : raw && !looksLikeHtml(raw) ? `: ${raw.slice(0, 120)}` : ''}`,
     // 503 = sesi WA gateway mati: tidak akan pulih dalam hitungan detik.
     transient: (res.status >= 500 && res.status !== 503) || res.status === 429,
   };
