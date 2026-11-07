@@ -131,3 +131,20 @@ test('balasan bot dikirim ke JID asli pengirim (termasuk akun LID)', async () =>
   assert.ok(db.waLog.some((w) => w.Arah === 'IN' && w.Nomor === '1234567@lid'));
   assert.ok(db.waLog.some((w) => w.Arah === 'OUT' && w.Hasil === 'Terkirim · m1'));
 });
+
+test('batas tes WA: hanya tes yang terkirim hari ini ke nomor itu yang dihitung', async () => {
+  const { testWaUsedToday, TEST_WA_PER_DAY } = await import('../../lib/wa');
+  const row = (Timestamp: string, Nomor: string, Hasil: string, Jenis = 'Tes WA') => ({ Arah: 'OUT', Timestamp, Nomor, Hasil, Jenis });
+  const log = [
+    row('2026-11-07 09:00:00', '628111', 'Terkirim · abc'),
+    row('2026-11-07 10:00:00', '628111', 'Gagal: HTTP 530 (dicoba 3x)'),
+    row('2026-11-07 11:00:00', '628111', 'Terkirim · def'),
+    row('2026-11-06 11:00:00', '628111', 'Terkirim · lama'),
+    row('2026-11-07 11:00:00', '628222', 'Terkirim · lain'),
+    row('2026-11-07 11:00:00', '628111', 'Terkirim · x', 'Tugas baru'),
+  ];
+  assert.equal(TEST_WA_PER_DAY, 2);
+  assert.equal(testWaUsedToday(log, '628111', '2026-11-07'), 2);
+  assert.equal(testWaUsedToday(log, '628222', '2026-11-07'), 1);
+  assert.equal(testWaUsedToday(log, '628111', '2026-11-08'), 0);
+});

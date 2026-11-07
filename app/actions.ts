@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import * as accounts from '@/lib/accounts';
 import { now } from '@/lib/clock';
 import { CATEGORIES, SHEETS, TASK_STATUSES, type Status } from '@/lib/config';
-import { formatWib } from '@/lib/dates';
+import { formatWib, todayWib } from '@/lib/dates';
 import { loadDb } from '@/lib/db';
 import { env } from '@/lib/env';
 import { findPerson, findPersonByPhone, normalizePhone } from '@/lib/master';
@@ -14,7 +14,7 @@ import * as sample from '@/lib/sample';
 import * as svc from '@/lib/service';
 import { clearSessionCookie, getSession, requireSuperadmin, requireUser, setSessionCookie } from '@/lib/session';
 import { getStore } from '@/lib/store';
-import { sendWa } from '@/lib/wa';
+import { sendWa, TEST_WA_PER_DAY, testWaUsedToday, waStatus as waStatusOf } from '@/lib/wa';
 
 export interface FormState {
   ok?: boolean;
@@ -401,39 +401,48 @@ export async function purgeSampleAction() {
   });
 }
 
-/** Superadmin: kirim pesan uji ke satu nomor untuk memastikan gateway WA tersambung. */
-export async function testWaAction(fd: FormData) {
-  const u = await requireSuperadmin();
-  const back = safeBack(fd, '/admin/whatsapp#tes');
-  const to = normalizePhone(s(fd, 'to'));
-  if (!to) done(back, { ok: false, message: 'Nomor WA tujuan kosong.' });
-  const text = s(fd, 'text') || `Tes dari Creative Request Tracker oleh ${u.name}. Bila pesan ini masuk, notifikasi WA sudah aktif.`;
+export interface TestWaState {
+  ok?: boolean;
+  message?: string;
+  /** Sisa kuota tes hari ini untuk nomor ini. */
+  remaining?: number;
+}
+
+/** Kirim satu pesan tes (selalu sungguhan kecuali mode demo), maks. TEST_WA_PER_DAY yang terkirim per nomor per hari. */
+async function sendTestWa(u: { name: string }, toRaw: string, namaRaw: string, textRaw: string): Promise<TestWaState> {
+  const to = normalizePhone(toRaw);
+  if (!to) return { ok: false, message: 'Nomor WA tujuan kosong.' };
   const store = await getStore();
-  const db = await loadDb(store);
+  const db = await loadDb(store, { withWaLog: true, fresh: true });
+  const today = todayWib(now());
+  const used = testWaUsedToday(db.waLog, to, today);
+  if (used >= TEST_WA_PER_DAY)
+    return { ok: false, remaining: 0, message: `Batas tes ke nomor ini ${TEST_WA_PER_DAY}x per hari sudah tercapai. Coba lagi besok.` };
+  const text = textRaw || `Tes dari Creative Request Tracker oleh ${u.name}. Bila pesan ini masuk, notifikasi WA sudah aktif.`;
   // Pesan tes selalu dikirim sungguhan (juga saat mode uji), agar gateway bisa dicek sebelum notifikasi diaktifkan.
   // Hanya mode demo yang tidak pernah mengirim.
   const r = await sendWa(to, text, { dryRun: env.demoMode });
-  const nama = findPersonByPhone(db.master, to)?.name || s(fd, 'nama');
+  const nama = findPersonByPhone(db.master, to)?.name || namaRaw;
   await store.append(SHEETS.WA_LOG, [
-    {
-      Timestamp: formatWib(now()),
-      Arah: 'OUT',
-      Nomor: to,
-      Nama: nama,
-      Jenis: 'Tes WA',
-      'Ref ID': '',
-      Pesan: text,
-      Hasil: r.detail,
-    },
+    { Timestamp: formatWib(now()), Arah: 'OUT', Nomor: to, Nama: nama, Jenis: 'Tes WA', 'Ref ID': '', Pesan: text, Hasil: r.detail },
   ]);
-  done(back, {
-    ok: r.ok && r.detail !== 'DRY_RUN',
-    message: r.ok
-      ? r.detail === 'DRY_RUN'
-        ? `Mode demo: pesan ke ${nama || to} hanya dicatat di Log_WA, tidak dikirim.`
-        : `Terkirim ke ${nama || to} (${to}).`
-      : `Gagal kirim ke ${nama || to}: ${r.detail}`,
-  });
+  const remaining = TEST_WA_PER_DAY - used - (waStatusOf(r.detail) === 'Terkirim' ? 1 : 0);
+  if (!r.ok) return { ok: false, remaining, message: `Gagal kirim ke ${nama || to}: ${r.detail}` };
+  if (r.detail === 'DRY_RUN') return { ok: true, remaining, message: `Mode demo: pesan ke ${nama || to} hanya dicatat, tidak dikirim.` };
+  return { ok: true, remaining, message: `Terkirim ke ${nama || to} pukul ${formatWib(now()).slice(11, 16)}. Sisa tes hari ini: ${remaining}x.` };
+}
+
+/** Superadmin: kirim pesan uji dari halaman Pengaturan WA (redirect dengan pesan hasil). */
+export async function testWaAction(fd: FormData) {
+  const u = await requireSuperadmin();
+  const r = await sendTestWa(u, s(fd, 'to'), s(fd, 'nama'), s(fd, 'text'));
+  done(safeBack(fd, '/admin/whatsapp#tes'), { ok: !!r.ok, message: r.message || '' });
+}
+
+/** Superadmin: tombol Tes WA per user di Kelola user (hasil tampil di samping tombol, tanpa pindah halaman). */
+export async function testWaInlineAction(_prev: TestWaState, fd: FormData): Promise<TestWaState> {
+  const u = await requireSuperadmin();
+  return sendTestWa(u, s(fd, 'to'), s(fd, 'nama'), '');
 }
 
 /** Superadmin: nyalakan/matikan mode uji WA (disimpan di tab Config, mengalahkan env WA_DRY_RUN). */

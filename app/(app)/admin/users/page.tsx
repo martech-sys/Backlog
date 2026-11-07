@@ -7,23 +7,25 @@ import {
   resetPasswordAction,
   deleteUserAction,
   setPhoneAction,
-  testWaAction,
   updateUserAction,
 } from '@/app/actions';
 import { AddUserForm } from '@/components/admin/AddUserForm';
 import { BlastInvitesButton, InviteButton } from '@/components/admin/InviteButton';
 import { ProfileEditor } from '@/components/admin/ProfileEditor';
+import { TestWaButton } from '@/components/admin/TestWaButton';
 import { PasswordInput } from '@/components/PasswordInput';
 import { SubmitButton } from '@/components/SubmitButton';
 import { Flash } from '@/components/ui';
 import { BOARD_COLORS } from '@/lib/backlog';
 import { AKSES } from '@/lib/config';
-import { formatWaktu } from '@/lib/dates';
+import { now } from '@/lib/clock';
+import { formatWaktu, todayWib } from '@/lib/dates';
+import { TEST_WA_PER_DAY, testWaUsedToday } from '@/lib/wa';
 import { emailConfigured } from '@/lib/mail';
 import { findPerson, findPersonByEmail } from '@/lib/master';
 import { describe, masterSuggestions, profileOf } from '@/lib/people';
 import { countSample } from '@/lib/sample';
-import { getDb, requireSuperadmin } from '@/lib/session';
+import { getDbWithWa, requireSuperadmin } from '@/lib/session';
 import { getStore } from '@/lib/store';
 
 export const metadata = { title: 'Kelola user' };
@@ -37,7 +39,8 @@ const AKSES_LIST = [AKSES.USER, AKSES.ADMIN, AKSES.SUPERADMIN];
 export default async function UsersPage({ searchParams }: { searchParams: SP }) {
   const me = await requireSuperadmin();
   const sp = await searchParams;
-  const db = await getDb();
+  const db = await getDbWithWa();
+  const today = todayWib(now());
   const q = (sp.q || '').toLowerCase();
   const filter = sp.f || '';
 
@@ -134,7 +137,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
         </button>
       </form>
       <div className="table-wrap">
-        <table>
+        <table className="users">
           <thead>
             <tr>
               <th>Nama & email</th>
@@ -158,158 +161,165 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                 const self = a.email === me.email;
                 const profile = profileOf(person, a.nama);
                 const anchor = `u-edit-${a.email.replace(/[^a-z0-9]/gi, '')}`;
+                const back = `/admin/users${filter ? `?f=${filter}` : ''}#${anchor}`;
+                const phone = person?.phone || '';
                 return (
                   <tr key={a.email} id={anchor} style={a.aktif ? undefined : { opacity: 0.55 }}>
-                    <td style={{ minWidth: 220 }}>
-                      <div className="title">
-                        {a.nama || '-'} {self ? <span className="badge blue">Kamu</span> : null}
+                    <td style={{ minWidth: 190 }}>
+                      <div className="cell-main">
+                        <span className="title">
+                          {a.nama || '-'} {self ? <span className="badge blue">Kamu</span> : null}
+                        </span>
+                        <span className="subtle">{a.email}</span>
                       </div>
-                      <div className="subtle">{a.email}</div>
-                      <details style={{ marginTop: 4 }}>
-                        <summary className="btn small">Ubah email</summary>
-                        <form action={changeEmailAction} className="stack" style={{ marginTop: 6, gap: 6 }}>
-                          <input type="hidden" name="email" value={a.email} />
-                          <input type="email" name="newEmail" required placeholder="email baru" />
-                          <span className="subtle">
-                            Password tetap; email lama tidak bisa dipakai login lagi. Pemberitahuan dikirim ke kedua email.
-                          </span>
-                          <SubmitButton className="btn small primary">Simpan email</SubmitButton>
-                        </form>
-                      </details>
-                    </td>
-                    <td style={{ minWidth: 200 }}>
-                      {person ? (
-                        <>
-                          <div>{describe(profile)}</div>
-                          {profile.jabatan ? <div className="subtle">{profile.jabatan}</div> : null}
-                        </>
-                      ) : a.akses !== AKSES.USER ? (
-                        <span className="subtle">{a.akses} (tanpa peran kerja)</span>
-                      ) : (
-                        <span className="badge amber">Belum ada peran</span>
-                      )}
-                      <details style={{ marginTop: 4 }}>
-                        <summary className="btn small">Ubah peran</summary>
-                        <ProfileEditor email={a.email} initial={profile} brands={brands} peranRequired={a.akses === AKSES.USER} />
-                      </details>
-                    </td>
-                    <td className="nowrap">
-                      {person?.phone ? (
-                        <form action={testWaAction} className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
-                          <input type="hidden" name="to" value={person.phone} />
-                          <input type="hidden" name="nama" value={person.name} />
-                          <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#${anchor}`} />
-                          <span>{person.phone}</span>
-                          <button className="btn small" title="Kirim pesan tes ke nomor ini">
-                            Tes WA
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="badge red">No WA kosong</span>
-                      )}
-                      {person ? (
-                        <details style={{ marginTop: 6 }}>
-                          <summary className="btn small">{person.phone ? 'Ubah No WA' : '+ Tambah No WA'}</summary>
-                          <form action={setPhoneAction} className="row" style={{ gap: 4, flexWrap: 'nowrap', marginTop: 6 }}>
+                      <div className="cell-actions">
+                        <details>
+                          <summary className="btn small">Ubah email</summary>
+                          <form action={changeEmailAction} className="cell-panel">
                             <input type="hidden" name="email" value={a.email} />
-                            <input type="hidden" name="nama" value={person.name} />
-                            <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#${anchor}`} />
-                            <input
-                              name="phone"
-                              inputMode="tel"
-                              defaultValue={person.phone}
-                              placeholder="0812 3456 7890"
-                              style={{ width: 150 }}
-                              aria-label={`No WA ${person.name}`}
-                            />
-                            <SubmitButton className="btn small primary" pendingText="…">
-                              Simpan
-                            </SubmitButton>
+                            <input type="email" name="newEmail" required placeholder="email baru" />
+                            <span className="subtle">Password tetap; email lama tidak bisa dipakai login lagi. Pemberitahuan dikirim ke kedua email.</span>
+                            <SubmitButton className="btn small primary">Simpan email</SubmitButton>
                           </form>
                         </details>
+                      </div>
+                    </td>
+                    <td style={{ minWidth: 170 }}>
+                      <div className="cell-main">
+                        {person ? (
+                          <>
+                            <span>{describe(profile)}</span>
+                            {profile.jabatan ? <span className="subtle">{profile.jabatan}</span> : null}
+                          </>
+                        ) : a.akses !== AKSES.USER ? (
+                          <span className="subtle">{a.akses} (tanpa peran kerja)</span>
+                        ) : (
+                          <span>
+                            <span className="badge amber">Belum ada peran</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="cell-actions">
+                        <details>
+                          <summary className="btn small">Ubah peran</summary>
+                          <div className="cell-panel" style={{ maxWidth: 'none' }}>
+                            <ProfileEditor email={a.email} initial={profile} brands={brands} peranRequired={a.akses === AKSES.USER} />
+                          </div>
+                        </details>
+                      </div>
+                    </td>
+                    <td style={{ minWidth: 170 }}>
+                      <div className="cell-main">
+                        {phone ? <span className="nowrap">{phone}</span> : <span><span className="badge red">No WA kosong</span></span>}
+                      </div>
+                      {person ? (
+                        <div className="cell-actions">
+                          {phone ? (
+                            <TestWaButton
+                              to={phone}
+                              nama={person.name}
+                              limit={TEST_WA_PER_DAY}
+                              remaining={Math.max(0, TEST_WA_PER_DAY - testWaUsedToday(db.waLog, phone, today))}
+                            />
+                          ) : null}
+                          <details>
+                            <summary className="btn small">{phone ? 'Ubah' : '+ Tambah No WA'}</summary>
+                            <form action={setPhoneAction} className="cell-panel">
+                              <input type="hidden" name="email" value={a.email} />
+                              <input type="hidden" name="nama" value={person.name} />
+                              <input type="hidden" name="back" value={back} />
+                              <input name="phone" inputMode="tel" defaultValue={phone} placeholder="0812 3456 7890" aria-label={`No WA ${person.name}`} />
+                              <SubmitButton className="btn small primary">Simpan No WA</SubmitButton>
+                            </form>
+                          </details>
+                        </div>
                       ) : (
-                        <div className="subtle" style={{ marginTop: 4, whiteSpace: 'normal', maxWidth: 180 }}>
-                          Isi peran kerja dulu (Ubah peran), No WA bisa diisi di sana.
+                        <div className="cell-note subtle" style={{ marginTop: 6 }}>
+                          Isi peran kerja dulu; No WA bisa diisi di Ubah peran.
                         </div>
                       )}
                     </td>
-                    <td>
-                      <form action={updateUserAction} className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                    <td style={{ minWidth: 130 }}>
+                      <form action={updateUserAction} className="stack" style={{ gap: 8 }}>
                         <input type="hidden" name="email" value={a.email} />
-                        <select name="akses" defaultValue={a.akses} disabled={self} style={{ minWidth: 118 }}>
+                        <select name="akses" defaultValue={a.akses} disabled={self} style={{ width: 124 }}>
                           {AKSES_LIST.map((x) => (
                             <option key={x}>{x}</option>
                           ))}
                         </select>
                         {self ? null : (
-                          <SubmitButton className="btn small" pendingText="…">
-                            Simpan
-                          </SubmitButton>
+                          <div>
+                            <SubmitButton className="btn small">Simpan akses</SubmitButton>
+                          </div>
                         )}
                       </form>
                     </td>
-                    <td style={{ minWidth: 190 }}>
-                      <form action={updateUserAction}>
-                        <input type="hidden" name="email" value={a.email} />
-                        <input type="hidden" name="aktif" value={a.aktif ? 'Tidak' : 'Ya'} />
-                        <span className={`badge ${a.aktif ? 'green' : ''}`} style={{ marginRight: 6 }}>
-                          {a.aktif ? 'Aktif' : 'Nonaktif'}
+                    <td style={{ minWidth: 175 }}>
+                      <div className="cell-main">
+                        <span>
+                          <span className={`badge ${a.aktif ? 'green' : ''}`}>{a.aktif ? 'Aktif' : 'Nonaktif'}</span>
                         </span>
-                        {self ? null : (
-                          <SubmitButton className={`btn small${a.aktif ? ' danger' : ''}`} pendingText="…">
-                            {a.aktif ? 'Nonaktifkan' : 'Aktifkan'}
-                          </SubmitButton>
-                        )}
-                      </form>
+                      </div>
                       {self ? null : (
-                        <details style={{ marginTop: 6 }}>
-                          <summary className="btn small danger">Hapus</summary>
-                          <form action={deleteUserAction} className="stack" style={{ gap: 6, marginTop: 6, maxWidth: 260 }}>
+                        <div className="cell-actions">
+                          <form action={updateUserAction}>
                             <input type="hidden" name="email" value={a.email} />
-                            <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#daftar`} />
-                            <span className="subtle">
-                              Hapus akun <b>{a.nama}</b> permanen? Riwayat task & komentarnya tetap tersimpan. Bila dinonaktifkan dari tim/PIC, ia tidak
-                              menerima tugas & WA lagi.
+                            <input type="hidden" name="aktif" value={a.aktif ? 'Tidak' : 'Ya'} />
+                            <SubmitButton className="btn small">{a.aktif ? 'Nonaktifkan' : 'Aktifkan'}</SubmitButton>
+                          </form>
+                          <details>
+                            <summary className="btn small danger">Hapus</summary>
+                            <form action={deleteUserAction} className="cell-panel">
+                              <input type="hidden" name="email" value={a.email} />
+                              <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#daftar`} />
+                              <span className="subtle">
+                                Hapus akun <b>{a.nama}</b> permanen? Riwayat task & komentarnya tetap tersimpan.
+                              </span>
+                              <label className="row" style={{ gap: 6, alignItems: 'flex-start', flexWrap: 'nowrap', fontSize: 12 }}>
+                                <input type="checkbox" name="deactivate" value="Ya" defaultChecked style={{ marginTop: 2 }} />
+                                <span>Nonaktifkan juga dari tim/PIC (tidak menerima tugas &amp; WA)</span>
+                              </label>
+                              <SubmitButton className="btn small danger" pendingText="Menghapus…">
+                                Ya, hapus user
+                              </SubmitButton>
+                            </form>
+                          </details>
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ minWidth: 150 }}>
+                      <div className="cell-main">
+                        {a.lastLogin ? (
+                          <span className="nowrap">{formatWaktu(a.lastLogin)}</span>
+                        ) : (
+                          <>
+                            <span>
+                              <span className="badge amber">Belum pernah login</span>
                             </span>
-                            <label className="choice">
-                              <input type="checkbox" name="deactivate" value="Ya" defaultChecked /> Nonaktifkan juga dari tim/PIC
-                            </label>
-                            <SubmitButton className="btn small danger" pendingText="Menghapus…">
-                              Ya, hapus user
-                            </SubmitButton>
+                            {a.invitedAt ? <span className="subtle">Undangan: {formatWaktu(a.invitedAt)}</span> : null}
+                          </>
+                        )}
+                      </div>
+                      {!a.lastLogin && a.aktif && !self ? (
+                        <div className="cell-actions">
+                          <InviteButton email={a.email} nama={a.nama} label={a.invitedAt ? 'Kirim ulang undangan' : 'Kirim undangan'} />
+                        </div>
+                      ) : null}
+                    </td>
+                    <td style={{ minWidth: 110 }}>
+                      <div className="cell-main">
+                        <span className="subtle">{!a.hash ? 'Belum dibuat' : a.mustChange ? 'Wajib ganti' : 'Sudah diatur'}</span>
+                      </div>
+                      <div className="cell-actions">
+                        <details>
+                          <summary className="btn small">Reset</summary>
+                          <form action={resetPasswordAction} className="cell-panel" style={{ minWidth: 260 }}>
+                            <input type="hidden" name="email" value={a.email} />
+                            <PasswordInput name="password" generate autoGenerate />
+                            <SubmitButton className="btn small primary">Simpan password baru</SubmitButton>
                           </form>
                         </details>
-                      )}
-                    </td>
-                    <td style={{ minWidth: 170 }}>
-                      {a.lastLogin ? (
-                        formatWaktu(a.lastLogin)
-                      ) : (
-                        <>
-                          <span className="badge amber">Belum pernah login</span>
-                          {a.invitedAt ? <div className="subtle">Undangan: {formatWaktu(a.invitedAt)}</div> : null}
-                          {a.aktif && !self ? (
-                            <div style={{ marginTop: 4 }}>
-                              <InviteButton email={a.email} nama={a.nama} label={a.invitedAt ? 'Kirim ulang undangan' : 'Kirim undangan'} />
-                            </div>
-                          ) : null}
-                        </>
-                      )}
-                    </td>
-                    <td style={{ minWidth: 120 }}>
-                      {!a.hash ? (
-                        <div className="subtle">belum dibuat</div>
-                      ) : a.mustChange ? (
-                        <div className="subtle">wajib ganti</div>
-                      ) : null}
-                      <details>
-                        <summary className="btn small">Reset</summary>
-                        <form action={resetPasswordAction} className="stack" style={{ marginTop: 8, minWidth: 260 }}>
-                          <input type="hidden" name="email" value={a.email} />
-                          <PasswordInput name="password" generate autoGenerate />
-                          <SubmitButton className="btn small primary">Simpan password baru</SubmitButton>
-                        </form>
-                      </details>
+                      </div>
                     </td>
                   </tr>
                 );
