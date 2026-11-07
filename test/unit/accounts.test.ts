@@ -203,3 +203,43 @@ test('ganti email: unik, akun & master ikut, email lama tidak bisa login', async
   const mails = (await store.readAll(['Log_Email'])).Log_Email;
   assert.deepEqual(mails.filter((m) => m.Jenis.startsWith('Ganti email')).map((m) => m.Ke).sort(), ['daniel.pranata@worldwhiteenterprise.com', 'daniel@preppstudio.com']);
 });
+
+test('hapus user: permanen, tidak bisa hapus diri sendiri / superadmin terakhir, opsional nonaktifkan dari tim', async () => {
+  const store = testStore();
+  await acc.createAccount(store, boss, mk('sari@heymale.id', 'Sari Hapus', 'User', 'Sari12345', false, { peran: 'Staff', divisi: 'Desain' }));
+  await acc.createAccount(store, boss, mk('tono@heymale.id', 'Tono Tetap', 'User', 'Tono12345', false, { peran: 'Staff', divisi: 'Video' }));
+
+  assert.equal((await acc.deleteAccount(store, { ...boss, isSuperadmin: false }, 'sari@heymale.id', { deactivate: true })).ok, false);
+  assert.match((await acc.deleteAccount(store, boss, boss.email, { deactivate: true })).message, /sendiri/);
+  assert.match((await acc.deleteAccount(store, boss, 'tidak@ada.id', { deactivate: true })).message, /tidak ditemukan/);
+
+  const r = await acc.deleteAccount(store, boss, 'SARI@heymale.id', { deactivate: true });
+  assert.equal(r.ok, true, r.message);
+  assert.equal((await acc.authenticate(store, 'sari@heymale.id', 'Sari12345')).ok, false);
+  await acc.deleteAccount(store, boss, 'tono@heymale.id', { deactivate: false });
+  const db = await loadDb(store);
+  assert.equal(db.accounts.some((a) => a.email === 'sari@heymale.id' || a.email === 'tono@heymale.id'), false);
+  assert.equal(db.master.people.find((p) => p.name === 'Sari Hapus')!.active, false, 'dinonaktifkan dari tim');
+  assert.equal(db.master.people.find((p) => p.name === 'Tono Tetap')!.active, true, 'tetap aktif di tim');
+  const logs = (await store.readAll(['Log_Admin'])).Log_Admin;
+  assert.equal(logs.filter((l) => l.Aksi === 'Hapus user').length, 2);
+});
+
+test('No WA bisa ditambah & diubah; hapus/nonaktifkan User tetap bisa saat Superadmin hanya dari env', async () => {
+  const store = testStore();
+  const { setPhone } = await import('../../lib/people');
+  await acc.createAccount(store, boss, mk('wulan@heymale.id', 'Wulan WA', 'User', 'Wulan12345', false, { peran: 'Staff', divisi: 'Foto' }));
+  assert.equal((await setPhone(store, 'wulan@heymale.id', 'Wulan WA', '6281299990000')).ok, true);
+  let db = await loadDb(store);
+  assert.equal(db.master.people.find((p) => p.name === 'Wulan WA')!.phone, '6281299990000');
+  const r = await setPhone(store, 'wulan@heymale.id', 'Wulan WA', '6281211112222');
+  assert.equal(r.from, '6281299990000');
+  db = await loadDb(store);
+  assert.equal(db.master.people.find((p) => p.name === 'Wulan WA')!.phone, '6281211112222');
+  assert.equal((await setPhone(store, 'tidakada@x.id', 'Tidak Ada', '6281200000000')).ok, false);
+
+  // Tidak ada akun Superadmin di tab Users (hanya Superadmin dari env): user biasa tetap bisa dinonaktifkan/dihapus.
+  env.superadminPassword = 'Rahasia123';
+  assert.equal((await acc.updateAccount(store, boss, 'wulan@heymale.id', { aktif: false })).ok, true);
+  assert.equal((await acc.deleteAccount(store, boss, 'wulan@heymale.id', { deactivate: false })).ok, true);
+});

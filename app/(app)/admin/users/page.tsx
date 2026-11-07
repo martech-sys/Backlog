@@ -5,6 +5,8 @@ import {
   purgeSampleAction,
   quickCreateAction,
   resetPasswordAction,
+  deleteUserAction,
+  setPhoneAction,
   testWaAction,
   updateUserAction,
 } from '@/app/actions';
@@ -205,6 +207,31 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                       ) : (
                         <span className="badge red">No WA kosong</span>
                       )}
+                      {person ? (
+                        <details style={{ marginTop: 6 }}>
+                          <summary className="btn small">{person.phone ? 'Ubah No WA' : '+ Tambah No WA'}</summary>
+                          <form action={setPhoneAction} className="row" style={{ gap: 4, flexWrap: 'nowrap', marginTop: 6 }}>
+                            <input type="hidden" name="email" value={a.email} />
+                            <input type="hidden" name="nama" value={person.name} />
+                            <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#${anchor}`} />
+                            <input
+                              name="phone"
+                              inputMode="tel"
+                              defaultValue={person.phone}
+                              placeholder="0812 3456 7890"
+                              style={{ width: 150 }}
+                              aria-label={`No WA ${person.name}`}
+                            />
+                            <SubmitButton className="btn small primary" pendingText="…">
+                              Simpan
+                            </SubmitButton>
+                          </form>
+                        </details>
+                      ) : (
+                        <div className="subtle" style={{ marginTop: 4, whiteSpace: 'normal', maxWidth: 180 }}>
+                          Isi peran kerja dulu (Ubah peran), No WA bisa diisi di sana.
+                        </div>
+                      )}
                     </td>
                     <td>
                       <form action={updateUserAction} className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
@@ -221,7 +248,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                         )}
                       </form>
                     </td>
-                    <td>
+                    <td style={{ minWidth: 190 }}>
                       <form action={updateUserAction}>
                         <input type="hidden" name="email" value={a.email} />
                         <input type="hidden" name="aktif" value={a.aktif ? 'Tidak' : 'Ya'} />
@@ -234,6 +261,25 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                           </SubmitButton>
                         )}
                       </form>
+                      {self ? null : (
+                        <details style={{ marginTop: 6 }}>
+                          <summary className="btn small danger">Hapus</summary>
+                          <form action={deleteUserAction} className="stack" style={{ gap: 6, marginTop: 6, maxWidth: 260 }}>
+                            <input type="hidden" name="email" value={a.email} />
+                            <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#daftar`} />
+                            <span className="subtle">
+                              Hapus akun <b>{a.nama}</b> permanen? Riwayat task & komentarnya tetap tersimpan. Bila dinonaktifkan dari tim/PIC, ia tidak
+                              menerima tugas & WA lagi.
+                            </span>
+                            <label className="choice">
+                              <input type="checkbox" name="deactivate" value="Ya" defaultChecked /> Nonaktifkan juga dari tim/PIC
+                            </label>
+                            <SubmitButton className="btn small danger" pendingText="Menghapus…">
+                              Ya, hapus user
+                            </SubmitButton>
+                          </form>
+                        </details>
+                      )}
                     </td>
                     <td style={{ minWidth: 170 }}>
                       {a.lastLogin ? (
