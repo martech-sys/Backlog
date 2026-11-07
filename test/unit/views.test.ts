@@ -55,6 +55,12 @@ test('dashboard dan papan dihitung dari data tracker', async () => {
   const review = d.stageDurations.find((s) => s.stage === 'Review brand')!;
   assert.equal(review.avgDays, 1);
   assert.equal(review.side, 'brand');
+  assert.ok(d.options.kategori.includes('Photo editing') && d.options.kategori.includes('Lainnya (custom)'));
+  const byKat = computeDashboard({ ...db, filters: defaultFilters('2026-10-30', { kategori: 'Videografis' }), now });
+  assert.equal(byKat.kpi.requestsIn, 0, 'filter kategori ikut membatasi request');
+  assert.equal(byKat.statusPosition.reduce((n, x) => n + x.count, 0), 0);
+  const byDg = computeDashboard({ ...db, filters: defaultFilters('2026-10-30', { kategori: db.tasks[0].Kategori }), now });
+  assert.equal(byDg.statusPosition.find((x) => x.status === STATUS.REVIEW_BRAND)?.count, 1);
 
   const boards = buildBoards({ master: db.master, tasks: db.tasks, statusLog: db.statusLog, today: '2026-10-30', groupBy: 'anggota' });
   const card = boards.find((b) => b.title === db.tasks[0].Assignee)!;

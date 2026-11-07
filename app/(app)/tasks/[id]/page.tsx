@@ -369,6 +369,30 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             </section>
           ) : null}
 
+          <section className="card" id="deskripsi">
+            <h2 style={{ marginBottom: 10 }}>Deskripsi & catatan pengerjaan</h2>
+            {mayEditDesc ? (
+              <form action={descriptionAction} className="stack">
+                <input type="hidden" name="taskId" value={id} />
+                <textarea
+                  name="deskripsi"
+                  rows={4}
+                  defaultValue={t.Deskripsi}
+                  placeholder="Mis. konsep yang dipakai, ukuran file, hal yang perlu diperhatikan, progres…"
+                />
+                <div>
+                  <SubmitButton className="btn small">Simpan deskripsi</SubmitButton>
+                </div>
+              </form>
+            ) : t.Deskripsi ? (
+              <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{t.Deskripsi}</p>
+            ) : (
+              <p className="muted" style={{ margin: 0 }}>
+                Belum ada deskripsi. Assignee atau lead bisa menambahkannya.
+              </p>
+            )}
+          </section>
+
           <section className="card">
             <h2 style={{ marginBottom: 10 }}>Brief</h2>
             {r ? (
@@ -408,29 +432,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             )}
           </section>
 
-          <section className="card" id="deskripsi">
-            <h2 style={{ marginBottom: 10 }}>Deskripsi & catatan pengerjaan</h2>
-            {mayEditDesc ? (
-              <form action={descriptionAction} className="stack">
-                <input type="hidden" name="taskId" value={id} />
-                <textarea
-                  name="deskripsi"
-                  rows={4}
-                  defaultValue={t.Deskripsi}
-                  placeholder="Mis. konsep yang dipakai, ukuran file, hal yang perlu diperhatikan, progres…"
-                />
-                <div>
-                  <SubmitButton className="btn small">Simpan deskripsi</SubmitButton>
-                </div>
-              </form>
-            ) : t.Deskripsi ? (
-              <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{t.Deskripsi}</p>
-            ) : (
-              <p className="muted" style={{ margin: 0 }}>
-                Belum ada deskripsi. Assignee atau lead bisa menambahkannya.
-              </p>
-            )}
-          </section>
+
 
           <section className="card">
             <h2 style={{ marginBottom: 10 }}>
@@ -524,7 +526,12 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                 <ImagePicker folder={id} canUpload={canUpload}>
                   <div className="field">
                     <label htmlFor="isi">Tulis komentar</label>
-                    <textarea id="isi" name="isi" rows={3} placeholder="Tulis komentar… (bisa tempel screenshot dengan Ctrl/Cmd + V)" />
+                    <textarea
+                      id="isi"
+                      name="isi"
+                      rows={3}
+                      placeholder={canUpload ? 'Tulis komentar… (bisa tempel screenshot dengan Ctrl/Cmd + V)' : 'Tulis komentar…'}
+                    />
                   </div>
                 </ImagePicker>
                 <div className="row" style={{ gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -543,10 +550,23 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   ) : (
                     <input type="hidden" name="jenis" value="Catatan" />
                   )}
+                  {Number(t['Versi Draft']) > 0 ? (
+                    <div className="field" style={{ minWidth: 130 }}>
+                      <label htmlFor="versi">Untuk draft</label>
+                      <select id="versi" name="versi" defaultValue={String(Number(t['Versi Draft']))}>
+                        {Array.from({ length: Number(t['Versi Draft']) }, (_, i) => Number(t['Versi Draft']) - i).map((v) => (
+                          <option key={v} value={v}>
+                            v{v}
+                            {v === Number(t['Versi Draft']) ? ' (terbaru)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
                   <SubmitButton pendingText="Mengirim…">Kirim komentar</SubmitButton>
                 </div>
                 <span className="help">
-                  Komentar terikat ke draft v{Number(t['Versi Draft']) || 0}. Pemegang bola ({t['Bola di']}) diberi tahu lewat WA.
+                  Label Revisi brand selalu untuk draft terbaru. Pemegang bola ({t['Bola di']}) diberi tahu lewat WA.
                 </span>
               </form>
             ) : null}
