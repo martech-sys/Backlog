@@ -14,6 +14,8 @@ export default async function NewRequestPage() {
   if (!can.submitRequest(user)) redirect('/requests?err=' + encodeURIComponent('Akunmu belum terdaftar sebagai PIC brand atau Traffic.'));
   const db = await getDb();
   const isPic = user.roles.includes('pic');
+  // Admin/Traffic/Head yang juga PIC tetap boleh mengajukan atas nama PIC lain.
+  const canChoosePic = user.roles.some((r) => ['admin', 'superadmin', 'traffic', 'head', 'hocp'].includes(r));
   const leadTimes: Record<string, number> = {};
   for (const k of db.master.kategori) leadTimes[k.kategori] = Math.max(leadTimes[k.kategori] || 0, k.leadTimeMin);
 
@@ -29,10 +31,12 @@ export default async function NewRequestPage() {
         <RequestForm
           action={submitRequestAction}
           brands={db.master.brands.filter((b) => b.active).map((b) => ({ name: b.name, grup: b.grup }))}
-          pics={db.master.people.filter((p) => p.active && p.roles.includes('pic')).map((p) => ({ name: p.name, grup: p.grup }))}
-          choosePic={!isPic}
+          pics={db.master.people
+            .filter((p) => p.active && p.roles.includes('pic'))
+            .map((p) => ({ name: p.name, grup: p.grup, brands: p.brands }))}
+          choosePic={!isPic || canChoosePic}
           currentUser={user.name}
-          defaults={EMPTY_DEFAULTS}
+          defaults={isPic ? { ...EMPTY_DEFAULTS, picName: user.name } : EMPTY_DEFAULTS}
           today={todayWib(now())}
           submitLabel="Kirim request"
           leadTimes={leadTimes}
