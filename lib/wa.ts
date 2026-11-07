@@ -154,3 +154,13 @@ export async function gatewayStatus(configDryRun: boolean | null = null): Promis
     return { ...base, connected: false, error: `Gateway tidak bisa dihubungi: ${(e as Error).message}` };
   }
 }
+
+/** Batas pesan tes WA yang berhasil terkirim per nomor per hari (mencegah spam ke nomor tim). */
+export const TEST_WA_PER_DAY = 2;
+
+/** Jumlah pesan tes yang sudah TERKIRIM ke nomor ini hari ini (tanggal WIB "YYYY-MM-DD"). Tes gagal tidak dihitung. */
+export function testWaUsedToday(log: { Arah: string; Nomor: string; Jenis: string; Timestamp: string; Hasil: string }[], to: string, today: string): number {
+  return log.filter(
+    (l) => l.Arah === 'OUT' && l.Jenis === 'Tes WA' && l.Nomor === to && String(l.Timestamp).startsWith(today) && waStatus(l.Hasil) === 'Terkirim',
+  ).length;
+}

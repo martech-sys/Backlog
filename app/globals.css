@@ -1524,3 +1524,79 @@ dialog.modal::backdrop {
 .modal-body {
   padding: 16px 18px;
 }
+
+/* Kelola user: sel tabel rapi (info di atas, tombol aksi sebaris di bawah) */
+table.users td {
+  vertical-align: top;
+}
+.cell-main {
+  min-height: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: flex-start;
+}
+.cell-actions > form {
+  display: contents;
+}
+.cell-actions details > summary {
+  list-style: none;
+}
+.cell-actions details > summary::-webkit-details-marker {
+  display: none;
+}
+.cell-actions details[open] {
+  flex-basis: 100%;
+  order: 5;
+}
+.cell-actions .cell-note {
+  order: 10;
+}
+.cell-actions details[open] > summary {
+  background: var(--surface-2);
+}
+.cell-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 300px;
+  white-space: normal;
+}
+.cell-note {
+  flex-basis: 100%;
+  font-size: 12px;
+  white-space: normal;
+  max-width: 260px;
+}
+.cell-note.ok {
+  color: var(--success);
+}
+.cell-note.err {
+  color: var(--danger);
+}
+.spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -1px;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

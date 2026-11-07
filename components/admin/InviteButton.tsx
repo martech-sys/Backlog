@@ -20,9 +20,15 @@ export function InviteButton({ email, nama, label = 'Kirim ulang undangan' }: { 
           startTransition(() => action(fd));
         }}
       >
-        {pending ? 'Mengirim…' : label}
+        {pending ? (
+          <>
+            <span className="spinner" aria-hidden /> Mengirim…
+          </>
+        ) : (
+          label
+        )}
       </button>
-      {state.message ? <div className={`subtle`} style={{ marginTop: 4, color: state.ok ? 'var(--success)' : 'var(--warning)' }}>{state.message}</div> : null}
+      {state.message ? <div className={`cell-note ${state.ok ? 'ok' : 'err'}`} style={{ marginTop: 4 }}>{state.message}</div> : null}
       {state.links?.length && !state.ok ? <InviteLinks links={state.links} /> : null}
     </div>
   );
