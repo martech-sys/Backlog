@@ -216,6 +216,9 @@ h3 {
 .span-2 {
   grid-column: span 2;
 }
+.span-3 {
+  grid-column: 1 / -1;
+}
 @media (max-width: 960px) {
   .grid-4 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1260,4 +1263,264 @@ textarea:focus {
 
 .row > input {
   flex: 1 1 auto;
+}
+
+/* Lampiran gambar & thread komentar (detail task) */
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.thumb {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.thumb button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  line-height: 1;
+}
+.thumb.add {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  border-style: dashed;
+}
+a.thumb:hover {
+  outline: 2px solid var(--primary);
+}
+.thumb.lg {
+  width: 132px;
+  height: 100px;
+}
+.thumb .cap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-size: 11px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.comments {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.comment {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.comment.qc {
+  border-left: 4px solid var(--warning);
+}
+.comment.rev {
+  border-left: 4px solid var(--danger);
+}
+.comment.draft {
+  border-left: 4px solid var(--primary);
+}
+.comment-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+.comment-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 6px 0 0;
+}
+.versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.version {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  max-width: 132px;
+}
+
+/* Badge "tugas menunggu kamu" di menu + penanda baris Tracker */
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: 1px;
+}
+tr.mine-row > td {
+  background: var(--primary-soft);
+}
+tr.mine-row > td:first-child {
+  box-shadow: inset 4px 0 0 var(--primary);
+}
+tr.urg-late > td:first-child .title {
+  color: var(--danger);
+}
+tr.urg-soon > td:first-child .title {
+  color: var(--warning);
+}
+tr.urg-late > td.deadline-cell {
+  color: var(--danger);
+  font-weight: 600;
+}
+tr.urg-soon > td.deadline-cell {
+  color: var(--warning);
+  font-weight: 600;
+}
+tr.clickable {
+  cursor: pointer;
+}
+tr.clickable:hover > td {
+  background: var(--surface-2);
+}
+.rev-warn {
+  color: var(--danger);
+  font-weight: 700;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--text);
+  font-size: 13px;
+}
+.chip a {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  text-decoration: none;
+}
+.chip a:hover {
+  background: var(--border);
+  color: var(--text);
+}
+.tabs .count.warn {
+  opacity: 1;
+  background: var(--danger);
+  color: #fff;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+/* Dashboard: elemen yang bisa diklik (drill-down) */
+a.kpi-link,
+a.kpi-link:hover {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+}
+a.kpi-link > .kpi {
+  cursor: pointer;
+  height: 100%;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+a.kpi-link:hover > .kpi {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.1);
+}
+a.bar-row {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  margin: 0 -4px;
+  padding: 1px 4px;
+}
+a.bar-row:hover {
+  background: var(--surface-2);
+}
+a.bar-row:hover .name {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.vbar.link {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+}
+.vbar.link:hover .col {
+  filter: brightness(0.88);
+}
+.vbar.link:hover .n {
+  color: var(--primary);
+}
+dialog.modal {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  width: min(640px, calc(100vw - 32px));
+  background: var(--surface);
+  color: var(--text);
+}
+dialog.modal::backdrop {
+  background: rgba(15, 18, 24, 0.45);
+}
+.modal-body {
+  padding: 16px 18px;
 }

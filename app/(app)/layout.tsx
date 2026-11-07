@@ -3,7 +3,8 @@ import { logoutAction } from '@/app/actions';
 import { Nav } from '@/components/Nav';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { env } from '@/lib/env';
-import { requireUser } from '@/lib/session';
+import { myTasks } from '@/lib/mine';
+import { getDb, requireUser } from '@/lib/session';
 import { ROLE_LABEL } from '@/lib/users';
 import { can } from '@/lib/workflow';
 
@@ -11,14 +12,24 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  const mine = myTasks(await getDb(), user).length;
   const items = [
-    { href: '/backlog', label: 'Team Backlog' },
+    { href: '/backlog', label: 'Team Backlog', badge: mine },
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/tracker', label: 'Tracker' },
+    {
+      href: mine ? '/tracker?view=bola' : '/tracker',
+      label: 'Tracker',
+      badge: mine,
+    },
     { href: '/requests', label: 'Request' },
     ...(can.submitRequest(user) ? [{ href: '/requests/new', label: '+ Request baru' }] : []),
     { href: '/panduan', label: 'Panduan' },
-    ...(user.roles.includes('superadmin') ? [{ href: '/admin/users', label: 'Kelola user' }] : []),
+    ...(user.roles.includes('superadmin')
+      ? [
+          { href: '/admin/users', label: 'Kelola user' },
+          { href: '/admin/whatsapp', label: 'Pengaturan WA' },
+        ]
+      : []),
   ];
   const mainRole = user.roles.find((r) => r !== 'admin' && r !== 'superadmin') || user.roles[0];
   const akses = user.roles.includes('superadmin') ? ' · Superadmin' : user.roles.includes('admin') ? ' · Admin' : '';

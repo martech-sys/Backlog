@@ -1,5 +1,7 @@
 import { ENV_VERSION } from '@/lib/accounts';
 import { getDb, getSession, requireUser } from '@/lib/session';
+import { updateMyPhoneAction } from '@/app/actions';
+import { findPerson } from '@/lib/master';
 import { ROLE_LABEL } from '@/lib/users';
 import { ChangePasswordForm } from './ChangePasswordForm';
 
@@ -12,6 +14,7 @@ export default async function AkunPage({ searchParams }: { searchParams: Promise
   const db = await getDb();
   const acc = db.accounts.find((a) => a.email === user.email);
   const envLogin = session?.v === ENV_VERSION;
+  const me = findPerson(db.master, user.name);
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
@@ -22,6 +25,8 @@ export default async function AkunPage({ searchParams }: { searchParams: Promise
         </div>
       </div>
 
+      {sp.ok ? <div className="flash ok">{sp.ok}</div> : null}
+      {sp.err ? <div className="flash err">{sp.err}</div> : null}
       {sp.wajib ? (
         <div className="flash err">
           {envLogin && !acc?.hash
@@ -50,6 +55,24 @@ export default async function AkunPage({ searchParams }: { searchParams: Promise
               Nama akunmu belum cocok dengan Master_PIC / Master_Tim, jadi aksesmu hanya melihat. Minta Superadmin menyamakan nama.
             </p>
           ) : null}
+        </section>
+        <section className="mcard plain" id="wa" style={{ ['--c' as string]: '#25a35a' }}>
+          <div className="tab">Nomor WhatsApp</div>
+          <p className="subtle" style={{ marginTop: 0 }}>
+            Dipakai untuk notifikasi tugas, reminder deadline, dan balasan ACC/REV. Tulis bebas (0812…, +62 812…); sistem menyimpannya sebagai 628….
+          </p>
+          {!me ? (
+            <p className="subtle">Akunmu belum terhubung ke data tim/PIC. Minta Superadmin mengisi peran kerjamu dulu.</p>
+          ) : (
+            <form action={updateMyPhoneAction} className="row" style={{ gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <label className="field" style={{ flex: '1 1 200px', margin: 0 }}>
+                <span>No WA</span>
+                <input name="phone" defaultValue={me.phone} inputMode="tel" placeholder="0812 3456 7890" />
+              </label>
+              <button className="btn">Simpan</button>
+            </form>
+          )}
+          {me && !me.phone ? <p style={{ marginTop: 10 }}><span className="badge red">No WA kosong</span> kamu tidak menerima notifikasi WA.</p> : null}
         </section>
         <section className="mcard plain" style={{ ['--c' as string]: '#3a9a1e' }}>
           <div className="tab">Ganti password</div>

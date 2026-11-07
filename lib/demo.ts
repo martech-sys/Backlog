@@ -3,7 +3,7 @@
  * simulasi ±6 minggu aktivitas memakai fungsi-fungsi service yang asli.
  * Tidak pernah dipakai saat terhubung ke Google Sheets.
  */
-import { CATEGORIES, SEED, SHEETS } from './config';
+import { CATEGORIES, CUSTOM_CATEGORY, SEED, SHEETS } from './config';
 import { setClock } from './clock';
 import { addWorkingDays, todayWib } from './dates';
 import { loadDb } from './db';
@@ -185,6 +185,22 @@ export async function seedDemoActivity(store: Store): Promise<void> {
           await fn();
           return true;
         };
+        if (task.Kategori === CUSTOM_CATEGORY && !task.Lead) {
+          // Traffic mengatur task custom (divisi Desain, jenis untuk rekap kandidat kategori baru).
+          const traffic = (await loadDb(store)).requests.find((x) => x['Request ID'] === rid)!.Traffic;
+          const jenis = pick(['Banner marketplace', 'Banner marketplace', 'Kemasan produk', 'Konten LinkedIn']);
+          const setUp = await step(1 + rand() * 4, () =>
+            svc.setupCustomTask(store, user(traffic), id, {
+              kategori: CUSTOM_CATEGORY,
+              divisi: 'Desain',
+              lead: '',
+              deadline: '',
+              jenisCustom: jenis,
+            }),
+          );
+          if (!setUp) continue;
+          Object.assign(task, (await loadDb(store)).tasks.find((x) => x['Task ID'] === id)!);
+        }
         if (!task.Assignee) {
           const members = master.people.filter((p) => p.active && p.divisi === task.Divisi && !p.isLead);
           const who = members.length ? pick(members).name : task.Lead;

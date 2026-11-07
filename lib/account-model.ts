@@ -11,6 +11,12 @@ export interface Account {
   dibuat: string;
   dibuatOleh: string;
   lastLogin: string;
+  /** sha256 token undangan aktif (kosong = tidak ada undangan berjalan) */
+  inviteHash: string;
+  /** ISO UTC kedaluwarsa token undangan */
+  inviteExpires: string;
+  /** Waktu undangan terakhir dikirim (WIB) */
+  invitedAt: string;
 }
 
 const yes = (v: string) => /^(ya|y|yes|true|1)$/i.test(String(v || '').trim());
@@ -35,5 +41,8 @@ export function parseAccounts(rows: UserRow[]): Account[] {
       dibuat: r.Dibuat || '',
       dibuatOleh: r['Dibuat Oleh'] || '',
       lastLogin: r['Login Terakhir'] || '',
+      inviteHash: String(r['Token Undangan'] || '').trim(),
+      inviteExpires: String(r['Token Kedaluwarsa'] || '').trim(),
+      invitedAt: r['Undangan Terkirim'] || '',
     }));
 }

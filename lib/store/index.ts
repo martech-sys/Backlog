@@ -23,7 +23,15 @@ async function createStore(): Promise<Store> {
       'Kredensial Google belum diatur: isi GOOGLE_SERVICE_ACCOUNT_JSON (seluruh isi file JSON service account). Lihat README langkah 1.',
     );
   }
-  return new SheetsStore(env.spreadsheetId, env.serviceAccountEmail, env.serviceAccountKey);
+  const store = new SheetsStore(env.spreadsheetId, env.serviceAccountEmail, env.serviceAccountKey);
+  // Tambah tab/kolom baru dari versi aplikasi terbaru (sekali per instance server; data lama tidak diubah).
+  try {
+    const changes = await store.ensureSheets(HEADERS);
+    if (changes.length) console.info('[schema] diperbarui:', changes.join(' | '));
+  } catch (e) {
+    console.warn('[schema] gagal memeriksa skema sheet:', (e as Error).message);
+  }
+  return store;
 }
 
 export function getStore(): Promise<Store> {

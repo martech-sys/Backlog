@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useMemo, useState } from 'react';
 import type { FormState } from '@/app/actions';
-import { CAMPAIGN_TYPES, CATEGORIES, type CategoryField } from '@/lib/config';
+import { CAMPAIGN_TYPES, CATEGORIES, CUSTOM_CATEGORY, type CategoryField } from '@/lib/config';
 import type { RequestFormDefaults } from '@/lib/requestForm';
 import { Field } from './ui';
 
@@ -181,20 +181,29 @@ export function RequestForm(p: Props) {
               {c.name}{' '}
               <span className="subtle">· lead time minimum {p.leadTimes[c.name] ?? '-'} hari kerja</span>
             </h3>
-            <div className={`field${e[`sub:${c.name}`] ? ' invalid' : ''}`}>
-              <span className="label">
-                Sub-jenis <span className="req">*</span>
-              </span>
-              <div className="choice-group">
-                {c.subTypes.map((s) => (
-                  <label className="choice" key={s}>
-                    <input type="checkbox" name={`sub:${c.name}`} value={s} defaultChecked={p.defaults.subJenis[c.name]?.includes(s)} />
-                    {s}
-                  </label>
-                ))}
+            {c.subTypes.length === 1 ? (
+              <input type="hidden" name={`sub:${c.name}`} value={c.subTypes[0]} />
+            ) : (
+              <div className={`field${e[`sub:${c.name}`] ? ' invalid' : ''}`}>
+                <span className="label">
+                  Sub-jenis <span className="req">*</span>
+                </span>
+                <div className="choice-group">
+                  {c.subTypes.map((s) => (
+                    <label className="choice" key={s}>
+                      <input type="checkbox" name={`sub:${c.name}`} value={s} defaultChecked={p.defaults.subJenis[c.name]?.includes(s)} />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+                {e[`sub:${c.name}`] ? <span className="error">{e[`sub:${c.name}`]}</span> : null}
               </div>
-              {e[`sub:${c.name}`] ? <span className="error">{e[`sub:${c.name}`]}</span> : null}
-            </div>
+            )}
+            {c.name === CUSTOM_CATEGORY ? (
+              <p className="subtle" style={{ marginTop: 0 }}>
+                Kebutuhan custom tidak dirouting otomatis: Traffic akan menentukan divisi, lead, dan deadline setelah cek brief.
+              </p>
+            ) : null}
             <div className="form-grid">{c.fields.map((f) => renderField(c.name, f))}</div>
           </div>
         ))}

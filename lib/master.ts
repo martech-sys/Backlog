@@ -1,12 +1,14 @@
-import type {
-  AppConfig,
-  BrandRow,
-  ConfigRow,
-  GrupRow,
-  KategoriRow,
-  LiburRow,
-  PicRow,
-  TimRow,
+import {
+  PERAN,
+  type AppConfig,
+  type BrandRow,
+  type ConfigRow,
+  type GrupRow,
+  type KategoriRow,
+  type LiburRow,
+  type Peran,
+  type PicRow,
+  type TimRow,
 } from './config';
 import { normalizeCellDate } from './dates';
 
@@ -24,6 +26,21 @@ export interface Person {
   isIntern: boolean;
   capacity: number;
   active: boolean;
+  /** PIC brand: brand yang dipegang (kosong = semua brand di grupnya). */
+  brands: string[];
+  /** Tab asal: Master_Tim dan/atau Master_PIC. */
+  sources: ('tim' | 'pic')[];
+}
+
+/** Peran kerja baku seseorang (untuk tampilan & form edit). */
+export function peranOf(p: Pick<Person, 'roles' | 'isLead' | 'isIntern'>): Peran {
+  if (p.roles.includes('hocp')) return PERAN.HOCP;
+  if (p.roles.includes('head')) return PERAN.HEAD;
+  if (p.roles.includes('traffic')) return PERAN.TRAFFIC;
+  if (p.isLead || p.roles.includes('lead')) return PERAN.LEAD;
+  if (p.roles.includes('pic') && !p.roles.includes('tim')) return PERAN.PIC;
+  if (p.isIntern) return PERAN.INTERN;
+  return PERAN.STAFF;
 }
 
 export interface Brand {
@@ -49,6 +66,10 @@ export interface KategoriRule {
   assigneeDefault: string;
   leadTimeMin: number;
   bufferReview: number;
+  /** Kode akhiran ID task, mis. PE → CR-2611-001-PE */
+  code: string;
+  /** Otomatis beban: hanya anggota yang jabatannya memuat teks ini (kosong = semua anggota divisi). */
+  filterPeran: string;
 }
 
 export interface Master {
@@ -105,6 +126,7 @@ export function parseConfig(rows: ConfigRow[]): AppConfig {
       .map(normalizeEmail)
       .filter(Boolean),
     driveFolderUrl: get('DRIVE_FOLDER_URL', ''),
+    waDryRun: /^(ya|true|1)$/i.test(get('WA_DRY_RUN', '')) ? true : /^(tidak|false|0)$/i.test(get('WA_DRY_RUN', '')) ? false : null,
   };
 }
 
@@ -137,10 +159,24 @@ export function buildMaster(input: {
     const key = p.name.toLowerCase();
     const existing = byName.get(key);
     if (existing) {
+      // Baris nonaktif (mis. peran lama setelah dipindah ke tab lain) tidak ikut menyumbang peran.
+      if (existing.active && !p.active) {
+        existing.email ||= p.email;
+        existing.phone ||= p.phone;
+        return;
+      }
+      if (!existing.active && p.active) {
+        const keep = { email: existing.email, phone: existing.phone };
+        Object.assign(existing, p, { email: p.email || keep.email, phone: p.phone || keep.phone });
+        return;
+      }
       // Orang yang sama di Master_Tim dan Master_PIC: gabungkan perannya.
       existing.roles = Array.from(new Set([...existing.roles, ...p.roles]));
       existing.email = existing.email || p.email;
       existing.phone = existing.phone || p.phone;
+      existing.brands = existing.brands.length ? existing.brands : p.brands;
+      existing.sources = Array.from(new Set([...existing.sources, ...p.sources]));
+      existing.active = existing.active || p.active;
       return;
     }
     byName.set(key, p);
@@ -161,6 +197,8 @@ export function buildMaster(input: {
       isIntern: yes(r.Intern) || /intern/i.test(r.Peran || ''),
       capacity: num(r.Kapasitas, 5),
       active: isActive(r.Aktif),
+      brands: [],
+      sources: ['tim'],
     });
   }
   for (const r of input.pic) {
@@ -177,6 +215,11 @@ export function buildMaster(input: {
       isIntern: false,
       capacity: 0,
       active: isActive(r.Aktif),
+      brands: String(r.Brand || '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+      sources: ['pic'],
     });
   }
   for (const p of people) {
@@ -200,6 +243,8 @@ export function buildMaster(input: {
         assigneeDefault: String(r['Assignee Default'] || '').trim(),
         leadTimeMin: num(r['Lead Time Min (hari kerja)'], 3),
         bufferReview: num(r['Buffer Review (hari kerja)'], 1),
+        code: String(r.Kode || '').trim().toUpperCase(),
+        filterPeran: String(r['Filter Peran'] || '').trim(),
       };
     });
 
@@ -255,4 +300,37 @@ export function brandOf(master: Master, brandName: string): Brand | undefined {
 /** Semua Creative Head + Head of Creative Production. */
 export function heads(master: Master): Person[] {
   return master.people.filter((p) => p.active && (p.roles.includes('head') || p.roles.includes('hocp')));
+}
+
+const inGrup = (p: Person, grup: string) =>
+  !grup || !p.grup || p.grup === 'Semua' || p.grup.toLowerCase() === String(grup).toLowerCase();
+
+/**
+ * Semua Traffic aktif untuk sebuah grup. Nama di Master_Grup diutamakan (tampil pertama)
+ * selama orangnya masih aktif dan berperan Traffic; peran yang diubah di Kelola user langsung berlaku.
+ */
+export function trafficsFor(master: Master, grup: string): Person[] {
+  const list = master.people.filter((p) => p.active && p.roles.includes('traffic') && inGrup(p, grup));
+  const preferred = grupOf(master, grup)?.traffic.toLowerCase();
+  return list.sort((a, b) => Number(b.name.toLowerCase() === preferred) - Number(a.name.toLowerCase() === preferred));
+}
+
+/** Creative Head untuk grup (nama Master_Grup diutamakan bila masih berperan Creative Head). */
+export function headsFor(master: Master, grup: string): Person[] {
+  const list = master.people.filter((p) => p.active && p.roles.includes('head') && inGrup(p, grup));
+  const preferred = grupOf(master, grup)?.creativeHead.toLowerCase();
+  return list.sort((a, b) => Number(b.name.toLowerCase() === preferred) - Number(a.name.toLowerCase() === preferred));
+}
+
+/**
+ * Lead untuk divisi & grup. Nama di Master_Kategori dipakai bila orangnya masih aktif sebagai lead;
+ * bila tidak, dicari lead lain di divisi & grup yang sama (peran yang diubah di Kelola user).
+ */
+export function leadFor(master: Master, divisi: string, grup: string, preferred = ''): string {
+  const pref = findPerson(master, preferred);
+  if (pref && pref.active && (pref.isLead || pref.roles.includes('lead'))) return pref.name;
+  const alt = master.people.find(
+    (p) => p.active && (p.isLead || p.roles.includes('lead')) && p.divisi.toLowerCase() === divisi.toLowerCase() && inGrup(p, grup),
+  );
+  return alt?.name || preferred;
 }

@@ -28,7 +28,7 @@ export const msg = {
     `🔁 *Brief sudah dilengkapi*\n*${r['Request ID']}* · ${r.Brand}\nPIC: ${r['PIC Brand']}\nCek ulang: ${reqLink(r['Request ID'])}`,
 
   newTaskLead: (t: TaskRow, r: RequestRow) =>
-    `🆕 *Task baru di divisi ${t.Divisi}*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nDeadline: ${formatTanggal(t.Deadline)} · target draft ${formatTanggal(t['Target Draft'])}\n${t.Assignee ? `Auto-assign ke *${t.Assignee}* (bisa diganti).` : 'Silakan pilih anggota.'}\n${taskLink(t['Task ID'])}`,
+    `🆕 *Tugas baru di divisi ${t.Divisi}*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nDeadline: ${formatTanggal(t.Deadline)} · target draft ${formatTanggal(t['Target Draft'])}\n${t.Assignee ? `Auto-assign ke *${t.Assignee}* (bisa diganti).` : 'Silakan pilih anggota.'}\n${taskLink(t['Task ID'])}`,
 
   taskAssigned: (t: TaskRow, r: RequestRow) =>
     `🎯 *Tugas baru untukmu*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nSub-jenis: ${t['Sub-jenis'] || '-'}\nDeliverables: ${r.Deliverables || '-'}\nTarget draft: ${formatTanggal(t['Target Draft'])}\nDeadline: ${formatTanggal(t.Deadline)}\n\nBrief & upload draft: ${taskLink(t['Task ID'])}`,
@@ -130,8 +130,11 @@ export const msg = {
     (p.busiest.length ? `\nBeban tertinggi: ${p.busiest.map((b) => `${b.name} (${b.count})`).join(', ')}` : '') +
     `\n\nDashboard: ${link('/dashboard')}`,
 
+  newComment: (t: TaskRow, by: string, jenis: string, isi: string, gambar: number) =>
+    `💬 *Komentar baru${jenis !== 'Catatan' ? ` · ${jenis}` : ''}*\n${taskLine(t)}\nDari: ${by}\n${isi ? `"${isi.length > 300 ? `${isi.slice(0, 300)}…` : isi}"` : ''}${gambar ? `\n📎 ${gambar} gambar` : ''}\n\nBalas di: ${taskLink(t['Task ID'])}#komentar`,
+
   waReplyResult: (lines: string[]) => lines.join('\n'),
 
   waHelp: () =>
-    `Format balasan:\n• *ACC <ID task>* — setujui draft\n• *REV <ID task> <catatan>* — minta revisi\n\nContoh: REV CR-2610-001-1 warna background lebih terang`,
+    `Format balasan:\n• *ACC <ID task>* — setujui draft\n• *REV <ID task> <catatan>* — minta revisi\n\nContoh: REV CR-2610-001-DG warna background lebih terang`,
 };

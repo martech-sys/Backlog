@@ -8,12 +8,13 @@ import { CATEGORIES, SHEETS, TASK_STATUSES, type Status } from '@/lib/config';
 import { formatWib } from '@/lib/dates';
 import { loadDb } from '@/lib/db';
 import { env } from '@/lib/env';
-import { findPersonByPhone, normalizePhone } from '@/lib/master';
+import { findPerson, findPersonByPhone, normalizePhone } from '@/lib/master';
+import { logAdmin, profileOf, setPhone, type WorkProfile } from '@/lib/people';
 import * as sample from '@/lib/sample';
 import * as svc from '@/lib/service';
 import { clearSessionCookie, getSession, requireSuperadmin, requireUser, setSessionCookie } from '@/lib/session';
 import { getStore } from '@/lib/store';
-import { sendWa } from '@/lib/wa';
+import { isDryRun, sendWa } from '@/lib/wa';
 
 export interface FormState {
   ok?: boolean;
@@ -22,6 +23,11 @@ export interface FormState {
 }
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
+const list = (fd: FormData, k: string) =>
+  fd
+    .getAll(k)
+    .map((x) => String(x).trim())
+    .filter(Boolean);
 
 function safeBack(fd: FormData, fallback: string): string {
   const b = s(fd, 'back');
@@ -36,7 +42,10 @@ function done(path: string, r: svc.ActionResult): never {
 }
 
 async function parseRequestForm(fd: FormData): Promise<svc.RequestInput> {
-  const kategori = fd.getAll('kategori').map(String).filter((k) => CATEGORIES.some((c) => c.name === k));
+  const kategori = fd
+    .getAll('kategori')
+    .map(String)
+    .filter((k) => CATEGORIES.some((c) => c.name === k));
   const subJenis: Record<string, string[]> = {};
   const details: Record<string, Record<string, string>> = {};
   for (const k of kategori) {
@@ -72,7 +81,10 @@ export async function submitRequestAction(_prev: FormState, fd: FormData): Promi
   const user = await requireUser();
   const r = await svc.submitRequest(await getStore(), user, await parseRequestForm(fd));
   if (!r.ok) return { ok: false, message: r.message, errors: r.errors };
-  done(`/requests/${r.id}`, { ok: true, message: `${r.message} Notifikasi WA terkirim ke PIC dan Traffic.` });
+  done(`/requests/${r.id}`, {
+    ok: true,
+    message: `${r.message} Notifikasi WA terkirim ke PIC dan Traffic.`,
+  });
 }
 
 export async function updateBriefAction(requestId: string, _prev: FormState, fd: FormData): Promise<FormState> {
@@ -86,7 +98,12 @@ export async function cekBriefAction(fd: FormData) {
   const user = await requireUser();
   const requestId = s(fd, 'requestId');
   const decision = s(fd, 'decision') === 'Kurang' ? 'Kurang' : 'Lengkap';
-  const r = await svc.cekBrief(await getStore(), user, { requestId, decision, note: s(fd, 'note'), deadline: s(fd, 'deadline') });
+  const r = await svc.cekBrief(await getStore(), user, {
+    requestId,
+    decision,
+    note: s(fd, 'note'),
+    deadline: s(fd, 'deadline'),
+  });
   done(safeBack(fd, `/requests/${requestId}`), r);
 }
 
@@ -100,14 +117,14 @@ export async function assignAction(fd: FormData) {
 export async function draftAction(fd: FormData) {
   const user = await requireUser();
   const taskId = s(fd, 'taskId');
-  const r = await svc.submitDraft(await getStore(), user, taskId, s(fd, 'link'));
+  const r = await svc.submitDraft(await getStore(), user, taskId, s(fd, 'link'), list(fd, 'lampiran'), s(fd, 'note'));
   done(safeBack(fd, `/tasks/${taskId}`), r);
 }
 
 export async function qcAction(fd: FormData) {
   const user = await requireUser();
   const taskId = s(fd, 'taskId');
-  const r = await svc.qcDecision(await getStore(), user, taskId, s(fd, 'decision') === 'pass', s(fd, 'note'));
+  const r = await svc.qcDecision(await getStore(), user, taskId, s(fd, 'decision') === 'pass', s(fd, 'note'), list(fd, 'lampiran'));
   done(safeBack(fd, `/tasks/${taskId}`), r);
 }
 
@@ -115,8 +132,39 @@ export async function reviewAction(fd: FormData) {
   const user = await requireUser();
   const taskId = s(fd, 'taskId');
   const action = s(fd, 'decision') === 'ACC' ? 'ACC' : 'REV';
-  const r = await svc.brandReview(await getStore(), user, taskId, action, s(fd, 'note'), 'web');
+  const r = await svc.brandReview(await getStore(), user, taskId, action, s(fd, 'note'), 'web', list(fd, 'lampiran'));
   done(safeBack(fd, `/tasks/${taskId}`), r);
+}
+
+export async function commentAction(fd: FormData) {
+  const user = await requireUser();
+  const taskId = s(fd, 'taskId');
+  const r = await svc.addComment(await getStore(), user, taskId, {
+    jenis: s(fd, 'jenis'),
+    isi: s(fd, 'isi'),
+    lampiran: list(fd, 'lampiran'),
+  });
+  done(`/tasks/${encodeURIComponent(taskId)}#komentar`, r);
+}
+
+export async function descriptionAction(fd: FormData) {
+  const user = await requireUser();
+  const taskId = s(fd, 'taskId');
+  const r = await svc.updateDescription(await getStore(), user, taskId, String(fd.get('deskripsi') ?? ''));
+  done(`/tasks/${encodeURIComponent(taskId)}#deskripsi`, r);
+}
+
+export async function customSetupAction(fd: FormData) {
+  const user = await requireUser();
+  const taskId = s(fd, 'taskId');
+  const r = await svc.setupCustomTask(await getStore(), user, taskId, {
+    kategori: s(fd, 'kategori'),
+    divisi: s(fd, 'divisi'),
+    lead: s(fd, 'lead'),
+    deadline: s(fd, 'deadline'),
+    jenisCustom: s(fd, 'jenisCustom'),
+  });
+  done(`/tasks/${encodeURIComponent(taskId)}`, r);
 }
 
 export async function finalAction(fd: FormData) {
@@ -198,15 +246,115 @@ async function actor(): Promise<accounts.Actor> {
   return { email: u.email, name: u.name, isSuperadmin: true };
 }
 
-export async function createUserAction(fd: FormData) {
+function parseProfile(fd: FormData): WorkProfile {
+  return {
+    nama: s(fd, 'nama'),
+    peran: s(fd, 'peran') as WorkProfile['peran'],
+    sisi: s(fd, 'sisi') || 'Semua',
+    divisi: s(fd, 'divisi'),
+    jabatan: s(fd, 'jabatan'),
+    brands: fd
+      .getAll('brand')
+      .map(String)
+      .map((x) => x.trim())
+      .filter(Boolean),
+    phone: s(fd, 'phone'),
+    kapasitas: s(fd, 'kapasitas'),
+  };
+}
+
+export interface AdminState {
+  ok?: boolean;
+  message?: string;
+  /** Link undangan untuk disalin admin bila email belum terkirim. */
+  links?: { email: string; nama: string; link: string; detail: string }[];
+}
+
+export async function createUserAction(_prev: AdminState, fd: FormData): Promise<AdminState> {
   const r = await accounts.createAccount(await getStore(), await actor(), {
     email: s(fd, 'email'),
-    nama: s(fd, 'nama'),
     akses: s(fd, 'akses'),
+    profile: parseProfile(fd),
     password: String(fd.get('password') ?? ''),
     mustChange: s(fd, 'mustChange') === 'Ya',
   });
+  revalidatePath('/admin/users');
+  return {
+    ok: r.ok,
+    message: r.message,
+    links: r.invite
+      ? [
+          {
+            email: s(fd, 'email').toLowerCase(),
+            nama: s(fd, 'nama'),
+            link: r.invite.link,
+            detail: r.invite.mail.detail,
+          },
+        ]
+      : undefined,
+  };
+}
+
+/** Buat akun cepat untuk orang yang sudah ada di master data (peran diambil dari master). */
+export async function quickCreateAction(fd: FormData) {
+  const store = await getStore();
+  const db = await loadDb(store, { fresh: true });
+  const person = findPerson(db.master, s(fd, 'nama'));
+  const r = await accounts.createAccount(store, await actor(), {
+    email: s(fd, 'email'),
+    akses: 'User',
+    profile: {
+      ...profileOf(person, s(fd, 'nama')),
+      phone: s(fd, 'phone') || person?.phone || '',
+    },
+    password: '',
+    mustChange: false,
+  });
+  done('/admin/users', r);
+}
+
+export async function editProfileAction(fd: FormData) {
+  const r = await accounts.editProfile(await getStore(), await actor(), s(fd, 'email'), parseProfile(fd));
   done(safeBack(fd, '/admin/users'), r);
+}
+
+export async function changeEmailAction(fd: FormData) {
+  const r = await accounts.changeEmail(await getStore(), await actor(), s(fd, 'email'), s(fd, 'newEmail'));
+  done(safeBack(fd, '/admin/users'), r);
+}
+
+export async function resendInviteAction(_prev: AdminState, fd: FormData): Promise<AdminState> {
+  const a = await actor();
+  const email = s(fd, 'email');
+  const r = await accounts.sendInvite(await getStore(), email, a.name);
+  revalidatePath('/admin/users');
+  const sent = r.mail.detail.startsWith('Terkirim');
+  return {
+    ok: sent,
+    message: sent ? `Undangan terkirim ke ${email}.` : `Email belum terkirim (${r.mail.detail}). Salin link di bawah:`,
+    links: [{ email, nama: s(fd, 'nama'), link: r.link, detail: r.mail.detail }],
+  };
+}
+
+export async function blastInvitesAction(_prev: AdminState): Promise<AdminState> {
+  const r = await accounts.blastInvites(await getStore(), await actor());
+  revalidatePath('/admin/users');
+  const unsent = r.results.filter((x) => !x.detail.startsWith('Terkirim'));
+  return {
+    ok: r.ok && !unsent.length,
+    message: r.message,
+    links: unsent.length ? unsent : undefined,
+  };
+}
+
+/** Halaman undangan: buat password lalu langsung masuk. */
+export async function acceptInviteAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  const password = String(fd.get('password') ?? '');
+  if (password !== String(fd.get('confirm') ?? '')) return { ok: false, message: 'Konfirmasi password tidak sama.' };
+  const r = await accounts.acceptInvite(await getStore(), s(fd, 'token'), password);
+  if (!r.ok || !r.session) return { ok: false, message: r.message };
+  await setSessionCookie(r.session);
+  redirect('/?ok=' + encodeURIComponent(r.message));
 }
 
 export async function resetPasswordAction(fd: FormData) {
@@ -251,32 +399,96 @@ export async function purgeSampleAction() {
 /** Superadmin: kirim pesan uji ke satu nomor untuk memastikan gateway WA tersambung. */
 export async function testWaAction(fd: FormData) {
   const u = await requireSuperadmin();
+  const back = safeBack(fd, '/admin/whatsapp#tes');
   const to = normalizePhone(s(fd, 'to'));
-  if (!to) done('/admin/users#whatsapp', { ok: false, message: 'Isi nomor WA tujuan.' });
-  const text = s(fd, 'text') || `Tes dari Creative Request Tracker oleh ${u.name}.`;
+  if (!to) done(back, { ok: false, message: 'Nomor WA tujuan kosong.' });
+  const text = s(fd, 'text') || `Tes dari Creative Request Tracker oleh ${u.name}. Bila pesan ini masuk, notifikasi WA sudah aktif.`;
   const store = await getStore();
   const db = await loadDb(store);
-  const r = await sendWa(to, text);
+  const r = await sendWa(to, text, {
+    dryRun: isDryRun(db.master.config.waDryRun),
+  });
+  const nama = findPersonByPhone(db.master, to)?.name || s(fd, 'nama');
   await store.append(SHEETS.WA_LOG, [
     {
       Timestamp: formatWib(now()),
       Arah: 'OUT',
       Nomor: to,
-      Nama: findPersonByPhone(db.master, to)?.name || '',
+      Nama: nama,
       Jenis: 'Tes WA',
       'Ref ID': '',
       Pesan: text,
-      Hasil: r.ok ? r.detail : `GAGAL: ${r.detail}`,
+      Hasil: r.detail,
     },
   ]);
-  done('/admin/users#whatsapp', {
+  done(back, {
     ok: r.ok && r.detail !== 'DRY_RUN',
     message: r.ok
-      ? r.detail.startsWith('DRY_RUN')
-        ? 'Mode uji aktif (WA_DRY_RUN): pesan hanya dicatat di Log_WA, tidak dikirim. Set WA_DRY_RUN=false di Vercel untuk mengirim sungguhan.'
-        : `Terkirim ke ${to} (${r.detail}).`
-      : `Gagal kirim ke ${to}: ${r.detail}`,
+      ? r.detail === 'DRY_RUN'
+        ? `Mode uji (DRY_RUN) aktif: pesan ke ${nama || to} hanya dicatat di Log_WA, tidak dikirim. Matikan mode uji di Pengaturan WA untuk mengirim sungguhan.`
+        : `Terkirim ke ${nama || to} (${to}).`
+      : `Gagal kirim ke ${nama || to}: ${r.detail}`,
   });
+}
+
+/** Superadmin: nyalakan/matikan mode uji WA (disimpan di tab Config, mengalahkan env WA_DRY_RUN). */
+export async function setWaModeAction(fd: FormData) {
+  const u = await requireSuperadmin();
+  const mode = s(fd, 'mode'); // Ya | Tidak | '' (ikuti env)
+  if (!['Ya', 'Tidak', ''].includes(mode)) done('/admin/whatsapp', { ok: false, message: 'Mode tidak dikenal.' });
+  const store = await getStore();
+  const t = await store.readAll([SHEETS.CONFIG], { fresh: true });
+  const before = String(t[SHEETS.CONFIG].find((r) => r.Key === 'WA_DRY_RUN')?.Value ?? '');
+  if (t[SHEETS.CONFIG].some((r) => r.Key === 'WA_DRY_RUN')) {
+    await store.update(SHEETS.CONFIG, 'Key', [{ key: 'WA_DRY_RUN', patch: { Value: mode } }]);
+  } else {
+    await store.append(SHEETS.CONFIG, [
+      {
+        Key: 'WA_DRY_RUN',
+        Value: mode,
+        Keterangan: 'Ya = mode uji, Tidak = kirim sungguhan, kosong = ikuti env',
+      },
+    ]);
+  }
+  await logAdmin(store, {
+    by: u.name,
+    aksi: 'Ubah mode WA',
+    target: 'WA_DRY_RUN',
+    dari: before || '(env)',
+    ke: mode || '(env)',
+  });
+  done('/admin/whatsapp', {
+    ok: true,
+    message:
+      mode === 'Tidak'
+        ? 'Mode uji dimatikan: notifikasi WA sekarang dikirim sungguhan.'
+        : mode === 'Ya'
+          ? 'Mode uji dinyalakan: pesan WA hanya dicatat di Log_WA.'
+          : 'Mode WA mengikuti variabel WA_DRY_RUN di Vercel.',
+  });
+}
+
+/** Setiap user: ubah nomor WA miliknya sendiri (halaman Akun). */
+export async function updateMyPhoneAction(fd: FormData) {
+  const u = await requireUser();
+  const raw = s(fd, 'phone');
+  const phone = normalizePhone(raw);
+  if (raw && phone.length < 9)
+    done('/akun#wa', {
+      ok: false,
+      message: 'Nomor WA tidak valid. Contoh: 0812 3456 7890.',
+    });
+  const store = await getStore();
+  const r = await setPhone(store, u.email, u.name, phone);
+  if (r.ok)
+    await logAdmin(store, {
+      by: u.name,
+      aksi: 'Ubah No WA (sendiri)',
+      target: u.email,
+      dari: r.from,
+      ke: phone,
+    });
+  done('/akun#wa', r);
 }
 
 /** Mode demo: masuk langsung sebagai persona (akun demo sudah dibuat saat seeding). */
@@ -286,6 +498,10 @@ export async function demoLoginAction(fd: FormData) {
   const db = await loadDb(await getStore(), { fresh: true });
   const acc = db.accounts.find((a) => a.email === email);
   if (!acc) redirect('/login');
-  await setSessionCookie({ e: email, v: accounts.passwordVersion(acc.hash), m: 0 });
+  await setSessionCookie({
+    e: email,
+    v: accounts.passwordVersion(acc.hash),
+    m: 0,
+  });
   redirect(safeNext(s(fd, 'next')));
 }

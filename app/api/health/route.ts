@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { envSuperadmin } from '@/lib/accounts';
+import { driveConfigured } from '@/lib/drive';
 import { env } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
@@ -14,5 +15,6 @@ export async function GET() {
     wa: env.waDryRun ? 'dry-run' : env.waProvider,
     webhookConfigured: !!env.webhookKey,
     cronConfigured: !!env.cronSecret,
+    uploads: driveConfigured() ? 'drive' : process.env.BLOB_READ_WRITE_TOKEN ? 'blob' : env.demoMode ? 'memory' : 'off',
   });
 }

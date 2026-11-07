@@ -1,122 +1,128 @@
+import Link from 'next/link';
 import {
-  createUserAction,
+  changeEmailAction,
   generateSampleAction,
   purgeSampleAction,
+  quickCreateAction,
   resetPasswordAction,
   testWaAction,
   updateUserAction,
 } from '@/app/actions';
+import { AddUserForm } from '@/components/admin/AddUserForm';
+import { BlastInvitesButton, InviteButton } from '@/components/admin/InviteButton';
+import { ProfileEditor } from '@/components/admin/ProfileEditor';
 import { PasswordInput } from '@/components/PasswordInput';
 import { SubmitButton } from '@/components/SubmitButton';
 import { Flash } from '@/components/ui';
 import { BOARD_COLORS } from '@/lib/backlog';
 import { AKSES } from '@/lib/config';
 import { formatWaktu } from '@/lib/dates';
-import { env } from '@/lib/env';
+import { emailConfigured } from '@/lib/mail';
 import { findPerson, findPersonByEmail } from '@/lib/master';
+import { describe, masterSuggestions, profileOf } from '@/lib/people';
 import { countSample } from '@/lib/sample';
 import { getDb, requireSuperadmin } from '@/lib/session';
 import { getStore } from '@/lib/store';
-import { gatewayStatus } from '@/lib/wa';
 
 export const metadata = { title: 'Kelola user' };
-// Membuat data contoh bisa memakan beberapa detik.
+// Membuat data contoh dan mengirim undangan massal bisa memakan beberapa detik.
 export const maxDuration = 60;
 
 type SP = Promise<Record<string, string | undefined>>;
 
 const AKSES_LIST = [AKSES.USER, AKSES.ADMIN, AKSES.SUPERADMIN];
-const AKSES_HELP: Record<string, string> = {
-  User: 'Sesuai peran di master data (PIC, Traffic, Lead, Tim)',
-  Admin: 'Semua aksi + koreksi status',
-  Superadmin: 'Admin + kelola user',
-};
 
 export default async function UsersPage({ searchParams }: { searchParams: SP }) {
   const me = await requireSuperadmin();
   const sp = await searchParams;
   const db = await getDb();
   const q = (sp.q || '').toLowerCase();
+  const filter = sp.f || '';
 
-  const accounts = db.accounts
-    .filter((a) => !q || `${a.email} ${a.nama}`.toLowerCase().includes(q))
-    .sort((a, b) => Number(b.aktif) - Number(a.aktif) || a.nama.localeCompare(b.nama));
+  const personOf = (email: string, nama: string) => findPersonByEmail(db.master, email) || findPerson(db.master, nama);
+  const rows = db.accounts
+    .map((a) => ({ a, person: personOf(a.email, a.nama) }))
+    .filter(({ a }) => !q || `${a.email} ${a.nama}`.toLowerCase().includes(q))
+    .filter(({ a, person }) =>
+      filter === 'belum-login'
+        ? a.aktif && !a.lastLogin
+        : filter === 'tanpa-wa'
+          ? a.aktif && !person?.phone
+          : filter === 'tanpa-peran'
+            ? !person
+            : true,
+    )
+    .sort((x, y) => Number(y.a.aktif) - Number(x.a.aktif) || x.a.nama.localeCompare(y.a.nama));
+
+  const active = db.accounts.filter((a) => a.aktif);
+  const neverLoggedIn = active.filter((a) => !a.lastLogin && a.email !== me.email);
+  const noPhone = active.filter((a) => !personOf(a.email, a.nama)?.phone);
+  const noRole = active.filter((a) => !personOf(a.email, a.nama));
   const hasAccount = (name: string, email: string) =>
     db.accounts.some((a) => a.nama.toLowerCase() === name.toLowerCase() || (email && a.email === email));
   const withoutAccount = db.master.people.filter((p) => p.active && !hasAccount(p.name, p.email));
-  const masterNames = db.master.people.filter((p) => p.active).map((p) => p.name);
+  const brands = db.master.brands.filter((b) => b.active).map((b) => ({ name: b.name, grup: b.grup }));
   const sampleCounts = await countSample(await getStore());
   const hasSample = sampleCounts.requests + sampleCounts.tasks + sampleCounts.members > 0;
-  const wa = await gatewayStatus();
-  const webhookUrl = `${env.appUrl}/api/wa/webhook${env.webhookKey ? '?key=<WEBHOOK_KEY>' : ''}`;
+  const tab = (key: string, label: string, n?: number) => (
+    <Link href={key ? `/admin/users?f=${key}#daftar` : '/admin/users#daftar'} className={filter === key ? 'active' : ''}>
+      {label}
+      {n !== undefined ? <span className="count">{n}</span> : null}
+    </Link>
+  );
 
   return (
-    <div style={{ maxWidth: 1180, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1240, margin: '0 auto' }}>
       <div className="page-head">
         <div>
           <h1>Kelola user</h1>
           <p>
-            Tambah akun login, reset password, dan atur akses. Peran kerja (PIC, Traffic, Lead, Tim) mengikuti <b>Nama</b> di
-            Master_PIC / Master_Tim.
+            <b>Akses</b> menentukan menu yang bisa dibuka; <b>peran kerja</b> menentukan routing task dan notifikasi WA. Keduanya diatur di
+            sini.
           </p>
         </div>
         <div className="title-box" style={{ fontSize: 14 }}>
-          {db.accounts.filter((a) => a.aktif).length} akun aktif · {withoutAccount.length} orang belum punya akun
+          {active.length} akun aktif · {neverLoggedIn.length} belum login · {noPhone.length} tanpa No WA
         </div>
       </div>
       <Flash ok={sp.ok} err={sp.err} />
+      {!emailConfigured() ? (
+        <div className="flash err">
+          Email undangan belum bisa dikirim karena SMTP belum diatur (env <code>SMTP_HOST</code>, <code>SMTP_USER</code>,{' '}
+          <code>SMTP_PASS</code>, <code>EMAIL_FROM</code>). Sementara itu, link undangan ditampilkan di sini untuk disalin dan dikirim
+          manual.
+        </div>
+      ) : null}
 
       <h2 className="section-title">
         <span className="num">1</span> Tambah user
       </h2>
       <section className="mcard plain" style={{ ['--c' as string]: BOARD_COLORS[2], marginTop: 22 }}>
         <div className="tab">User baru</div>
-        <form action={createUserAction} className="stack">
-          <datalist id="master-names">
-            {masterNames.map((n) => (
-              <option key={n} value={n} />
-            ))}
-          </datalist>
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor="new-email">Email</label>
-              <input id="new-email" name="email" type="email" required placeholder="nama@heymale.id" autoComplete="off" />
-            </div>
-            <div className="field">
-              <label htmlFor="new-nama">Nama</label>
-              <input id="new-nama" name="nama" type="text" required list="master-names" placeholder="Pilih dari master atau ketik" autoComplete="off" />
-              <span className="help">Samakan dengan nama di Master_PIC / Master_Tim agar peran terbaca.</span>
-            </div>
-            <div className="field">
-              <label htmlFor="new-akses">Akses</label>
-              <select id="new-akses" name="akses" defaultValue={AKSES.USER}>
-                {AKSES_LIST.map((a) => (
-                  <option key={a} value={a}>
-                    {a}: {AKSES_HELP[a]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="new-pass">Password awal</label>
-              <PasswordInput id="new-pass" name="password" generate autoGenerate />
-              <span className="help">Salin dan bagikan ke user. Password tidak bisa dilihat lagi setelah disimpan.</span>
-            </div>
-          </div>
-          <div className="row">
-            <label className="choice">
-              <input type="checkbox" name="mustChange" value="Ya" defaultChecked /> Wajib ganti password saat login pertama
-            </label>
-            <span className="spacer" />
-            <SubmitButton>Tambah user</SubmitButton>
-          </div>
-        </form>
+        <AddUserForm brands={brands} suggestions={masterSuggestions(db.master)} />
       </section>
 
-      <h2 className="section-title">
+      <h2 className="section-title" id="daftar">
         <span className="num">2</span> Daftar user
       </h2>
+      <div
+        className="row"
+        style={{
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: 10,
+        }}
+      >
+        <div className="tabs" style={{ marginBottom: 0 }}>
+          {tab('', 'Semua', db.accounts.length)}
+          {tab('belum-login', 'Belum pernah login', neverLoggedIn.length)}
+          {tab('tanpa-wa', 'No WA kosong', noPhone.length)}
+          {tab('tanpa-peran', 'Tanpa peran kerja', noRole.length)}
+        </div>
+        <BlastInvitesButton count={neverLoggedIn.length} />
+      </div>
       <form className="filters" style={{ marginBottom: 12 }}>
+        {filter ? <input type="hidden" name="f" value={filter} /> : null}
         <div className="field wide">
           <label htmlFor="q">Cari</label>
           <input id="q" type="search" name="q" placeholder="Nama atau email" defaultValue={sp.q || ''} />
@@ -129,51 +135,81 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
         <table>
           <thead>
             <tr>
-              <th>Nama</th>
-              <th>Email</th>
+              <th>Nama & email</th>
               <th>Peran kerja</th>
+              <th>No WA</th>
               <th>Akses</th>
               <th>Status</th>
-              <th>Login terakhir</th>
-              <th>Reset password</th>
+              <th>Login</th>
+              <th>Password</th>
             </tr>
           </thead>
           <tbody>
-            {accounts.length === 0 ? (
+            {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="empty">
-                  Belum ada user.
+                  Tidak ada user di filter ini.
                 </td>
               </tr>
             ) : (
-              accounts.map((a) => {
-                const person = findPerson(db.master, a.nama) || findPersonByEmail(db.master, a.email);
+              rows.map(({ a, person }) => {
                 const self = a.email === me.email;
+                const profile = profileOf(person, a.nama);
+                const anchor = `u-edit-${a.email.replace(/[^a-z0-9]/gi, '')}`;
                 return (
-                  <tr key={a.email} style={a.aktif ? undefined : { opacity: 0.55 }}>
-                    <td>
-                      <div className="title">{a.nama || '-'}</div>
-                      {self ? <span className="badge blue">Kamu</span> : null}
+                  <tr key={a.email} id={anchor} style={a.aktif ? undefined : { opacity: 0.55 }}>
+                    <td style={{ minWidth: 220 }}>
+                      <div className="title">
+                        {a.nama || '-'} {self ? <span className="badge blue">Kamu</span> : null}
+                      </div>
+                      <div className="subtle">{a.email}</div>
+                      <details style={{ marginTop: 4 }}>
+                        <summary className="btn small">Ubah email</summary>
+                        <form action={changeEmailAction} className="stack" style={{ marginTop: 6, gap: 6 }}>
+                          <input type="hidden" name="email" value={a.email} />
+                          <input type="email" name="newEmail" required placeholder="email baru" />
+                          <span className="subtle">
+                            Password tetap; email lama tidak bisa dipakai login lagi. Pemberitahuan dikirim ke kedua email.
+                          </span>
+                          <SubmitButton className="btn small primary">Simpan email</SubmitButton>
+                        </form>
+                      </details>
                     </td>
-                    <td className="nowrap">{a.email}</td>
-                    <td>
+                    <td style={{ minWidth: 200 }}>
                       {person ? (
                         <>
-                          {person.peran}
-                          <div className="subtle">{person.grup}</div>
+                          <div>{describe(profile)}</div>
+                          {profile.jabatan ? <div className="subtle">{profile.jabatan}</div> : null}
                         </>
                       ) : a.akses !== AKSES.USER ? (
                         <span className="subtle">{a.akses} (tanpa peran kerja)</span>
                       ) : (
-                        <span className="badge amber" title="Nama tidak ditemukan di Master_PIC / Master_Tim: akses hanya melihat">
-                          Tidak terhubung
-                        </span>
+                        <span className="badge amber">Belum ada peran</span>
+                      )}
+                      <details style={{ marginTop: 4 }}>
+                        <summary className="btn small">Ubah peran</summary>
+                        <ProfileEditor email={a.email} initial={profile} brands={brands} peranRequired={a.akses === AKSES.USER} />
+                      </details>
+                    </td>
+                    <td className="nowrap">
+                      {person?.phone ? (
+                        <form action={testWaAction} className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                          <input type="hidden" name="to" value={person.phone} />
+                          <input type="hidden" name="nama" value={person.name} />
+                          <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#${anchor}`} />
+                          <span>{person.phone}</span>
+                          <button className="btn small" title="Kirim pesan tes ke nomor ini">
+                            Tes WA
+                          </button>
+                        </form>
+                      ) : (
+                        <span className="badge red">No WA kosong</span>
                       )}
                     </td>
                     <td>
                       <form action={updateUserAction} className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
                         <input type="hidden" name="email" value={a.email} />
-                        <select name="akses" defaultValue={a.akses} disabled={self} style={{ minWidth: 120 }}>
+                        <select name="akses" defaultValue={a.akses} disabled={self} style={{ minWidth: 118 }}>
                           {AKSES_LIST.map((x) => (
                             <option key={x}>{x}</option>
                           ))}
@@ -199,15 +235,30 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                         )}
                       </form>
                     </td>
-                    <td className="nowrap">
-                      {a.lastLogin ? formatWaktu(a.lastLogin) : <span className="subtle">belum pernah</span>}
-                      {a.mustChange ? <div className="subtle">menunggu ganti password</div> : null}
-                      {!a.hash ? <div className="subtle">belum punya password</div> : null}
+                    <td style={{ minWidth: 170 }}>
+                      {a.lastLogin ? (
+                        formatWaktu(a.lastLogin)
+                      ) : (
+                        <>
+                          <span className="badge amber">Belum pernah login</span>
+                          {a.invitedAt ? <div className="subtle">Undangan: {formatWaktu(a.invitedAt)}</div> : null}
+                          {a.aktif && !self ? (
+                            <div style={{ marginTop: 4 }}>
+                              <InviteButton email={a.email} nama={a.nama} label={a.invitedAt ? 'Kirim ulang undangan' : 'Kirim undangan'} />
+                            </div>
+                          ) : null}
+                        </>
+                      )}
                     </td>
-                    <td style={{ minWidth: 300 }}>
+                    <td style={{ minWidth: 120 }}>
+                      {!a.hash ? (
+                        <div className="subtle">belum dibuat</div>
+                      ) : a.mustChange ? (
+                        <div className="subtle">wajib ganti</div>
+                      ) : null}
                       <details>
                         <summary className="btn small">Reset</summary>
-                        <form action={resetPasswordAction} className="stack" style={{ marginTop: 8 }}>
+                        <form action={resetPasswordAction} className="stack" style={{ marginTop: 8, minWidth: 260 }}>
                           <input type="hidden" name="email" value={a.email} />
                           <PasswordInput name="password" generate autoGenerate />
                           <SubmitButton className="btn small primary">Simpan password baru</SubmitButton>
@@ -224,16 +275,16 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
 
       <h2 className="section-title">
         <span className="num">3</span> Orang di master data yang belum punya akun
-        <span className="hint">· buat akun sekali klik</span>
+        <span className="hint">· buat akun + kirim undangan sekali klik</span>
       </h2>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Nama</th>
-              <th>Peran</th>
+              <th>Peran kerja</th>
               <th>Email</th>
-              <th>Password awal</th>
+              <th>No WA</th>
               <th />
             </tr>
           </thead>
@@ -249,25 +300,22 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                 const formId = `quick-${p.name.replace(/[^a-z0-9]/gi, '-')}`;
                 return (
                   <tr key={p.name}>
-                    <td className="title">{p.name}</td>
-                    <td>
-                      {p.peran}
-                      <div className="subtle">{p.grup}</div>
+                    <td className="title">
+                      <form id={formId} action={quickCreateAction}>
+                        <input type="hidden" name="nama" value={p.name} />
+                      </form>
+                      {p.name}
                     </td>
+                    <td>{describe(profileOf(p))}</td>
                     <td style={{ minWidth: 220 }}>
                       <input form={formId} name="email" type="email" required defaultValue={p.email} placeholder="email login" />
                     </td>
-                    <td style={{ minWidth: 280 }}>
-                      <form id={formId} action={createUserAction}>
-                        <input type="hidden" name="nama" value={p.name} />
-                        <input type="hidden" name="akses" value={AKSES.USER} />
-                        <input type="hidden" name="mustChange" value="Ya" />
-                        <PasswordInput name="password" generate autoGenerate />
-                      </form>
+                    <td style={{ minWidth: 150 }}>
+                      <input form={formId} name="phone" type="text" inputMode="tel" defaultValue={p.phone} placeholder="08…" />
                     </td>
                     <td>
                       <button type="submit" form={formId} className="btn small primary">
-                        Buat akun
+                        Buat akun & undang
                       </button>
                     </td>
                   </tr>
@@ -277,7 +325,6 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
           </tbody>
         </table>
       </div>
-      <p className="subtle">Setelah dibuat, user wajib mengganti password saat login pertama. Akun nonaktif tidak bisa login dan sesinya langsung berhenti.</p>
 
       <h2 className="section-title" id="data-contoh">
         <span className="num">4</span> Data contoh
@@ -289,8 +336,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
           <>
             <p style={{ marginTop: 0 }}>
               Saat ini ada <b>{sampleCounts.requests}</b> request, <b>{sampleCounts.tasks}</b> task, <b>{sampleCounts.statusLog}</b> riwayat
-              status, <b>{sampleCounts.waLog}</b> log WA, dan <b>{sampleCounts.members}</b> anggota tim bertanda &quot;(contoh)&quot;.
-              Data asli (ID berawalan selain DEMO-) tidak ikut terhapus.
+              status, <b>{sampleCounts.waLog}</b> log WA, dan <b>{sampleCounts.members}</b> anggota tim bertanda &quot;(contoh)&quot;. Data
+              asli (ID berawalan selain DEMO-) tidak ikut terhapus.
             </p>
             <form action={purgeSampleAction}>
               <SubmitButton className="btn danger" pendingText="Menghapus…">
@@ -301,9 +348,8 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
         ) : (
           <>
             <p style={{ marginTop: 0 }}>
-              Membuat ±6 minggu aktivitas contoh (±70 request di semua brand dan kategori) memakai master data saat ini, lengkap dengan
-              cek brief, assign, draft, QC, revisi, ACC, final, riwayat status, dan log WA. Ditambah beberapa anggota tim bertanda
-              &quot;(contoh)&quot;. Tidak ada WA yang benar-benar dikirim.
+              Membuat ±6 minggu aktivitas contoh (±70 request) memakai master data saat ini, lengkap dengan cek brief, assign, draft, QC,
+              revisi, ACC, final, riwayat status, dan log WA. Tidak ada WA atau email yang benar-benar dikirim.
             </p>
             <form action={generateSampleAction}>
               <SubmitButton className="btn primary" pendingText="Membuat data contoh… (±10–30 detik)">
@@ -313,55 +359,9 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
           </>
         )}
       </section>
-
-      <h2 className="section-title" id="whatsapp">
-        <span className="num">5</span> WhatsApp gateway
-        <span className="hint">· {wa.provider === 'lixus' ? 'Lixus WhatsApp Gateway' : wa.provider}</span>
-      </h2>
-      <section className="mcard plain" style={{ ['--c' as string]: BOARD_COLORS[2], marginTop: 22 }}>
-        <div className="tab">Status & tes kirim</div>
-        <dl className="kv" style={{ gridTemplateColumns: '170px minmax(0,1fr)' }}>
-          <dt>Koneksi sesi WA</dt>
-          <dd>
-            {wa.connected === true ? (
-              <span className="badge green">Terhubung{wa.phoneNumber ? ` · ${wa.phoneNumber}` : ''}{wa.uptime ? ` · ${wa.uptime}` : ''}</span>
-            ) : wa.connected === false ? (
-              <span className="badge red">Tidak terhubung{wa.error ? ` · ${wa.error}` : ''}</span>
-            ) : (
-              <span className="badge outline">{wa.configured ? 'Tidak dicek' : 'Belum dikonfigurasi (WA_API_URL & WA_TOKEN)'}</span>
-            )}
-          </dd>
-          <dt>Mode kirim</dt>
-          <dd>
-            {wa.dryRun ? (
-              <span className="badge amber">Uji (WA_DRY_RUN): pesan hanya dicatat di Log_WA</span>
-            ) : (
-              <span className="badge green">Kirim sungguhan</span>
-            )}
-          </dd>
-          <dt>URL webhook</dt>
-          <dd>
-            <code>{webhookUrl}</code>
-            <div className="subtle">
-              Daftarkan di Ops Panel Lixus untuk event <code>message.received</code> agar balasan ACC/REV dari PIC terbaca.
-              {env.webhookKey ? ' Ganti <WEBHOOK_KEY> dengan nilai env WEBHOOK_KEY.' : ' Isi env WEBHOOK_KEY atau WA_WEBHOOK_SECRET agar webhook diterima.'}
-            </div>
-          </dd>
-        </dl>
-        <form action={testWaAction} className="form-grid" style={{ marginTop: 14, alignItems: 'end' }}>
-          <div className="field">
-            <label htmlFor="wa-to">Nomor tujuan</label>
-            <input id="wa-to" name="to" type="text" inputMode="tel" placeholder="08123456789 atau 628123456789" required />
-          </div>
-          <div className="field">
-            <label htmlFor="wa-text">Pesan (opsional)</label>
-            <input id="wa-text" name="text" type="text" placeholder="Tes dari Creative Request Tracker" />
-          </div>
-          <div>
-            <SubmitButton pendingText="Mengirim…">Kirim pesan tes</SubmitButton>
-          </div>
-        </form>
-      </section>
+      <p className="subtle" style={{ marginTop: 16 }}>
+        Pengaturan WhatsApp (status gateway, mode uji, kirim pesan tes) ada di halaman <Link href="/admin/whatsapp">Pengaturan WA</Link>.
+      </p>
     </div>
   );
 }

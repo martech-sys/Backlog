@@ -25,7 +25,9 @@ export function ballHolder(
     case 'PIC Brand':
       return task['PIC Brand'] ? `PIC Brand (${task['PIC Brand']})` : 'PIC Brand';
     case 'Lead':
-      return task.Lead ? `Lead (${task.Lead})` : 'Lead';
+      // Task custom yang belum diatur Traffic (belum ada lead): bola di Traffic.
+      if (!task.Lead) return traffic ? `Traffic (${traffic})` : 'Traffic';
+      return `Lead (${task.Lead})`;
     case 'Assignee':
       return task.Assignee ? task.Assignee : 'Belum di-assign';
     default:
@@ -48,7 +50,10 @@ export interface WaReply {
 }
 
 export function parseWaReply(text: string): WaReply | null {
-  const m = /^\s*\*?(ACC|REV|REVISI)\*?\s+([A-Za-z]+-\d{4}-\d{3,}(?:-\d+)?)\s*[:\-–]?\s*([\s\S]*)$/i.exec(text || '');
+  // ID task: CR-2611-001-PE (kode kategori) atau format lama CR-2611-001-1; ID request: CR-2611-001
+  const m = /^\s*\*?(ACC|REV|REVISI)\*?\s+([A-Za-z]+-\d{4}-\d{3,}(?:-[A-Za-z0-9]{1,4})?)(?=$|[\s:\-–])\s*[:\-–]?\s*([\s\S]*)$/i.exec(
+    text || '',
+  );
   if (!m) return null;
   const action = m[1].toUpperCase() === 'ACC' ? 'ACC' : 'REV';
   return { action, id: m[2].toUpperCase(), note: m[3].trim() };
@@ -56,7 +61,7 @@ export function parseWaReply(text: string): WaReply | null {
 
 /** True bila id adalah Task ID (punya akhiran -N), bukan Request ID. */
 export function isTaskId(id: string): boolean {
-  return /^[A-Z]+-\d{4}-\d{3,}-\d+$/i.test(id);
+  return /^[A-Z]+-\d{4}-\d{3,}-[A-Z0-9]{1,4}$/i.test(id);
 }
 
 // ---------------------------------------------------------------------------

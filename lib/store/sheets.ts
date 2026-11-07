@@ -208,24 +208,56 @@ export class SheetsStore implements Store {
   }
 
   /** Buat sheet yang belum ada dan pasang header (dipakai scripts/setup-sheet.ts). */
+  /**
+   * Migrasi skema yang aman: buat tab yang belum ada, tulis header di tab kosong (plus seed),
+   * dan tambahkan kolom header baru di ujung kanan tab yang sudah berisi. Data lama tidak diubah.
+   * Mengembalikan daftar perubahan.
+   */
   async ensureSheets(headers: Record<string, readonly string[]>, seed: Record<string, Cell[][]> = {}): Promise<string[]> {
-    const meta = await this.call<{ sheets: { properties: { title: string } }[] }>(`?fields=sheets.properties.title`);
-    const existing = new Set(meta.sheets.map((s) => s.properties.title));
-    const missing = Object.keys(headers).filter((n) => !existing.has(n));
+    type Meta = { sheets: { properties: { sheetId: number; title: string; gridProperties?: { columnCount?: number } } }[] };
+    const meta = await this.call<Meta>(`?fields=sheets.properties(sheetId,title,gridProperties.columnCount)`);
+    const props = new Map(meta.sheets.map((x) => [x.properties.title, x.properties]));
+    const changes: string[] = [];
+
+    const missing = Object.keys(headers).filter((n) => !props.has(n));
     if (missing.length) {
       await this.call(`:batchUpdate`, {
         method: 'POST',
-        body: { requests: missing.map((title) => ({ addSheet: { properties: { title, gridProperties: { frozenRowCount: 1 } } } })) },
+        body: {
+          requests: missing.map((title) => ({
+            addSheet: { properties: { title, gridProperties: { frozenRowCount: 1, columnCount: Math.max(headers[title].length, 8) } } },
+          })),
+        },
       });
+      changes.push(...missing.map((m) => `tab ${m}`));
     }
-    const raw = await this.readRaw(Object.keys(headers));
+
+    const headerRanges = Object.keys(headers).map((n) => `${q(n)}!1:1`);
+    const raw = await this.readRaw(headerRanges);
     const data: { range: string; values: Cell[][] }[] = [];
+    const grow: object[] = [];
     for (const [n, h] of Object.entries(headers)) {
-      if ((raw[n] || []).length === 0) {
+      const current = ((raw[`${q(n)}!1:1`] || [])[0] || []).map((x) => String(x ?? '').trim());
+      if (!current.some(Boolean)) {
         data.push({ range: `${q(n)}!A1`, values: [[...h], ...(seed[n] || [])] });
+        if (props.has(n)) changes.push(`header ${n}`);
+        continue;
       }
+      const add = h.filter((x) => !current.includes(x));
+      if (!add.length) continue;
+      const start = current.length;
+      const needed = start + add.length;
+      const p = props.get(n);
+      if (p && (p.gridProperties?.columnCount ?? 26) < needed) {
+        grow.push({ appendDimension: { sheetId: p.sheetId, dimension: 'COLUMNS', length: needed - (p.gridProperties?.columnCount ?? 26) } });
+      }
+      data.push({ range: `${q(n)}!${columnLetter(start)}1`, values: [add] });
+      changes.push(`kolom ${n}: ${add.join(', ')}`);
     }
+    if (grow.length) await this.call(`:batchUpdate`, { method: 'POST', body: { requests: grow } });
     if (data.length) await this.call(`/values:batchUpdate`, { method: 'POST', body: { valueInputOption: 'RAW', data } });
-    return data.map((d) => d.range);
+    this.headerCache.clear();
+    this.readCache.clear();
+    return changes;
   }
 }

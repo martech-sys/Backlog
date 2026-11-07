@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import {
   assignAction,
   closeAction,
+  commentAction,
+  customSetupAction,
+  descriptionAction,
   draftAction,
   finalAction,
   overrideAction,
@@ -11,13 +14,19 @@ import {
   reviewAction,
 } from '@/app/actions';
 import { SubmitButton } from '@/components/SubmitButton';
+import { MarkSeen } from '@/components/SeenMarker';
+import { ImagePicker } from '@/components/task/ImagePicker';
+import { ThumbImg } from '@/components/task/ThumbImg';
 import { Flash, LinkOrDash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
-import { ACTIVE_STATUSES, DONE_STATUSES, STATUS, TASK_STATUSES, type Status } from '@/lib/config';
+import { ACTIVE_STATUSES, CUSTOM_CATEGORY, DIVISI, DONE_STATUSES, STATUS, TASK_STATUSES, type Status } from '@/lib/config';
 import { now } from '@/lib/clock';
 import { formatTanggal, formatWaktu, todayWib } from '@/lib/dates';
 import { findRequest, findTask } from '@/lib/db';
 import { getDbWithWa, requireUser } from '@/lib/session';
-import { availableActions } from '@/lib/workflow';
+import { seenKey } from '@/lib/mine';
+import { canComment, needsCustomSetup } from '@/lib/service';
+import { previewUrl, uploadConfigured } from '@/lib/upload';
+import { availableActions, can } from '@/lib/workflow';
 
 type Params = Promise<{ id: string }>;
 type SP = Promise<Record<string, string | undefined>>;
@@ -43,6 +52,34 @@ function Notes({ text }: { text: string }) {
   );
 }
 
+const JENIS_CLASS: Record<string, string> = {
+  'QC lead': 'qc',
+  'Revisi brand': 'rev',
+  Draft: 'draft',
+};
+const JENIS_BADGE: Record<string, string> = {
+  'QC lead': 'amber',
+  'Revisi brand': 'red',
+  Draft: 'blue',
+  Catatan: 'outline',
+};
+
+function Thumbs({ urls, size = '' }: { urls: string[]; size?: string }) {
+  if (!urls.length) return null;
+  return (
+    <div className="thumbs" style={{ marginTop: 8 }}>
+      {urls.map((u, i) => {
+        const src = previewUrl(u);
+        return (
+          <a key={u + i} href={u} target="_blank" rel="noreferrer" className={`thumb ${size}`} title="Buka ukuran penuh">
+            <ThumbImg src={src} alt={`Lampiran ${i + 1}`} />
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 export default async function TaskDetail({ params, searchParams }: { params: Params; searchParams: SP }) {
   const user = await requireUser();
   const id = decodeURIComponent((await params).id);
@@ -52,17 +89,62 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
   if (!t) notFound();
   const r = findRequest(db, t['Request ID']);
   const today = todayWib(now());
-  const actions = availableActions(user, t);
+  const customPending = needsCustomSetup(t);
+  const actions = availableActions(user, t).filter((a) => !(customPending && a === 'assign'));
   const logs = db.statusLog.filter((l) => l.ID === id).sort((a, b) => b.Timestamp.localeCompare(a.Timestamp));
   const wa = db.waLog.filter((w) => w['Ref ID'] === id).sort((a, b) => b.Timestamp.localeCompare(a.Timestamp));
   const done = DONE_STATUSES.includes(t.Status as Status);
+  const komentar = db.komentar.filter((k) => k['Task ID'] === id).sort((a, b) => a.Timestamp.localeCompare(b.Timestamp));
+  const lampiranOf = (v: string) =>
+    String(v || '')
+      .split('\n')
+      .map((x) => x.trim())
+      .filter(Boolean);
+  const mayComment = canComment(db, user, t);
+  const canUpload = uploadConfigured();
+  const mayEditDesc = !done && (can.work(user, t) || can.qc(user, t));
+  const jenisOptions = [
+    'Catatan',
+    ...(can.qc(user, t) ? ['QC lead'] : []),
+    ...(t.Status === STATUS.REVIEW_BRAND && can.review(user, t) ? ['Revisi brand'] : []),
+  ];
+  // Versi draft: dari riwayat (data lama) + baris komentar "Draft" (preview & catatan).
+  const versions = new Map<string, { v: string; ts: string; link: string; previews: string[]; by: string }>();
+  for (const line of String(t['Riwayat Draft'] || '')
+    .split('\n')
+    .filter(Boolean)) {
+    const m = line.match(/^v(\d+) \(([^)]*)\):\s*(\S+)/);
+    if (m)
+      versions.set(m[1], {
+        v: m[1],
+        ts: m[2],
+        link: m[3],
+        previews: [],
+        by: t.Assignee,
+      });
+  }
+  for (const k of komentar.filter((x) => x.Jenis === 'Draft')) {
+    const link = k.Isi.split('\n')[0];
+    const prev = versions.get(k.Versi);
+    versions.set(k.Versi, {
+      v: k.Versi,
+      ts: prev?.ts || k.Timestamp,
+      link: prev?.link || link,
+      previews: lampiranOf(k.Lampiran),
+      by: k.Oleh,
+    });
+  }
+  const versionList = [...versions.values()].sort((a, b) => Number(b.v) - Number(a.v));
+  const qcRev = komentar.filter((k) => k.Jenis === 'QC lead' || k.Jenis === 'Revisi brand');
 
   const load = new Map<string, number>();
-  for (const x of db.tasks) if (x.Assignee && ACTIVE_STATUSES.includes(x.Status as Status)) load.set(x.Assignee, (load.get(x.Assignee) || 0) + 1);
+  for (const x of db.tasks)
+    if (x.Assignee && ACTIVE_STATUSES.includes(x.Status as Status)) load.set(x.Assignee, (load.get(x.Assignee) || 0) + 1);
   const creative = db.master.people.filter((p) => p.active && !['management', 'traffic', 'brand'].includes(p.divisi.toLowerCase()));
   const sameDivisi = creative.filter((p) => p.divisi === t.Divisi);
   const others = creative.filter((p) => p.divisi !== t.Divisi);
-  const optLabel = (name: string, cap: number, intern: boolean) => `${name}${intern ? ' (intern)' : ''} · ${load.get(name) || 0}/${cap} aktif`;
+  const optLabel = (name: string, cap: number, intern: boolean) =>
+    `${name}${intern ? ' (intern)' : ''} · ${load.get(name) || 0}/${cap} aktif`;
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -75,7 +157,8 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             {id} <StatusBadge status={t.Status} /> <UrgentBadge urgent={t.Urgent} />
           </h1>
           <p>
-            {t.Brand} · {r?.['Campaign Name']} · {t.Kategori} ({t.Divisi})
+            {t.Brand} · {r?.['Campaign Name']} · {t.Kategori}
+            {t['Jenis Custom'] ? ` "${t['Jenis Custom']}"` : ''} ({t.Divisi || 'divisi belum diatur'})
           </p>
         </div>
         <div className="row">
@@ -84,9 +167,78 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
         </div>
       </div>
       <Flash ok={sp.ok} err={sp.err} />
+      <MarkSeen seenKey={seenKey(t)} />
 
       <div className="grid grid-3">
         <div className="span-2 stack">
+          {customPending ? (
+            can.prioritize(user, t) ? (
+              <section className="card action-card">
+                <h2>Atur task custom</h2>
+                <p className="muted">
+                  Request ini memakai kategori <b>Lainnya (custom)</b>, jadi tidak dirouting otomatis. Tentukan divisi, lead, dan deadline,
+                  atau ubah ke kategori yang sudah ada bila ternyata cocok.
+                </p>
+                <form action={customSetupAction} className="stack">
+                  <input type="hidden" name="taskId" value={id} />
+                  <div className="grid grid-2" style={{ gap: 12 }}>
+                    <div className="field">
+                      <label htmlFor="ckat">Kategori</label>
+                      <select id="ckat" name="kategori" defaultValue={CUSTOM_CATEGORY}>
+                        <option value={CUSTOM_CATEGORY}>Tetap custom</option>
+                        {[...new Set(db.master.kategori.map((k) => k.kategori))]
+                          .filter((k) => k !== CUSTOM_CATEGORY)
+                          .map((k) => (
+                            <option key={k} value={k}>
+                              Ubah ke: {k}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="cjenis">Jenis pekerjaan (untuk rekap)</label>
+                      <input id="cjenis" name="jenisCustom" placeholder="Mis. Banner marketplace" maxLength={60} />
+                      <span className="help">Wajib bila tetap custom. Jenis yang muncul &gt; 3x/bulan jadi kandidat kategori baru.</span>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="cdiv">Divisi</label>
+                      <select id="cdiv" name="divisi" defaultValue="">
+                        <option value="">Pilih divisi…</option>
+                        {DIVISI.map((d) => (
+                          <option key={d.value} value={d.value}>
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="help">Bila mengubah kategori, divisi mengikuti aturan kategori itu.</span>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="clead">Lead</label>
+                      <select id="clead" name="lead" defaultValue="">
+                        <option value="">Otomatis (lead divisi & grup)</option>
+                        {db.master.people
+                          .filter((p) => p.active && p.isLead)
+                          .map((p) => (
+                            <option key={p.name} value={p.name}>
+                              {p.name} · {p.divisi} · {p.grup}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="cdl">Deadline</label>
+                      <input id="cdl" type="date" name="deadline" defaultValue={t.Deadline} required />
+                    </div>
+                  </div>
+                  <div>
+                    <SubmitButton>Simpan & kirim ke lead</SubmitButton>
+                  </div>
+                </form>
+              </section>
+            ) : (
+              <div className="flash">Task custom ini sedang menunggu Traffic mengatur divisi, lead, dan deadline.</div>
+            )
+          ) : null}
           {actions.includes('draft') ? (
             <section className="card action-card">
               <h2>{t.Status === STATUS.DIKERJAKAN ? 'Upload draft' : 'Upload draft revisi'}</h2>
@@ -105,6 +257,20 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   <label htmlFor="link">Link draft v{(Number(t['Versi Draft']) || 0) + 1}</label>
                   <input id="link" type="url" name="link" required placeholder="https://drive.google.com/…" />
                 </div>
+                {canUpload ? (
+                  <ImagePicker folder={id} label="Preview draft (opsional, agar lead & PIC bisa lihat tanpa buka Drive)" allowLink={false} canUpload>
+                    <div className="field">
+                      <label htmlFor="dnote">Catatan untuk lead (opsional)</label>
+                      <textarea id="dnote" name="note" rows={2} placeholder="Mis. sudah ganti warna background sesuai revisi R1" />
+                    </div>
+                  </ImagePicker>
+                ) : (
+                  <div className="field">
+                    <label htmlFor="dnote">Catatan untuk lead (opsional)</label>
+                    <textarea id="dnote" name="note" rows={2} placeholder="Mis. sudah ganti warna background sesuai revisi R1" />
+                    <span className="help">Bila link draft berupa gambar di Drive yang sudah dibagikan, pratinjaunya tampil otomatis di daftar versi.</span>
+                  </div>
+                )}
                 <div>
                   <SubmitButton>Kirim ke QC</SubmitButton>
                 </div>
@@ -124,6 +290,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   <label htmlFor="qcnote">Catatan QC</label>
                   <textarea id="qcnote" name="note" placeholder="Wajib bila belum lolos" />
                 </div>
+                <ImagePicker folder={id} canUpload={canUpload} label="Lampiran (opsional, mis. screenshot yang ditandai)" />
                 <div className="actions-row">
                   <SubmitButton name="decision" value="pass" className="btn success">
                     Lolos QC, kirim ke brand
@@ -153,6 +320,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                     Ronde revisi saat ini: {Number(t['Ronde Revisi']) || 0} (batas {db.master.config.maxRevisi})
                   </span>
                 </div>
+                <ImagePicker folder={id} canUpload={canUpload} label="Lampiran revisi (opsional, mis. screenshot yang ditandai)" />
                 <div className="actions-row">
                   <SubmitButton name="decision" value="ACC" className="btn success">
                     ACC
@@ -173,7 +341,13 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                 <input type="hidden" name="taskId" value={id} />
                 <div className="field">
                   <label htmlFor="final">Link file final</label>
-                  <input id="final" type="url" name="link" required placeholder={db.master.config.driveFolderUrl || 'https://drive.google.com/…'} />
+                  <input
+                    id="final"
+                    type="url"
+                    name="link"
+                    required
+                    placeholder={db.master.config.driveFolderUrl || 'https://drive.google.com/…'}
+                  />
                 </div>
                 <div>
                   <SubmitButton>Simpan file final</SubmitButton>
@@ -234,20 +408,148 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             )}
           </section>
 
-          <section className="grid grid-2">
-            <div className="card">
-              <h3 style={{ marginBottom: 8 }}>Draft (v{Number(t['Versi Draft']) || 0})</h3>
-              <Notes text={t['Riwayat Draft']} />
+          <section className="card" id="deskripsi">
+            <h2 style={{ marginBottom: 10 }}>Deskripsi & catatan pengerjaan</h2>
+            {mayEditDesc ? (
+              <form action={descriptionAction} className="stack">
+                <input type="hidden" name="taskId" value={id} />
+                <textarea
+                  name="deskripsi"
+                  rows={4}
+                  defaultValue={t.Deskripsi}
+                  placeholder="Mis. konsep yang dipakai, ukuran file, hal yang perlu diperhatikan, progres…"
+                />
+                <div>
+                  <SubmitButton className="btn small">Simpan deskripsi</SubmitButton>
+                </div>
+              </form>
+            ) : t.Deskripsi ? (
+              <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{t.Deskripsi}</p>
+            ) : (
+              <p className="muted" style={{ margin: 0 }}>
+                Belum ada deskripsi. Assignee atau lead bisa menambahkannya.
+              </p>
+            )}
+          </section>
+
+          <section className="card">
+            <h2 style={{ marginBottom: 10 }}>
+              Draft ({versionList.length} versi){' '}
               {t['Link Final'] ? (
-                <p>
-                  <b>Final:</b> <LinkOrDash href={t['Link Final']} />
-                </p>
+                <span className="badge green" style={{ marginLeft: 6 }}>
+                  Final tersedia
+                </span>
               ) : null}
-            </div>
-            <div className="card">
-              <h3 style={{ marginBottom: 8 }}>Catatan QC & revisi brand ({Number(t['Ronde Revisi']) || 0} ronde)</h3>
+            </h2>
+            {versionList.length ? (
+              <div className="versions">
+                {versionList.map((v) => {
+                  const imgs = v.previews.length ? v.previews : [v.link];
+                  return (
+                    <div key={v.v} className="version">
+                      <Thumbs urls={imgs.slice(0, 1)} size="lg" />
+                      <b>
+                        v{v.v} {v.v === String(Number(t['Versi Draft']) || 0) ? <span className="badge blue">terbaru</span> : null}
+                      </b>
+                      <span className="subtle">{formatWaktu(v.ts)}</span>
+                      <a href={v.link} target="_blank" rel="noreferrer">
+                        Buka file
+                      </a>
+                      {v.previews.length > 1 ? <span className="subtle">+{v.previews.length - 1} preview</span> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="muted" style={{ margin: 0 }}>
+                Belum ada draft.
+              </p>
+            )}
+            {t['Link Final'] ? (
+              <p style={{ marginBottom: 0 }}>
+                <b>Final:</b> <LinkOrDash href={t['Link Final']} />
+              </p>
+            ) : null}
+          </section>
+
+          <section className="card">
+            <h2 style={{ marginBottom: 10 }}>Catatan QC & revisi brand ({Number(t['Ronde Revisi']) || 0} ronde)</h2>
+            {qcRev.length ? (
+              <ul className="comments">
+                {[...qcRev].reverse().map((k) => (
+                  <li key={k['Komentar ID']} className={`comment ${JENIS_CLASS[k.Jenis] || ''}`}>
+                    <div className="comment-head">
+                      <span className={`badge ${JENIS_BADGE[k.Jenis] || ''}`}>{k.Jenis}</span>
+                      <b>{k.Oleh}</b>
+                      <span className="subtle">
+                        v{k.Versi} · {formatWaktu(k.Timestamp)}
+                      </span>
+                    </div>
+                    <p className="comment-body">{k.Isi}</p>
+                    <Thumbs urls={lampiranOf(k.Lampiran)} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
               <Notes text={[t['Catatan QC'], t['Catatan Revisi']].filter(Boolean).join('\n')} />
-            </div>
+            )}
+          </section>
+
+          <section className="card" id="komentar">
+            <h2 style={{ marginBottom: 10 }}>Komentar ({komentar.length})</h2>
+            {komentar.length ? (
+              <ul className="comments">
+                {komentar.map((k) => (
+                  <li key={k['Komentar ID']} className={`comment ${JENIS_CLASS[k.Jenis] || ''}`}>
+                    <div className="comment-head">
+                      <b>{k.Oleh}</b>
+                      <span className="subtle">{k.Peran}</span>
+                      <span className={`badge ${JENIS_BADGE[k.Jenis] || ''}`}>{k.Jenis === 'Draft' ? `Draft v${k.Versi}` : k.Jenis}</span>
+                      <span className="subtle" style={{ marginLeft: 'auto' }}>
+                        {k.Jenis !== 'Draft' && Number(k.Versi) > 0 ? `untuk v${k.Versi} · ` : ''}
+                        {formatWaktu(k.Timestamp)}
+                      </span>
+                    </div>
+                    {k.Isi ? <p className="comment-body">{k.Isi}</p> : null}
+                    <Thumbs urls={lampiranOf(k.Lampiran)} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">Belum ada komentar.</p>
+            )}
+            {mayComment ? (
+              <form action={commentAction} key={komentar.length} className="stack" style={{ marginTop: 14 }}>
+                <input type="hidden" name="taskId" value={id} />
+                <ImagePicker folder={id} canUpload={canUpload}>
+                  <div className="field">
+                    <label htmlFor="isi">Tulis komentar</label>
+                    <textarea id="isi" name="isi" rows={3} placeholder="Tulis komentar… (bisa tempel screenshot dengan Ctrl/Cmd + V)" />
+                  </div>
+                </ImagePicker>
+                <div className="row" style={{ gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  {jenisOptions.length > 1 ? (
+                    <div className="field" style={{ minWidth: 160 }}>
+                      <label htmlFor="jenis">Label</label>
+                      <select id="jenis" name="jenis" defaultValue="Catatan">
+                        {jenisOptions.map((j) => (
+                          <option key={j} value={j}>
+                            {j}
+                            {j === 'Revisi brand' ? ' (ronde revisi +1)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <input type="hidden" name="jenis" value="Catatan" />
+                  )}
+                  <SubmitButton pendingText="Mengirim…">Kirim komentar</SubmitButton>
+                </div>
+                <span className="help">
+                  Komentar terikat ke draft v{Number(t['Versi Draft']) || 0}. Pemegang bola ({t['Bola di']}) diberi tahu lewat WA.
+                </span>
+              </form>
+            ) : null}
           </section>
         </div>
 

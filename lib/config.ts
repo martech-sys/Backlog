@@ -19,6 +19,9 @@ export const SHEETS = {
   STATUS_LOG: 'Status',
   WA_LOG: 'Log_WA',
   USERS: 'Users',
+  KOMENTAR: 'Komentar',
+  LOG_ADMIN: 'Log_Admin',
+  LOG_EMAIL: 'Log_Email',
 } as const;
 
 export type SheetName = (typeof SHEETS)[keyof typeof SHEETS];
@@ -162,6 +165,7 @@ export const PIC_HEADERS = [
   'Email',
   'No WA',
   'Aktif',
+  'Brand',
 ] as const;
 
 export const TIM_HEADERS = [
@@ -187,6 +191,8 @@ export const KATEGORI_HEADERS = [
   'Assignee Default',
   'Lead Time Min (hari kerja)',
   'Buffer Review (hari kerja)',
+  'Kode',
+  'Filter Peran',
 ] as const;
 
 export const LIBUR_HEADERS = [
@@ -256,6 +262,8 @@ export const TASK_HEADERS = [
   'Status Sejak',
   'Selesai Pada',
   'Reminder Terkirim',
+  'Deskripsi',
+  'Jenis Custom',
 ] as const;
 
 export const STATUS_LOG_HEADERS = [
@@ -290,6 +298,42 @@ export const USERS_HEADERS = [
   'Dibuat',
   'Dibuat Oleh',
   'Login Terakhir',
+  'Token Undangan',
+  'Token Kedaluwarsa',
+  'Undangan Terkirim',
+] as const;
+
+/** Komentar/thread di task, termasuk catatan QC dan revisi brand. */
+export const KOMENTAR_HEADERS = [
+  'Timestamp',
+  'Komentar ID',
+  'Task ID',
+  'Oleh',
+  'Peran',
+  'Jenis',
+  'Versi',
+  'Isi',
+  'Lampiran',
+] as const;
+
+/** Jejak perubahan oleh admin: peran, email, akses, pengaturan. */
+export const LOG_ADMIN_HEADERS = [
+  'Timestamp',
+  'Oleh',
+  'Aksi',
+  'Target',
+  'Dari',
+  'Ke',
+] as const;
+
+/** Email yang dikirim aplikasi (undangan, pemberitahuan ganti email). */
+export const LOG_EMAIL_HEADERS = [
+  'Timestamp',
+  'Ke',
+  'Nama',
+  'Jenis',
+  'Subjek',
+  'Hasil',
 ] as const;
 
 export const HEADERS: Record<SheetName, readonly string[]> = {
@@ -305,6 +349,9 @@ export const HEADERS: Record<SheetName, readonly string[]> = {
   [SHEETS.STATUS_LOG]: STATUS_LOG_HEADERS,
   [SHEETS.WA_LOG]: WA_LOG_HEADERS,
   [SHEETS.USERS]: USERS_HEADERS,
+  [SHEETS.KOMENTAR]: KOMENTAR_HEADERS,
+  [SHEETS.LOG_ADMIN]: LOG_ADMIN_HEADERS,
+  [SHEETS.LOG_EMAIL]: LOG_EMAIL_HEADERS,
 };
 
 type RowOf<H extends readonly string[]> = { [K in H[number]]: string } & { _row: number };
@@ -321,8 +368,10 @@ export type TaskRow = RowOf<typeof TASK_HEADERS>;
 export type StatusLogRow = RowOf<typeof STATUS_LOG_HEADERS>;
 export type WaLogRow = RowOf<typeof WA_LOG_HEADERS>;
 export type UserRow = RowOf<typeof USERS_HEADERS>;
+export type KomentarRow = RowOf<typeof KOMENTAR_HEADERS>;
+export type LogAdminRow = RowOf<typeof LOG_ADMIN_HEADERS>;
 
-/** Tingkat akses akun. Peran kerja (PIC/Traffic/Lead/Tim) tetap dari Master_PIC/Master_Tim berdasarkan Nama. */
+/** Tingkat akses akun (menu yang bisa dibuka). Terpisah dari peran kerja (routing & notifikasi). */
 export const AKSES = { SUPERADMIN: 'Superadmin', ADMIN: 'Admin', USER: 'User' } as const;
 export type Akses = (typeof AKSES)[keyof typeof AKSES];
 
@@ -341,6 +390,7 @@ export const DEFAULT_CONFIG: [string, string, string][] = [
   ['ESCALATE_AFTER_DAYS', '1', 'Overdue sekian hari → eskalasi ke Creative Head & Head of Creative Production'],
   ['ADMIN_EMAILS', '', 'Email tambahan (dipisah koma) dengan akses Admin. Utamanya atur akses di tab Users.'],
   ['DRIVE_FOLDER_URL', '', 'Folder Google Drive untuk draft & file final'],
+  ['WA_DRY_RUN', '', 'Ya = WA hanya dicatat (mode uji), Tidak = kirim sungguhan, kosong = ikuti env WA_DRY_RUN. Diatur dari halaman Pengaturan WA.'],
 ];
 
 export interface AppConfig {
@@ -350,6 +400,8 @@ export interface AppConfig {
   escalateAfterDays: number;
   adminEmails: string[];
   driveFolderUrl: string;
+  /** null = ikuti env WA_DRY_RUN */
+  waDryRun: boolean | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +474,70 @@ export const CATEGORIES: CategoryDef[] = [
       { key: 'jumlah', label: 'Jumlah output', type: 'number', required: true },
     ],
   },
+  {
+    name: 'Photo editing',
+    subTypes: ['Retouch produk', 'Retouch model', 'Color grading', 'Hapus / ganti background', 'Resize & crop'],
+    fields: [
+      { key: 'folderMentah', label: 'Link folder foto mentah', type: 'text', required: true, placeholder: 'https://drive.google.com/…' },
+      { key: 'jumlahFoto', label: 'Jumlah foto', type: 'number', required: true },
+      { key: 'gaya', label: 'Gaya edit / referensi', type: 'text', placeholder: 'mis. warm tone, link referensi' },
+      { key: 'ukuran', label: 'Ukuran & rasio output', type: 'text', placeholder: 'mis. 1080x1350 (4:5)' },
+      { key: 'format', label: 'Format file', type: 'select', options: ['JPG', 'PNG', 'JPG + PNG'] },
+    ],
+  },
+  {
+    name: 'Lainnya (custom)',
+    subTypes: ['Custom'],
+    fields: [
+      { key: 'kebutuhan', label: 'Jelaskan kebutuhanmu', type: 'textarea', required: true },
+      { key: 'contoh', label: 'Contoh / referensi', type: 'text', placeholder: 'link atau deskripsi' },
+      { key: 'output', label: 'Perkiraan output', type: 'text', placeholder: 'mis. 1 file PDF 10 halaman' },
+    ],
+  },
+];
+
+/** Kategori yang tidak dirouting otomatis: Traffic menentukan divisi & lead saat cek brief. */
+export const CUSTOM_CATEGORY = 'Lainnya (custom)';
+
+/** Kode kategori/divisi untuk akhiran ID task, mis. CR-2611-001-PE. Bisa ditimpa kolom Kode di Master_Kategori. */
+export const DEFAULT_TASK_CODES: Record<string, string> = {
+  'Fotoshoot|Foto': 'FT',
+  'Fotoshoot|Styling': 'ST',
+  'Desain grafis|Desain': 'DG',
+  'Videografis|Video': 'VD',
+  'Moodboard|Desain': 'MB',
+  '3D/Motion|3D/Motion': '3D',
+  'Photo editing|Foto': 'PE',
+  'Lainnya (custom)|': 'CU',
+};
+
+// ---------------------------------------------------------------------------
+// Peran kerja (routing & notifikasi) — terpisah dari Akses (menu yang bisa dibuka)
+// ---------------------------------------------------------------------------
+
+export const PERAN = {
+  HOCP: 'Head of Creative Production',
+  HEAD: 'Creative Head',
+  TRAFFIC: 'Traffic',
+  LEAD: 'Lead',
+  STAFF: 'Staff',
+  INTERN: 'Intern',
+  PIC: 'PIC brand',
+} as const;
+export type Peran = (typeof PERAN)[keyof typeof PERAN];
+export const PERAN_LIST: Peran[] = [PERAN.HOCP, PERAN.HEAD, PERAN.TRAFFIC, PERAN.LEAD, PERAN.STAFF, PERAN.INTERN, PERAN.PIC];
+/** Peran yang wajib memilih divisi. */
+export const PERAN_DENGAN_DIVISI: Peran[] = [PERAN.LEAD, PERAN.STAFF, PERAN.INTERN];
+
+export const SISI = ['Menswear', 'Womenswear', 'Semua'] as const;
+
+/** Divisi (nilai disimpan) dan label tampilannya. */
+export const DIVISI: { value: string; label: string }[] = [
+  { value: 'Foto', label: 'Foto' },
+  { value: 'Desain', label: 'Desain' },
+  { value: 'Video', label: 'Video' },
+  { value: 'Styling', label: 'Styling & Studio' },
+  { value: '3D/Motion', label: '3D/Motion' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -451,13 +567,13 @@ export const SEED: Partial<Record<SheetName, (string | number)[][]>> = {
     ['Prow', 'PW', 'Womenswear', 'Ya'],
   ],
   [SHEETS.PIC]: [
-    ['Dennis', 'Menswear', '', '', 'Ya'],
-    ['Aliza', 'Menswear', '', '', 'Ya'],
-    ['Brama', 'Menswear', 'bramantyobayu@heymale.id', '', 'Ya'],
-    ['Dea', 'Womenswear', '', '', 'Ya'],
-    ['Tiwi', 'Womenswear', '', '', 'Ya'],
-    ['Zahra', 'Womenswear', '', '', 'Ya'],
-    ['Mey', 'Womenswear', '', '', 'Ya'],
+    ['Dennis', 'Menswear', '', '', 'Ya', ''],
+    ['Aliza', 'Menswear', '', '', 'Ya', ''],
+    ['Brama', 'Menswear', 'bramantyobayu@heymale.id', '', 'Ya', ''],
+    ['Dea', 'Womenswear', '', '', 'Ya', ''],
+    ['Tiwi', 'Womenswear', '', '', 'Ya', ''],
+    ['Zahra', 'Womenswear', '', '', 'Ya', ''],
+    ['Mey', 'Womenswear', '', '', 'Ya', ''],
   ],
   [SHEETS.TIM]: [
     ['Ammar Habibullah', 'Creative Head', 'Management', 'Menswear', 'Tidak', 'Tidak', '', '', '', 'Ya'],
@@ -475,14 +591,18 @@ export const SEED: Partial<Record<SheetName, (string | number)[][]>> = {
   /**
    * Routing kategori → divisi → lead. Fotoshoot dipecah jadi 2 task (Foto + Styling).
    * Mode Assign: "Lead pilih" | "Otomatis beban" (task aktif paling sedikit) | "Default".
+   * Filter Peran: untuk "Otomatis beban", hanya anggota yang jabatannya memuat teks ini (mis. "Photo Editor").
+   * Kategori "Lainnya (custom)" tidak dirouting otomatis: Traffic memilih divisi & lead saat cek brief.
    * Lead time & buffer adalah angka awal; sesuaikan dengan SLA tim.
    */
   [SHEETS.KATEGORI]: [
-    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Foto', 'Ahmad Husen', 'Hamzah Benoti', 'Lead pilih', '', 7, 2],
-    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Styling', 'Salsa Rosyidah', 'Salsa Rosyidah', 'Default', 'Salsa Rosyidah', 7, 2],
-    ['Desain grafis', 'Poster, Banner, Postingan Instagram, Katalog web', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Otomatis beban', '', 3, 1],
-    ['Videografis', 'Reels, Story, Katalog web', 'Video', 'Ilham Almando', 'Ilham Almando', 'Lead pilih', '', 5, 2],
-    ['Moodboard', 'Visual direction', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Lead pilih', '', 2, 1],
-    ['3D/Motion', 'Motion graphic, 3D visual produk', '3D/Motion', 'Aulia Pramudya', 'Aulia Pramudya', 'Default', 'Habibi Al Huda', 7, 2],
+    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Foto', 'Ahmad Husen', 'Hamzah Benoti', 'Lead pilih', '', 7, 2, 'FT', ''],
+    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Styling', 'Salsa Rosyidah', 'Salsa Rosyidah', 'Default', 'Salsa Rosyidah', 7, 2, 'ST', ''],
+    ['Desain grafis', 'Poster, Banner, Postingan Instagram, Katalog web', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Otomatis beban', '', 3, 1, 'DG', ''],
+    ['Videografis', 'Reels, Story, Katalog web', 'Video', 'Ilham Almando', 'Ilham Almando', 'Lead pilih', '', 5, 2, 'VD', ''],
+    ['Moodboard', 'Visual direction', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Lead pilih', '', 2, 1, 'MB', ''],
+    ['3D/Motion', 'Motion graphic, 3D visual produk', '3D/Motion', 'Aulia Pramudya', 'Aulia Pramudya', 'Default', 'Habibi Al Huda', 7, 2, '3D', ''],
+    ['Photo editing', 'Retouch produk, Retouch model, Color grading, Hapus / ganti background, Resize & crop', 'Foto', 'Ahmad Husen', 'Hamzah Benoti', 'Otomatis beban', '', 2, 1, 'PE', 'Photo Editor'],
+    ['Lainnya (custom)', 'Custom', '', '', '', 'Lead pilih', '', 3, 1, 'CU', ''],
   ],
 };
