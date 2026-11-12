@@ -18,6 +18,7 @@ import {
 import { SubmitButton } from '@/components/SubmitButton';
 import { Journey } from '@/components/Journey';
 import { MarkSeen } from '@/components/SeenMarker';
+import { AssigneePicker } from '@/components/task/AssigneePicker';
 import { CancelEdit, EditableSection } from '@/components/task/EditableSection';
 import { ImagePicker } from '@/components/task/ImagePicker';
 import { ThumbImg } from '@/components/task/ThumbImg';
@@ -162,11 +163,15 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
   const load = new Map<string, number>();
   for (const x of db.tasks)
     if (x.Assignee && ACTIVE_STATUSES.includes(x.Status as Status)) load.set(x.Assignee, (load.get(x.Assignee) || 0) + 1);
-  const creative = db.master.people.filter((p) => p.active && !['management', 'traffic', 'brand'].includes(p.divisi.toLowerCase()));
-  const sameDivisi = creative.filter((p) => p.divisi === t.Divisi);
-  const others = creative.filter((p) => p.divisi !== t.Divisi);
-  const optLabel = (name: string, cap: number, intern: boolean) =>
-    `${name}${intern ? ' (intern)' : ''} · ${load.get(name) || 0}/${cap} aktif`;
+  // Semua anggota tim aktif dalam satu daftar (tanpa pengelompokan divisi); PIC brand tidak termasuk.
+  const divisiLabel = (d: string) => DIVISI.find((x) => x.value === d)?.label || d || '-';
+  const assigneeOptions = db.master.people
+    .filter((p) => p.active && p.sources.includes('tim') && !(p.roles.length === 1 && p.roles[0] === 'pic'))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => ({
+      name: p.name,
+      label: `${p.name}${p.isIntern ? ' (intern)' : ''} · ${divisiLabel(p.divisi)} · ${load.get(p.name) || 0}/${p.capacity} aktif`,
+    }));
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -777,25 +782,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
               <h2>{t.Assignee ? 'Ganti assignee' : 'Assign anggota'}</h2>
               <form action={assignAction} className="stack" style={{ marginTop: 10 }}>
                 <input type="hidden" name="taskId" value={id} />
-                <select name="assignee" required defaultValue="">
-                  <option value="" disabled>
-                    Pilih anggota…
-                  </option>
-                  <optgroup label={`Divisi ${t.Divisi}`}>
-                    {sameDivisi.map((p) => (
-                      <option key={p.name} value={p.name}>
-                        {optLabel(p.name, p.capacity, p.isIntern)}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Divisi lain">
-                    {others.map((p) => (
-                      <option key={p.name} value={p.name}>
-                        {optLabel(p.name, p.capacity, p.isIntern)} · {p.divisi}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
+                <AssigneePicker options={assigneeOptions} current={t.Assignee} />
                 <SubmitButton className="btn primary block">{t.Assignee ? 'Ganti' : 'Assign'}</SubmitButton>
               </form>
             </section>
