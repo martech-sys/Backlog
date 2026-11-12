@@ -2,7 +2,18 @@
  * Aksi-aksi bisnis: setiap fungsi membaca data terbaru, memvalidasi hak akses
  * dan alur status, menulis perubahan, mencatat log status, lalu mengirim WA.
  */
-import { CATEGORIES, CUSTOM_CATEGORY, DIVISI, REQUEST_STATUS, SHEETS, STATUS, type RequestRow, type Status, type TaskRow } from './config';
+import {
+  CAMPAIGN_TYPES,
+  CATEGORIES,
+  CUSTOM_CATEGORY,
+  DIVISI,
+  REQUEST_STATUS,
+  SHEETS,
+  STATUS,
+  type RequestRow,
+  type Status,
+  type TaskRow,
+} from './config';
 import { now } from './clock';
 import { addWorkingDays, formatWib, isYmd, todayWib } from './dates';
 import { findRequest, findTask, loadDb, tasksOf, type Db } from './db';
@@ -99,6 +110,14 @@ class Tx {
     });
   }
 
+  /**
+   * Kirim juga ke assignee task saat ini (aturan: setiap event task sampai ke assignee terbaru),
+   * kecuali assignee itu sendiri yang melakukan aksinya.
+   */
+  toAssignee(t: Pick<TaskRow, 'Assignee'>, jenis: string, refId: string, message: string) {
+    if (t.Assignee && t.Assignee !== this.by) this.notify.to(t.Assignee, jenis, refId, message);
+  }
+
   async commit() {
     if (this.logs.length) await this.store.append(SHEETS.STATUS_LOG, this.logs);
     if (this.comments.length) await this.store.append(SHEETS.KOMENTAR, this.comments);
@@ -162,13 +181,9 @@ export function validateRequestInput(input: RequestInput, master: Master, today:
   req('campaignType', 'Campaign Type');
   req('objective', 'Objective');
   req('kategori', 'Kategori');
-  req('usp', 'Product Knowledge/USP');
-  req('keyMessage', 'Key Message');
-  req('creativeNote', 'Creative Note');
-  req('targetAudience', 'Target Audience');
-  req('budget', 'Budget');
   req('dueDate', 'Due Date');
-  req('deliverables', 'Deliverables');
+  // Brief kreatif (USP, key message, creative note, target audience, budget, deliverables) opsional:
+  // bisa dilengkapi kemudian dari halaman detail task.
 
   if (input.brand && !master.brands.some((b) => b.active && b.name === input.brand)) errors.brand = 'Brand tidak dikenal';
   if (input.dueDate) {
@@ -540,6 +555,8 @@ export async function assignTask(store: Store, user: CurrentUser, taskId: string
       tx.log(taskId, 'Task', t.Status, t.Status, `Assignee diganti: ${t.Assignee || '-'} → ${person.name}`);
     }
     tx.notify.to(person.name, 'Tugas baru', taskId, msg.taskAssigned({ ...updated, Status: STATUS.DIKERJAKAN }, r));
+    // Assignee lama diberi tahu bahwa task sudah dipindah (event berikutnya ikut assignee baru).
+    tx.toAssignee(t, 'Assignee diganti', taskId, msg.reassignedAway(t, person.name, user.name));
     return { ok: true, message: `Task di-assign ke ${person.name}.` };
   });
 }
@@ -573,6 +590,7 @@ export async function submitDraft(
       lampiran: cleanAttachments(previews),
     });
     tx.notify.to(t.Lead, 'Draft menunggu QC', taskId, msg.draftForQc({ ...t, ...extra }));
+    tx.toAssignee(t, 'Draft menunggu QC', taskId, msg.draftForQc({ ...t, ...extra }));
     return {
       ok: true,
       message: `Draft v${versi} terkirim ke ${t.Lead} untuk QC.`,
@@ -607,6 +625,7 @@ export async function qcDecision(
         lampiran: cleanAttachments(lampiran),
       });
       tx.notify.to(t['PIC Brand'], 'Draft siap review', taskId, msg.reviewToPic(t, r));
+      tx.toAssignee(t, 'Draft lolos QC', taskId, msg.qcPassedToAssignee(t, user.name));
       return {
         ok: true,
         message: `Draft lolos QC dan dikirim ke PIC ${t['PIC Brand']}.`,
@@ -693,6 +712,7 @@ export async function submitFinal(store: Store, user: CurrentUser, taskId: strin
     tx.log(taskId, 'Task', t.Status, STATUS.FINAL, 'File final diupload');
     tx.notify.to(t['PIC Brand'], 'File final', taskId, msg.finalToPic({ ...t, ...extra }));
     tx.notify.to(r.Traffic, 'File final', taskId, msg.finalToTraffic({ ...t, ...extra }));
+    tx.toAssignee(t, 'File final', taskId, msg.finalToTraffic({ ...t, ...extra }));
     return {
       ok: true,
       message: 'File final tersimpan. Traffic akan menutup tiket.',
@@ -711,6 +731,7 @@ export async function closeTask(store: Store, user: CurrentUser, taskId: string)
       'Status Sejak': tx.ts,
     });
     tx.log(taskId, 'Task', t.Status, STATUS.SELESAI, 'Tiket ditutup');
+    tx.toAssignee(t, 'Tiket ditutup', taskId, msg.taskClosed(t, user.name));
     const siblings = tasksOf(tx.db, r['Request ID']).filter((x) => x['Task ID'] !== taskId);
     if (siblings.every((x) => x.Status === STATUS.SELESAI)) {
       await tx.store.update(SHEETS.REQUEST, 'Request ID', [
@@ -837,7 +858,9 @@ export async function addComment(
       versi,
     });
     const holder = holderName(t['Bola di']);
-    const targets = holder && holder !== user.name ? [holder] : [t.Assignee, t.Lead].filter((n) => n && n !== user.name).slice(0, 1);
+    // Pemegang bola + assignee (bila berbeda), tanpa si penulis komentar.
+    const base = holder && holder !== user.name ? [holder] : [t.Lead].filter((n) => n && n !== user.name);
+    const targets = [...new Set([...base, t.Assignee].filter((n) => n && n !== user.name))];
     tx.notify.toMany(targets, 'Komentar baru', taskId, msg.newComment(t, user.name, jenis, isi, lampiran.length));
     return {
       ok: true,
@@ -915,5 +938,146 @@ export async function setupCustomTask(
       ok: true,
       message: `${note}. ${lead.name} diberi tahu untuk assign anggota.`,
     };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 6. Edit brief & link draft dari halaman detail task
+// ---------------------------------------------------------------------------
+
+/** Ambil nilai field kategori dari baris "Kategori — Label: nilai; Label2: nilai2" di kolom Detail Kategori. */
+export function parseDetailLine(detailKategori: string, kategori: string): Record<string, string> {
+  const def = CATEGORIES.find((c) => c.name === kategori);
+  const line = String(detailKategori || '')
+    .split('\n')
+    .find((l) => l.startsWith(`${kategori} — `));
+  const out: Record<string, string> = {};
+  if (!def || !line) return out;
+  const body = line.slice(kategori.length + 3);
+  const labels = def.fields.map((f) => f.label);
+  // Pecah di "; Label:" yang dikenal, agar nilai yang memuat ";" tetap utuh.
+  const parts = body.split(new RegExp(`;\\s(?=(?:${labels.map((l) => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}):\\s)`));
+  for (const part of parts) {
+    const f = def.fields.find((x) => part.startsWith(`${x.label}: `));
+    if (f) out[f.key] = part.slice(f.label.length + 2).trim();
+  }
+  return out;
+}
+
+export interface BriefEdit {
+  campaignName: string;
+  campaignType: string;
+  objective: string;
+  usp: string;
+  keyMessage: string;
+  creativeNote: string;
+  targetAudience: string;
+  budget: string;
+  deliverables: string;
+  supportingLink: string;
+  attachments: string;
+  subJenis: string[];
+  details: Record<string, string>;
+}
+
+export function canEditBriefFromTask(db: Db, u: CurrentUser, t: TaskRow): boolean {
+  const r = findRequest(db, t['Request ID']);
+  return !!r && t.Status !== STATUS.SELESAI && (can.editBrief(u, r) || u.name === t.Lead);
+}
+
+/** Perbarui brief request langsung dari detail task. Perubahan tercatat di riwayat & tim task diberi tahu. */
+export async function editBriefFromTask(store: Store, user: CurrentUser, taskId: string, e: BriefEdit): Promise<ActionResult> {
+  return withTask(store, user, taskId, async (tx, t, r) => {
+    if (!canEditBriefFromTask(tx.db, user, t)) return fail('Kamu tidak punya akses mengubah brief task ini.');
+    const def = CATEGORIES.find((c) => c.name === t.Kategori);
+    if (!e.campaignName.trim()) return fail('Campaign Name wajib diisi.');
+    if (!CAMPAIGN_TYPES.includes(e.campaignType)) return fail('Pilih Campaign Type.');
+    if (!e.objective.trim()) return fail('Objective wajib diisi.');
+    const budgetDigits = String(e.budget || '').replace(/[.,\s]|^rp/gi, '');
+    if (budgetDigits && !/^\d+$/.test(budgetDigits)) return fail('Budget harus berupa angka (Rp).');
+    if (e.supportingLink.trim() && !isUrl(e.supportingLink)) return fail('Supporting Link harus diawali http:// atau https://');
+    const sub = def ? e.subJenis.filter((x) => def.subTypes.includes(x)) : [];
+    if (def && !sub.length) return fail(`Pilih minimal satu sub-jenis ${t.Kategori}.`);
+    for (const f of def?.fields || []) {
+      const v = String(e.details[f.key] ?? '').trim();
+      if (f.required && !v) return fail(`${f.label} wajib diisi.`);
+      if (v && f.type === 'number' && !(Number(v) > 0)) return fail(`${f.label} harus angka > 0.`);
+    }
+
+    // Detail Kategori: ganti hanya baris kategori task ini.
+    const lines = String(r['Detail Kategori'] || '')
+      .split('\n')
+      .filter(Boolean);
+    const newLine = formatDetails({ kategori: [t.Kategori], details: { [t.Kategori]: e.details } });
+    const idx = lines.findIndex((l) => l.startsWith(`${t.Kategori} — `));
+    if (def) {
+      if (idx >= 0) lines[idx] = newLine;
+      else lines.push(newLine);
+    }
+    // Sub-jenis request: ganti sub-jenis milik kategori ini saja.
+    const otherSubs = String(r['Sub-jenis'] || '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter((x) => x && !(def?.subTypes || []).includes(x));
+
+    const next: Record<string, Cell> = {
+      'Campaign Name': e.campaignName.trim(),
+      'Campaign Type': e.campaignType,
+      Objective: e.objective.trim(),
+      'Product Knowledge/USP': e.usp.trim(),
+      'Key Message': e.keyMessage.trim(),
+      'Creative Note': e.creativeNote.trim(),
+      'Target Audience': e.targetAudience.trim(),
+      Budget: Number(budgetDigits) || 0,
+      Deliverables: e.deliverables.trim(),
+      'Supporting Link': e.supportingLink.trim(),
+      Attachments: e.attachments.trim(),
+      'Detail Kategori': lines.join('\n'),
+      'Sub-jenis': [...otherSubs, ...sub].join(', '),
+    };
+    const LABEL: Record<string, string> = {
+      'Product Knowledge/USP': 'USP',
+      'Detail Kategori': 'Detail',
+    };
+    const changed = Object.keys(next).filter((k) => String(next[k] ?? '') !== String((r as unknown as Record<string, Cell>)[k] ?? ''));
+    if (!changed.length) return { ok: true, message: 'Tidak ada perubahan.' };
+
+    await tx.store.update(SHEETS.REQUEST, 'Request ID', [{ key: r['Request ID'], patch: next }]);
+    const siblings = tasksOf(tx.db, r['Request ID']).filter((x) => x.Kategori === t.Kategori);
+    if (def && siblings.length)
+      await tx.store.update(
+        SHEETS.TASK,
+        'Task ID',
+        siblings.map((x) => ({ key: x['Task ID'], patch: { 'Sub-jenis': sub.join(', ') } })),
+      );
+    const what = changed.map((k) => LABEL[k] || k).join(', ');
+    tx.log(taskId, 'Task', t.Status, t.Status, `Brief diubah: ${what}`);
+    tx.log(r['Request ID'], 'Request', r.Status, r.Status, `Brief diubah dari ${taskId}: ${what}`);
+    const team = tasksOf(tx.db, r['Request ID']).flatMap((x) => [x.Assignee, x.Lead]);
+    tx.notify.toMany(
+      [...new Set(team)].filter((n) => n && n !== user.name),
+      'Brief diperbarui',
+      taskId,
+      msg.briefUpdated(t, user.name, what),
+    );
+    return { ok: true, message: `Brief diperbarui (${what}).` };
+  });
+}
+
+/** Perbaiki link draft versi terbaru tanpa membuat versi baru (mis. salah tempel link). */
+export async function editDraftLink(store: Store, user: CurrentUser, taskId: string, link: string): Promise<ActionResult> {
+  return withTask(store, user, taskId, async (tx, t) => {
+    if (!can.work(user, t)) return fail('Hanya assignee atau lead yang bisa mengubah link draft.');
+    const v = Number(t['Versi Draft']) || 0;
+    if (!v) return fail('Belum ada draft.');
+    if (t.Status === STATUS.SELESAI || t.Status === STATUS.FINAL) return fail('Task sudah final.');
+    if (!isUrl(link)) return fail('Link draft harus diawali http:// atau https://');
+    if (link.trim() === t['Link Draft']) return { ok: true, message: 'Tidak ada perubahan.' };
+    const hist = String(t['Riwayat Draft'] || '').split('\n');
+    const i = hist.map((l) => l.startsWith(`v${v} (`)).lastIndexOf(true);
+    if (i >= 0) hist[i] = hist[i].replace(/:\s*\S+$/, `: ${link.trim()}`);
+    await writeTask(tx, taskId, { 'Link Draft': link.trim(), 'Riwayat Draft': hist.join('\n') });
+    tx.log(taskId, 'Task', t.Status, t.Status, `Link draft v${v} diubah`);
+    return { ok: true, message: `Link draft v${v} diperbarui.` };
   });
 }

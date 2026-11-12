@@ -133,6 +133,18 @@ export const msg = {
   newComment: (t: TaskRow, by: string, jenis: string, isi: string, gambar: number) =>
     `💬 *Komentar baru${jenis !== 'Catatan' ? ` · ${jenis}` : ''}*\n${taskLine(t)}\nDari: ${by}\n${isi ? `"${isi.length > 300 ? `${isi.slice(0, 300)}…` : isi}"` : ''}${gambar ? `\n📎 ${gambar} gambar` : ''}\n\nBalas di: ${taskLink(t['Task ID'])}#komentar`,
 
+  qcPassedToAssignee: (t: TaskRow, by: string) =>
+    `✅ *Draft lolos QC*\n${taskLine(t)}\nDraft v${t['Versi Draft']} disetujui ${by} dan dikirim ke PIC ${t['PIC Brand']} untuk review.\n${taskLink(t['Task ID'])}`,
+
+  taskClosed: (t: TaskRow, by: string) =>
+    `🏁 *Tiket ditutup*\n${taskLine(t)}\nDitutup oleh ${by}. Terima kasih!\n${taskLink(t['Task ID'])}`,
+
+  reassignedAway: (t: TaskRow, to: string, by: string) =>
+    `🔀 *Task dipindahkan*\n${taskLine(t)}\n${by} memindahkan task ini ke *${to}*. Kamu tidak perlu mengerjakannya lagi.\n${taskLink(t['Task ID'])}`,
+
+  briefUpdated: (t: TaskRow, by: string, what: string) =>
+    `✏️ *Brief diperbarui*\n${taskLine(t)}\nOleh: ${by}\nYang diubah: ${what}\nCek brief terbaru: ${taskLink(t['Task ID'])}`,
+
   waReplyResult: (lines: string[]) => lines.join('\n'),
 
   waHelp: () =>

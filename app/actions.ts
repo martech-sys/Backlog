@@ -155,6 +155,36 @@ export async function descriptionAction(fd: FormData) {
   done(`/tasks/${encodeURIComponent(taskId)}#deskripsi`, r);
 }
 
+export async function editBriefAction(fd: FormData) {
+  const user = await requireUser();
+  const taskId = s(fd, 'taskId');
+  const details: Record<string, string> = {};
+  for (const [k, v] of fd.entries()) if (k.startsWith('detail:')) details[k.slice(7)] = String(v).trim();
+  const r = await svc.editBriefFromTask(await getStore(), user, taskId, {
+    campaignName: s(fd, 'campaignName'),
+    campaignType: s(fd, 'campaignType'),
+    objective: s(fd, 'objective'),
+    usp: s(fd, 'usp'),
+    keyMessage: s(fd, 'keyMessage'),
+    creativeNote: s(fd, 'creativeNote'),
+    targetAudience: s(fd, 'targetAudience'),
+    budget: s(fd, 'budget'),
+    deliverables: s(fd, 'deliverables'),
+    supportingLink: s(fd, 'supportingLink'),
+    attachments: s(fd, 'attachments'),
+    subJenis: list(fd, 'subJenis'),
+    details,
+  });
+  done(`/tasks/${encodeURIComponent(taskId)}#brief`, r);
+}
+
+export async function editDraftLinkAction(fd: FormData) {
+  const user = await requireUser();
+  const taskId = s(fd, 'taskId');
+  const r = await svc.editDraftLink(await getStore(), user, taskId, s(fd, 'link'));
+  done(`/tasks/${encodeURIComponent(taskId)}#draft`, r);
+}
+
 export async function customSetupAction(fd: FormData) {
   const user = await requireUser();
   const taskId = s(fd, 'taskId');

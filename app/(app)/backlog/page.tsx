@@ -160,7 +160,7 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
   const hideEmpty = sp.kosong !== '1';
   const shown = hideEmpty ? boards.filter((b) => Object.values(b.lanes).some((l) => l.length) || b.load > 0) : boards;
   const totals = Object.fromEntries(LANES.map((l) => [l.key, boards.reduce((s, b) => s + b.lanes[l.key].length, 0)]));
-  const divisiOptions = [...new Set(db.master.kategori.map((k) => k.divisi))];
+  const divisiOptions = [...new Set(db.master.kategori.map((k) => k.divisi).filter(Boolean))];
   const qs = (patch: Record<string, string>) => {
     const p = new URLSearchParams(
       Object.entries({ ...sp, ...patch }).filter(([k, v]) => v && k !== 'ok' && k !== 'err') as [string, string][],

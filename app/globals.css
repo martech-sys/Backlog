@@ -1623,3 +1623,208 @@ table.users td {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
+
+/* Progress journey (status task) */
+.journey ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.journey li {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: 1;
+}
+.journey li:last-child {
+  flex: 0;
+}
+.journey li:not(:last-child)::after {
+  content: '';
+  height: 2px;
+  flex: 1;
+  background: var(--border-strong);
+  margin: 0 2px;
+}
+.journey li.done:not(:last-child)::after {
+  background: var(--success);
+}
+.journey .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex: 0 0 auto;
+}
+.journey li.done .dot {
+  background: var(--success);
+}
+.journey li.current .dot {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+  width: 10px;
+  height: 10px;
+}
+.journey.sm {
+  min-width: 120px;
+  margin-top: 6px;
+}
+.journey-flags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.journey.lg ol {
+  align-items: flex-start;
+}
+.journey.lg li {
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+}
+.journey.lg li:last-child {
+  flex: 0 0 auto;
+}
+.journey.lg li:not(:last-child)::after {
+  position: absolute;
+  top: 6px;
+  left: 16px;
+  right: 4px;
+  margin: 0;
+}
+.journey.lg .dot {
+  width: 14px;
+  height: 14px;
+  z-index: 1;
+}
+.journey.lg li.current .dot {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.journey.lg .lbl {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 6px;
+  white-space: nowrap;
+}
+.journey.lg li.done .lbl {
+  color: var(--success);
+}
+.journey.lg li.current .lbl {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* Pipeline jumlah task per tahap (Tracker) */
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 14px;
+}
+.pipeline a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 18px;
+  color: var(--text-2);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+}
+.pipeline a:hover {
+  background: var(--surface-2);
+}
+.pipeline a.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.pipeline .n {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  border: 1px solid var(--border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text);
+}
+.pipeline .arrow {
+  color: var(--text-3);
+  font-size: 14px;
+}
+.pipeline .sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+/* Tahap proses di detail task: judul besar */
+.stage-head {
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 18px 16px;
+  margin-bottom: 16px;
+}
+.stage-head .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.stage-head .stage-name {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 2px 0 2px;
+}
+.stage-head .stage-sub {
+  color: var(--text-2);
+  margin-bottom: 14px;
+}
+.action-card > h2 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.action-card > h2::before {
+  content: 'Langkah berikutnya';
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+.flash.big {
+  font-size: 17px;
+  font-weight: 700;
+  padding: 14px 18px;
+}
+.grid-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .grid-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .grid-5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

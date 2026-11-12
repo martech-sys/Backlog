@@ -226,7 +226,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
       <h2 className="section-title">
         <span className="num">1</span> Ringkasan
       </h2>
-      <div className="grid grid-4 stretch" style={{ paddingTop: 22, rowGap: 34 }}>
+      <div className="grid grid-5 stretch" style={{ paddingTop: 22, rowGap: 34 }}>
         <Kpi
           label="Request masuk"
           color={BOARD_COLORS[0]}
@@ -261,6 +261,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
           })}
           value={d.kpi.avgRevisi === null ? '–' : d.kpi.avgRevisi.toFixed(1)}
           hint="ronde revisi brand per task selesai"
+        />
+        <Kpi
+          label="Task selesai"
+          color={BOARD_COLORS[3]}
+          href={trackerHref({ view: 'selesai', from: f.from, to: f.to })}
+          value={d.kpi.doneCount}
+          hint="task mencapai Final di periode ini"
         />
         <Kpi
           label="Task overdue"

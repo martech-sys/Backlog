@@ -6,6 +6,9 @@ import { now } from '@/lib/clock';
 import { addDays, diffDays, formatTanggal, todayWib } from '@/lib/dates';
 import { ballIsMine, seenKey, urgency } from '@/lib/mine';
 import { NewMarker } from '@/components/SeenMarker';
+import { Journey } from '@/components/Journey';
+import { journeyCounts, journeyOf } from '@/lib/journey';
+import { REVISI_STATUSES } from '@/lib/revisi';
 import { getDb, requireUser } from '@/lib/session';
 import { Flash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
 import type { CurrentUser } from '@/lib/workflow';
@@ -71,14 +74,13 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
     }
   };
 
-  const filtered = db.tasks
-    .filter((t) => matchView(view, t))
-    .filter(
-      (t) =>
+  const matchStatus = (t: TaskRow) =>
+    !sp.status || (sp.status === 'Revisi' ? REVISI_STATUSES.includes(t.Status) : t.Status === sp.status);
+  // Semua filter selain tab & status (dipakai juga untuk hitungan pipeline journey).
+  const matchOther = (t: TaskRow) =>
         (!sp.grup || t.Grup === sp.grup) &&
         (!sp.brand || t.Brand === sp.brand) &&
         (!sp.divisi || t.Divisi === sp.divisi) &&
-        (!sp.status || t.Status === sp.status) &&
         (!sp.kategori || t.Kategori === sp.kategori) &&
         (!stage || stage.statuses.includes(t.Status as Status)) &&
         (!sp.from || (!!t['Selesai Pada'] && inPeriod(t['Selesai Pada'], sp.from, sp.to))) &&
@@ -86,8 +88,9 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         (!q ||
           `${t['Task ID']} ${t.Brand} ${t.Kategori} ${t['Jenis Custom'] || ''} ${t.Assignee} ${t.Lead} ${reqById.get(t['Request ID'])?.['Campaign Name'] || ''}`
             .toLowerCase()
-            .includes(q)),
-    )
+            .includes(q));
+  const filtered = db.tasks
+    .filter((t) => matchView(view, t) && matchStatus(t) && matchOther(t))
     .sort((a, b) => {
       if (sp.sort === 'lama') return (a['Status Sejak'] || '').localeCompare(b['Status Sejak'] || '');
       if (sp.sort === 'revisi') return (Number(b['Ronde Revisi']) || 0) - (Number(a['Ronde Revisi']) || 0);
@@ -95,6 +98,7 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
       return (a.Deadline || '9999').localeCompare(b.Deadline || '9999') || a['Task ID'].localeCompare(b['Task ID']);
     });
 
+  const pipeline = journeyCounts(db.tasks.filter(matchOther), today);
   const counts = Object.fromEntries(VIEWS.map((v) => [v.key, db.tasks.filter((t) => matchView(v.key, t)).length]));
 
   const keep = (patch: Record<string, string>) => {
@@ -104,7 +108,7 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
     return `/tracker?${p}`;
   };
   const brands = db.master.brands.filter((b) => !sp.grup || b.grup === sp.grup).map((b) => b.name);
-  const divisi = [...new Set(db.master.kategori.map((k) => k.divisi))];
+  const divisi = [...new Set(db.master.kategori.map((k) => k.divisi).filter(Boolean))];
   const anggota = [...new Set(db.tasks.map((t) => t.Assignee).filter(Boolean))].sort();
 
   return (
@@ -130,6 +134,32 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
           </Link>
         ))}
       </div>
+
+      <nav className="pipeline" aria-label="Progress journey: jumlah task per tahap">
+        {pipeline.stages.map((st, i) => (
+          <span key={st.status} style={{ display: 'contents' }}>
+            {i ? <span className="arrow">→</span> : null}
+            <Link
+              href={sp.status === st.status ? keep({ status: '' }) : keep({ view: 'semua', status: st.status })}
+              className={sp.status === st.status ? 'active' : ''}
+              title={`Lihat task berstatus ${st.status}`}
+            >
+              {st.status} <span className="n">{st.count}</span>
+            </Link>
+          </span>
+        ))}
+        <span className="sep" />
+        <Link
+          href={sp.status === 'Revisi' ? keep({ status: '' }) : keep({ view: 'semua', status: 'Revisi' })}
+          className={sp.status === 'Revisi' ? 'active' : ''}
+          title="Task yang sedang direvisi (internal atau brand)"
+        >
+          Revisi <span className="n">{pipeline.revisi}</span>
+        </Link>
+        <Link href={keep({ view: 'overdue', status: '' })} className={view === 'overdue' ? 'active' : ''} title="Task lewat deadline">
+          Overdue <span className="n">{pipeline.overdue}</span>
+        </Link>
+      </nav>
 
       <FilterChips
         path="/tracker"
@@ -278,6 +308,7 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
                     </td>
                     <td>
                       <StatusBadge status={t.Status} />
+                      <Journey pos={journeyOf(t, today)} />
                     </td>
                     <td>{t['Bola di']}</td>
                     <td className="nowrap deadline-cell">{formatTanggal(t.Deadline)}</td>
