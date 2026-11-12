@@ -239,20 +239,23 @@ export function RequestForm(p: Props) {
         <h2 className="section-title">
           <span className="num">3</span> Brief kreatif
         </h2>
-        <Field label="Product Knowledge/USP" required help="Keunggulan utama produk" error={e.usp} htmlFor="usp">
+        <p className="subtle" style={{ marginTop: -6 }}>
+          Bagian ini opsional agar request bisa dikirim cepat. Detailnya bisa dilengkapi nanti dari halaman detail task.
+        </p>
+        <Field label="Product Knowledge/USP" help="Keunggulan utama produk (opsional)" error={e.usp} htmlFor="usp">
           <textarea id="usp" name="usp" defaultValue={p.defaults.usp} />
         </Field>
-        <Field label="Key Message" required error={e.keyMessage} htmlFor="keyMessage">
+        <Field label="Key Message" help="Opsional" error={e.keyMessage} htmlFor="keyMessage">
           <textarea id="keyMessage" name="keyMessage" defaultValue={p.defaults.keyMessage} />
         </Field>
-        <Field label="Creative Note" required help="Mood, suasana, atau situasi visual yang diinginkan" error={e.creativeNote} htmlFor="creativeNote">
+        <Field label="Creative Note" help="Mood, suasana, atau situasi visual yang diinginkan (opsional)" error={e.creativeNote} htmlFor="creativeNote">
           <textarea id="creativeNote" name="creativeNote" defaultValue={p.defaults.creativeNote} />
         </Field>
         <div className="form-grid">
-          <Field label="Target Audience" required error={e.targetAudience} htmlFor="targetAudience">
+          <Field label="Target Audience" help="Opsional" error={e.targetAudience} htmlFor="targetAudience">
             <input id="targetAudience" name="targetAudience" type="text" defaultValue={p.defaults.targetAudience} />
           </Field>
-          <Field label="Budget (Rp)" required error={e.budget} htmlFor="budget">
+          <Field label="Budget (Rp)" help="Opsional" error={e.budget} htmlFor="budget">
             <BudgetInput defaultValue={p.defaults.budget} />
           </Field>
         </div>
@@ -271,7 +274,7 @@ export function RequestForm(p: Props) {
               </span>
             ) : null}
           </Field>
-          <Field label="Deliverables" required error={e.deliverables} htmlFor="deliverables">
+          <Field label="Deliverables" help="Opsional" error={e.deliverables} htmlFor="deliverables">
             <input
               id="deliverables"
               name="deliverables"

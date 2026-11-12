@@ -136,3 +136,86 @@ test('PIC baru dari Kelola user (grup Semua + daftar brand) bisa dipakai di requ
   const bad = await svc.submitRequest(store, evi, requestInput({ brand: 'Zoma', picName: 'MArtech', dueDate: '2026-11-13' }));
   assert.match(bad.errors?.picName || '', /tidak memegang brand Zoma/);
 });
+
+test('notifikasi event task juga ke assignee terbaru (bukan ke pelaku aksi)', async () => {
+  const store = testStore();
+  const brama = await userOf(store, 'Brama');
+  const evi = await userOf(store, 'Evi');
+  const aulia = await userOf(store, 'Aulia Pramudya');
+  at('2026-10-27T02:00:00Z');
+  await svc.submitRequest(store, brama, requestInput({ dueDate: '2026-11-13' }));
+  await svc.cekBrief(store, evi, { requestId: 'CR-2610-001', decision: 'Lengkap', note: '' });
+  const id = 'CR-2610-001-DG';
+  // Ganti assignee: assignee lama diberi tahu, event berikutnya ke assignee baru
+  await svc.assignTask(store, aulia, id, 'Desainer B');
+  const desB = await userOf(store, 'Desainer B');
+  await svc.submitDraft(store, desB, id, 'https://drive.google.com/x');
+  await svc.qcDecision(store, aulia, id, true, '');
+  await svc.brandReview(store, brama, id, 'ACC', '');
+  await svc.submitFinal(store, desB, id, 'https://drive.google.com/final');
+  await svc.closeTask(store, evi, id);
+  const db = await loadDb(store, { withWaLog: true });
+  const to = (nama: string) => db.waLog.filter((w) => w.Nama === nama && w['Ref ID'] === id).map((w) => w.Jenis);
+  assert.ok(to('Desainer A').includes('Assignee diganti'));
+  const b = to('Desainer B');
+  for (const j of ['Tugas baru', 'Draft lolos QC', 'Draft ACC', 'Tiket ditutup']) assert.ok(b.some((x) => x.includes(j)), `Desainer B menerima ${j}`);
+  assert.ok(!b.includes('Draft menunggu QC'), 'tidak dikirimi pesan untuk aksinya sendiri');
+  assert.ok(!b.includes('File final'), 'file final yang ia upload sendiri tidak dikirim balik');
+  assert.ok(to('Evi').includes('File final'), 'Traffic tetap menerima');
+});
+
+test('edit brief & link draft dari detail task; brief kreatif opsional saat request dibuat', async () => {
+  const store = testStore();
+  const brama = await userOf(store, 'Brama');
+  const evi = await userOf(store, 'Evi');
+  const desA = await userOf(store, 'Desainer A');
+  const vid = await userOf(store, 'Videografer A');
+  at('2026-10-27T02:00:00Z');
+  const sub = await svc.submitRequest(
+    store,
+    brama,
+    requestInput({ usp: '', keyMessage: '', creativeNote: '', targetAudience: '', budget: '', deliverables: '', dueDate: '2026-11-13' }),
+  );
+  assert.equal(sub.ok, true, `${sub.message} ${JSON.stringify(sub.errors)}`);
+  const noBrand = await svc.submitRequest(store, brama, requestInput({ brand: '', objective: '', dueDate: '' }));
+  assert.ok(noBrand.errors?.brand && noBrand.errors?.objective && noBrand.errors?.dueDate, 'identitas request tetap wajib');
+  await svc.cekBrief(store, evi, { requestId: sub.id!, decision: 'Lengkap', note: '' });
+  const id = `${sub.id}-DG`;
+  let db = await loadDb(store);
+  const r0 = db.requests.find((x) => x['Request ID'] === sub.id)!;
+  assert.deepEqual(svc.parseDetailLine(r0['Detail Kategori'], 'Desain grafis'), { ukuran: '1080x1350', jumlahDesain: '3' });
+
+  const edit = {
+    campaignName: 'Payday Sale v2',
+    campaignType: 'Small Campaign',
+    objective: 'Naikkan penjualan',
+    usp: 'Bahan adem',
+    keyMessage: 'Diskon 50%',
+    creativeNote: '',
+    targetAudience: 'Pria 20-30',
+    budget: '2.500.000',
+    deliverables: 'Poster (3)',
+    supportingLink: '',
+    attachments: '',
+    subJenis: ['Poster'],
+    details: { ukuran: '4:5', jumlahDesain: '4', copy: 'Payday; diskon besar' },
+  };
+  assert.equal((await svc.editBriefFromTask(store, vid, id, edit)).ok, false, 'orang luar task ditolak');
+  assert.match((await svc.editBriefFromTask(store, brama, id, { ...edit, objective: '' })).message, /Objective/);
+  const ok = await svc.editBriefFromTask(store, brama, id, edit);
+  assert.equal(ok.ok, true, ok.message);
+  db = await loadDb(store, { withWaLog: true });
+  const r = db.requests.find((x) => x['Request ID'] === sub.id)!;
+  const t = db.tasks.find((x) => x['Task ID'] === id)!;
+  assert.deepEqual([r['Campaign Name'], String(r.Budget), r['Sub-jenis'], t['Sub-jenis']], ['Payday Sale v2', '2500000', 'Poster', 'Poster']);
+  assert.deepEqual(svc.parseDetailLine(r['Detail Kategori'], 'Desain grafis'), { ukuran: '4:5', jumlahDesain: '4', copy: 'Payday; diskon besar' });
+  assert.ok(db.statusLog.some((l) => l.ID === id && /Brief diubah: .*Campaign Name/.test(l.Catatan)));
+  assert.ok(db.waLog.some((w) => w.Jenis === 'Brief diperbarui' && w.Nama === 'Desainer A'));
+
+  await svc.submitDraft(store, desA, id, 'https://drive.google.com/salah');
+  assert.equal((await svc.editDraftLink(store, desA, id, 'https://drive.google.com/benar')).ok, true);
+  db = await loadDb(store);
+  const t2 = db.tasks.find((x) => x['Task ID'] === id)!;
+  assert.deepEqual([t2['Versi Draft'], t2['Link Draft']], ['1', 'https://drive.google.com/benar']);
+  assert.match(t2['Riwayat Draft'], /^v1 \(.*\): https:\/\/drive\.google\.com\/benar$/);
+});

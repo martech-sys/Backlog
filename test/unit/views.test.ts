@@ -83,3 +83,15 @@ test('adapter Google Sheets: header → objek, kolom A1', () => {
   assert.equal(rows[1]._row, 4);
   assert.equal(rows[1]['Versi Draft'], '');
 });
+
+test('progress journey: tahap utama, status cabang jadi penanda, hitungan per tahap', async () => {
+  const { journeyOf, journeyCounts, JOURNEY } = await import('../../lib/journey');
+  const t = (Status: string, Deadline = '2026-12-01', ronde = '0') => ({ Status, Deadline, 'Ronde Revisi': ronde });
+  assert.deepEqual(JOURNEY, ['Siap Assign', 'Dikerjakan', 'QC Lead', 'Review Brand', 'ACC', 'Final', 'Selesai']);
+  assert.deepEqual(journeyOf(t('Review Brand'), '2026-11-12'), { index: 3, stage: 'Review Brand', flags: [] });
+  assert.deepEqual(journeyOf(t('Revisi Brand', '2026-11-01', '2'), '2026-11-12'), { index: 1, stage: 'Dikerjakan', flags: ['Revisi brand R2', 'Overdue'] });
+  assert.deepEqual(journeyOf(t('Final', '2026-11-01'), '2026-11-12').flags, [], 'task final tidak dianggap overdue');
+  const c = journeyCounts([t('Dikerjakan'), t('Dikerjakan', '2026-11-01'), t('Revisi Internal'), t('Selesai')], '2026-11-12');
+  assert.equal(c.stages.find((s) => s.status === 'Dikerjakan')!.count, 2);
+  assert.deepEqual([c.revisi, c.overdue], [1, 1]);
+});

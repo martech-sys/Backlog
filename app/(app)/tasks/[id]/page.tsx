@@ -6,6 +6,8 @@ import {
   commentAction,
   customSetupAction,
   descriptionAction,
+  editBriefAction,
+  editDraftLinkAction,
   draftAction,
   finalAction,
   overrideAction,
@@ -14,17 +16,20 @@ import {
   reviewAction,
 } from '@/app/actions';
 import { SubmitButton } from '@/components/SubmitButton';
+import { Journey } from '@/components/Journey';
 import { MarkSeen } from '@/components/SeenMarker';
+import { CancelEdit, EditableSection } from '@/components/task/EditableSection';
 import { ImagePicker } from '@/components/task/ImagePicker';
 import { ThumbImg } from '@/components/task/ThumbImg';
 import { Flash, LinkOrDash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
-import { ACTIVE_STATUSES, CUSTOM_CATEGORY, DIVISI, DONE_STATUSES, STATUS, TASK_STATUSES, type Status } from '@/lib/config';
+import { ACTIVE_STATUSES, CAMPAIGN_TYPES, CATEGORIES, CUSTOM_CATEGORY, DIVISI, DONE_STATUSES, STATUS, type Status, TASK_STATUSES } from '@/lib/config';
 import { now } from '@/lib/clock';
 import { formatTanggal, formatWaktu, todayWib } from '@/lib/dates';
 import { findRequest, findTask } from '@/lib/db';
 import { getDbWithWa, requireUser } from '@/lib/session';
+import { journeyOf } from '@/lib/journey';
 import { seenKey } from '@/lib/mine';
-import { canComment, needsCustomSetup } from '@/lib/service';
+import { canComment, canEditBriefFromTask, needsCustomSetup, parseDetailLine } from '@/lib/service';
 import { previewUrl, uploadConfigured } from '@/lib/upload';
 import { availableActions, can } from '@/lib/workflow';
 
@@ -51,6 +56,18 @@ function Notes({ text }: { text: string }) {
     </ul>
   );
 }
+
+const STAGE_HINT: Record<string, string> = {
+  'Siap Assign': 'Menunggu lead memilih anggota yang mengerjakan.',
+  Dikerjakan: 'Assignee sedang mengerjakan draft.',
+  'QC Lead': 'Draft menunggu dicek lead divisi.',
+  'Revisi Internal': 'Draft dikembalikan lead untuk diperbaiki.',
+  'Review Brand': 'Draft menunggu review PIC brand.',
+  'Revisi Brand': 'PIC brand meminta revisi; assignee memperbaiki draft.',
+  ACC: 'Draft disetujui brand; tinggal upload file final.',
+  Final: 'File final sudah diupload; menunggu Traffic menutup tiket.',
+  Selesai: 'Tiket sudah ditutup.',
+};
 
 const JENIS_CLASS: Record<string, string> = {
   'QC lead': 'qc',
@@ -101,6 +118,11 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
       .map((x) => x.trim())
       .filter(Boolean);
   const mayComment = canComment(db, user, t);
+  const mayEditBrief = canEditBriefFromTask(db, user, t);
+  const mayEditDraft = (Number(t['Versi Draft']) || 0) > 0 && !done && can.work(user, t);
+  const catDef = CATEGORIES.find((c) => c.name === t.Kategori);
+  const taskSubs = String(t['Sub-jenis'] || '').split(',').map((x) => x.trim());
+  const detailValues = r ? parseDetailLine(r['Detail Kategori'], t.Kategori) : {};
   const canUpload = uploadConfigured();
   const mayEditDesc = !done && (can.work(user, t) || can.qc(user, t));
   const jenisOptions = [
@@ -166,7 +188,16 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
           <Sisa deadline={t.Deadline} today={today} done={done} />
         </div>
       </div>
-      <Flash ok={sp.ok} err={sp.err} />
+      <Flash ok={sp.ok} err={sp.err} big />
+      <div className="stage-head">
+        <div className="eyebrow">Tahap saat ini</div>
+        <div className="stage-name">{t.Status}</div>
+        <div className="stage-sub">
+          {STAGE_HINT[t.Status] || ''}
+          {t['Bola di'] && t['Bola di'] !== '-' ? ` Bola di: ${t['Bola di']}.` : ''}
+        </div>
+        <Journey pos={journeyOf(t, today)} size="lg" />
+      </div>
       <MarkSeen seenKey={seenKey(t)} />
 
       <div className="grid grid-3">
@@ -393,56 +424,183 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             )}
           </section>
 
-          <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Brief</h2>
-            {r ? (
-              <dl className="kv">
-                <dt>Campaign</dt>
-                <dd>
-                  {r['Campaign Name']} <span className="subtle">({r['Campaign Type']})</span>
-                </dd>
-                <dt>Sub-jenis</dt>
-                <dd>{t['Sub-jenis'] || '-'}</dd>
-                <dt>Detail</dt>
-                <dd>
-                  {r['Detail Kategori']
-                    .split('\n')
-                    .filter((l) => l.startsWith(t.Kategori))
-                    .join('\n') || '-'}
-                </dd>
-                <dt>Objective</dt>
-                <dd>{r.Objective}</dd>
-                <dt>USP</dt>
-                <dd>{r['Product Knowledge/USP']}</dd>
-                <dt>Key message</dt>
-                <dd>{r['Key Message']}</dd>
-                <dt>Creative note</dt>
-                <dd>{r['Creative Note']}</dd>
-                <dt>Target audience</dt>
-                <dd>{r['Target Audience']}</dd>
-                <dt>Deliverables</dt>
-                <dd>{r.Deliverables}</dd>
-                <dt>Referensi</dt>
-                <dd>
-                  <LinkOrDash href={r['Supporting Link']} /> <LinkOrDash href={r.Attachments} />
-                </dd>
-              </dl>
-            ) : (
-              <p className="muted">Request induk tidak ditemukan.</p>
-            )}
-          </section>
+          <EditableSection
+            key={`brief-${sp.ok || ''}`}
+            id="brief"
+            title="Brief"
+            editLabel="Edit brief"
+            canEdit={mayEditBrief}
+            view={
+              r ? (
+                <dl className="kv">
+                  <dt>Campaign</dt>
+                  <dd>
+                    {r['Campaign Name']} <span className="subtle">({r['Campaign Type']})</span>
+                  </dd>
+                  <dt>Sub-jenis</dt>
+                  <dd>{t['Sub-jenis'] || '-'}</dd>
+                  <dt>Detail</dt>
+                  <dd>
+                    {r['Detail Kategori']
+                      .split('\n')
+                      .filter((l) => l.startsWith(t.Kategori))
+                      .join('\n') || '-'}
+                  </dd>
+                  <dt>Objective</dt>
+                  <dd>{r.Objective || '-'}</dd>
+                  <dt>USP</dt>
+                  <dd>{r['Product Knowledge/USP'] || '-'}</dd>
+                  <dt>Key message</dt>
+                  <dd>{r['Key Message'] || '-'}</dd>
+                  <dt>Creative note</dt>
+                  <dd>{r['Creative Note'] || '-'}</dd>
+                  <dt>Target audience</dt>
+                  <dd>{r['Target Audience'] || '-'}</dd>
+                  <dt>Budget</dt>
+                  <dd>{Number(r.Budget) ? `Rp ${Number(r.Budget).toLocaleString('id-ID')}` : '-'}</dd>
+                  <dt>Deliverables</dt>
+                  <dd>{r.Deliverables || '-'}</dd>
+                  <dt>Referensi</dt>
+                  <dd>
+                    <LinkOrDash href={r['Supporting Link']} /> <LinkOrDash href={r.Attachments} />
+                  </dd>
+                </dl>
+              ) : (
+                <p className="muted">Request induk tidak ditemukan.</p>
+              )
+            }
+            form={
+              r ? (
+                <form action={editBriefAction} className="stack">
+                  <input type="hidden" name="taskId" value={id} />
+                  <div className="form-grid">
+                    <div className="field">
+                      <label htmlFor="eb-campaignName">Campaign Name</label>
+                      <input id="eb-campaignName" name="campaignName" defaultValue={r['Campaign Name']} required />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="eb-campaignType">Campaign Type</label>
+                      <select id="eb-campaignType" name="campaignType" defaultValue={r['Campaign Type']} required>
+                        {CAMPAIGN_TYPES.map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {catDef && catDef.subTypes.length > 1 ? (
+                    <div className="field">
+                      <span className="label">Sub-jenis {t.Kategori}</span>
+                      <div className="choice-group">
+                        {catDef.subTypes.map((x) => (
+                          <label className="choice" key={x}>
+                            <input type="checkbox" name="subJenis" value={x} defaultChecked={taskSubs.includes(x)} />
+                            {x}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ) : catDef ? (
+                    <input type="hidden" name="subJenis" value={catDef.subTypes[0]} />
+                  ) : null}
+                  {catDef?.fields.length ? (
+                    <div className="form-grid">
+                      {catDef.fields.map((f) => (
+                        <div className="field" key={f.key}>
+                          <label htmlFor={`eb-d-${f.key}`}>
+                            {f.label}
+                            {f.required ? <span className="req"> *</span> : null}
+                          </label>
+                          {f.type === 'select' ? (
+                            <select id={`eb-d-${f.key}`} name={`detail:${f.key}`} defaultValue={detailValues[f.key] || ''}>
+                              <option value="">Pilih…</option>
+                              {(f.options || []).map((o) => (
+                                <option key={o}>{o}</option>
+                              ))}
+                            </select>
+                          ) : f.type === 'textarea' ? (
+                            <textarea id={`eb-d-${f.key}`} name={`detail:${f.key}`} defaultValue={detailValues[f.key] || ''} rows={2} />
+                          ) : (
+                            <input
+                              id={`eb-d-${f.key}`}
+                              name={`detail:${f.key}`}
+                              type={f.type === 'number' ? 'number' : 'text'}
+                              defaultValue={detailValues[f.key] || ''}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="field">
+                    <label htmlFor="eb-objective">Objective</label>
+                    <textarea id="eb-objective" name="objective" defaultValue={r.Objective} rows={2} required />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="eb-usp">Product Knowledge/USP</label>
+                    <textarea id="eb-usp" name="usp" defaultValue={r['Product Knowledge/USP']} rows={2} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="eb-keyMessage">Key message</label>
+                    <textarea id="eb-keyMessage" name="keyMessage" defaultValue={r['Key Message']} rows={2} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="eb-creativeNote">Creative note</label>
+                    <textarea id="eb-creativeNote" name="creativeNote" defaultValue={r['Creative Note']} rows={2} />
+                  </div>
+                  <div className="form-grid">
+                    <div className="field">
+                      <label htmlFor="eb-targetAudience">Target audience</label>
+                      <input id="eb-targetAudience" name="targetAudience" defaultValue={r['Target Audience']} />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="eb-budget">Budget (Rp)</label>
+                      <input
+                        id="eb-budget"
+                        name="budget"
+                        inputMode="numeric"
+                        defaultValue={Number(r.Budget) ? Number(r.Budget).toLocaleString('id-ID') : ''}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="eb-deliverables">Deliverables</label>
+                      <input id="eb-deliverables" name="deliverables" defaultValue={r.Deliverables} />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="eb-supportingLink">Supporting link</label>
+                      <input id="eb-supportingLink" name="supportingLink" type="url" defaultValue={r['Supporting Link']} placeholder="https://…" />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="eb-attachments">Attachments (link)</label>
+                      <input id="eb-attachments" name="attachments" defaultValue={r.Attachments} placeholder="https://drive.google.com/…" />
+                    </div>
+                  </div>
+                  <div className="actions-row">
+                    <SubmitButton>Simpan brief</SubmitButton>
+                    <CancelEdit />
+                  </div>
+                  <span className="help">Perubahan berlaku untuk request {r['Request ID']}, tercatat di riwayat, dan tim task diberi tahu lewat WA.</span>
+                </form>
+              ) : null
+            }
+          />
 
 
 
-          <section className="card">
-            <h2 style={{ marginBottom: 10 }}>
-              Draft ({versionList.length} versi){' '}
-              {t['Link Final'] ? (
-                <span className="badge green" style={{ marginLeft: 6 }}>
-                  Final tersedia
-                </span>
-              ) : null}
-            </h2>
+          <EditableSection
+            key={`draft-${sp.ok || ''}`}
+            id="draft"
+            title=<>
+                Draft ({versionList.length} versi){' '}
+                {t['Link Final'] ? (
+                  <span className="badge green" style={{ marginLeft: 6 }}>
+                    Final tersedia
+                  </span>
+                ) : null}
+              </>
+            editLabel="Ubah link draft terbaru"
+            canEdit={mayEditDraft}
+            view={
+              <>
             {versionList.length ? (
               <div className="versions">
                 {versionList.map((v) => {
@@ -472,7 +630,23 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                 <b>Final:</b> <LinkOrDash href={t['Link Final']} />
               </p>
             ) : null}
-          </section>
+              </>
+            }
+            form={
+              <form action={editDraftLinkAction} className="stack">
+                <input type="hidden" name="taskId" value={id} />
+                <div className="field">
+                  <label htmlFor="ed-link">Link draft v{Number(t['Versi Draft']) || 0}</label>
+                  <input id="ed-link" name="link" type="url" required defaultValue={t['Link Draft']} />
+                  <span className="help">Untuk memperbaiki link yang salah tempel. Mengirim versi baru tetap lewat Upload draft.</span>
+                </div>
+                <div className="actions-row">
+                  <SubmitButton>Simpan link</SubmitButton>
+                  <CancelEdit />
+                </div>
+              </form>
+            }
+          />
 
           <section className="card">
             <h2 style={{ marginBottom: 10 }}>Catatan QC & revisi brand ({Number(t['Ronde Revisi']) || 0} ronde)</h2>

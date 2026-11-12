@@ -33,10 +33,10 @@ export function Sisa({ deadline, today, done }: { deadline: string; today: strin
   return <span className={`sisa ${cls}`}>{sisaLabel(d)}</span>;
 }
 
-export function Flash({ ok, err }: { ok?: string; err?: string }) {
+export function Flash({ ok, err, big }: { ok?: string; err?: string; big?: boolean }) {
   if (!ok && !err) return null;
   return (
-    <div className={`flash ${err ? 'err' : 'ok'}`} role="status">
+    <div className={`flash ${err ? 'err' : 'ok'}${big ? ' big' : ''}`} role="status">
       {err || ok}
     </div>
   );
