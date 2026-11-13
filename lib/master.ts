@@ -2,6 +2,7 @@ import {
   PERAN,
   type AppConfig,
   type BrandRow,
+  type CategoryField,
   type ConfigRow,
   type GrupRow,
   type KategoriRow,
@@ -70,6 +71,10 @@ export interface KategoriRule {
   code: string;
   /** Otomatis beban: hanya anggota yang jabatannya memuat teks ini (kosong = semua anggota divisi). */
   filterPeran: string;
+  /** Kolom isian form untuk kategori buatan web (null = kategori bawaan, kolomnya di kode). */
+  fields: CategoryField[] | null;
+  /** Kategori nonaktif tidak muncul di form & tidak dirouting, tapi riwayatnya tetap. */
+  active: boolean;
 }
 
 export interface Master {
@@ -245,6 +250,8 @@ export function buildMaster(input: {
         bufferReview: num(r['Buffer Review (hari kerja)'], 1),
         code: String(r.Kode || '').trim().toUpperCase(),
         filterPeran: String(r['Filter Peran'] || '').trim(),
+        fields: parseFieldForm(r['Field Form']),
+        active: !/^(tidak|no|n|false|0)$/i.test(String(r.Aktif || '').trim()),
       };
     });
 
@@ -333,4 +340,28 @@ export function leadFor(master: Master, divisi: string, grup: string, preferred 
     (p) => p.active && (p.isLead || p.roles.includes('lead')) && p.divisi.toLowerCase() === divisi.toLowerCase() && inGrup(p, grup),
   );
   return alt?.name || preferred;
+}
+
+const FIELD_TYPES = ['text', 'number', 'select', 'textarea'];
+
+/** Baca kolom "Field Form" (JSON) dengan aman; data rusak diabaikan. */
+export function parseFieldForm(raw: unknown): CategoryField[] | null {
+  const text = String(raw ?? '').trim();
+  if (!text) return null;
+  try {
+    const arr = JSON.parse(text) as unknown;
+    if (!Array.isArray(arr)) return null;
+    return arr
+      .filter((f): f is Record<string, unknown> => !!f && typeof f === 'object')
+      .map((f) => ({
+        key: String(f.key || '').trim(),
+        label: String(f.label || '').trim(),
+        type: (FIELD_TYPES.includes(String(f.type)) ? f.type : 'text') as CategoryField['type'],
+        required: f.required === true,
+        options: Array.isArray(f.options) ? f.options.map((o) => String(o).trim()).filter(Boolean) : undefined,
+      }))
+      .filter((f) => f.key && f.label);
+  } catch {
+    return null;
+  }
 }

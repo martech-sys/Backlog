@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as accounts from '@/lib/accounts';
 import { now } from '@/lib/clock';
-import { CATEGORIES, SHEETS, TASK_STATUSES, type Status } from '@/lib/config';
+import { categoryDefs } from '@/lib/categories';
+import { saveKategori, type KategoriInput } from '@/lib/kategoriAdmin';
+import { SHEETS, TASK_STATUSES, type Status } from '@/lib/config';
 import { formatWib, todayWib } from '@/lib/dates';
 import { loadDb } from '@/lib/db';
 import { env } from '@/lib/env';
@@ -42,14 +44,15 @@ function done(path: string, r: svc.ActionResult): never {
 }
 
 async function parseRequestForm(fd: FormData): Promise<svc.RequestInput> {
+  const defs = categoryDefs((await loadDb(await getStore())).master);
   const kategori = fd
     .getAll('kategori')
     .map(String)
-    .filter((k) => CATEGORIES.some((c) => c.name === k));
+    .filter((k) => defs.some((c) => c.name === k));
   const subJenis: Record<string, string[]> = {};
   const details: Record<string, Record<string, string>> = {};
   for (const k of kategori) {
-    const def = CATEGORIES.find((c) => c.name === k)!;
+    const def = defs.find((c) => c.name === k)!;
     subJenis[k] = fd
       .getAll(`sub:${k}`)
       .map(String)
@@ -183,6 +186,35 @@ export async function editDraftLinkAction(fd: FormData) {
   const taskId = s(fd, 'taskId');
   const r = await svc.editDraftLink(await getStore(), user, taskId, s(fd, 'link'));
   done(`/tasks/${encodeURIComponent(taskId)}#draft`, r);
+}
+
+export async function saveKategoriAction(fd: FormData) {
+  const user = await requireUser();
+  let fields: KategoriInput['fields'] = [];
+  try {
+    const parsed = JSON.parse(String(fd.get('fields') ?? '[]')) as unknown;
+    if (Array.isArray(parsed)) fields = parsed as KategoriInput['fields'];
+  } catch {
+    // isian rusak: dianggap tanpa kolom
+  }
+  const originalCode = s(fd, 'originalCode');
+  const r = await saveKategori(await getStore(), user, {
+    originalCode,
+    name: s(fd, 'name'),
+    code: s(fd, 'code'),
+    divisi: s(fd, 'divisi'),
+    leadMenswear: s(fd, 'leadMenswear'),
+    leadWomenswear: s(fd, 'leadWomenswear'),
+    modeAssign: s(fd, 'modeAssign'),
+    assigneeDefault: s(fd, 'assigneeDefault'),
+    leadTimeMin: s(fd, 'leadTimeMin'),
+    bufferReview: s(fd, 'bufferReview'),
+    subJenis: s(fd, 'subJenis'),
+    filterPeran: s(fd, 'filterPeran'),
+    fields,
+    aktif: s(fd, 'aktif') === 'Ya',
+  });
+  done(originalCode ? `/admin/kategori?buka=${encodeURIComponent(originalCode)}#k-${originalCode}` : r.ok ? '/admin/kategori#daftar' : '/admin/kategori#tambah', r);
 }
 
 export async function customSetupAction(fd: FormData) {

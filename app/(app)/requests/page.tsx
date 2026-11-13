@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { FilterChips } from '@/components/FilterChips';
+import { categoryDefs } from '@/lib/categories';
 import { RowLink } from '@/components/RowLink';
-import { CATEGORIES, REQUEST_STATUS, type RequestRow } from '@/lib/config';
+import { REQUEST_STATUS, type RequestRow } from '@/lib/config';
 import { inPeriod } from '@/lib/drill';
 import { revisionRows } from '@/lib/revisi';
 import { now } from '@/lib/clock';
@@ -151,7 +152,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: SP 
           <label htmlFor="kategori">Kategori</label>
           <select id="kategori" name="kategori" defaultValue={sp.kategori || ''}>
             <option value="">Semua</option>
-            {CATEGORIES.map((c) => (
+            {categoryDefs(db.master, { includeInactive: true }).map((c) => (
               <option key={c.name}>{c.name}</option>
             ))}
           </select>

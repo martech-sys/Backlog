@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { updateBriefAction } from '@/app/actions';
 import { RequestForm } from '@/components/RequestForm';
+import { categoryDefs } from '@/lib/categories';
 import { REQUEST_STATUS } from '@/lib/config';
 import { now } from '@/lib/clock';
 import { todayWib } from '@/lib/dates';
@@ -43,11 +44,12 @@ export default async function EditBriefPage({ params }: { params: Promise<{ id: 
           pics={[]}
           choosePic={false}
           currentUser={r['PIC Brand']}
-          defaults={defaultsFromRequest(r)}
+          defaults={defaultsFromRequest(r, categoryDefs(db.master, { includeInactive: true }))}
           lockBrand
           today={todayWib(now())}
           submitLabel={r.Status === REQUEST_STATUS.BRIEF_KURANG ? 'Kirim ulang ke Traffic' : 'Simpan perubahan'}
           leadTimes={leadTimes}
+          categories={categoryDefs(db.master).map(({ name, subTypes, fields }) => ({ name, subTypes, fields }))}
         />
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useMemo, useState } from 'react';
 import type { FormState } from '@/app/actions';
-import { CAMPAIGN_TYPES, CATEGORIES, CUSTOM_CATEGORY, type CategoryField } from '@/lib/config';
+import { CAMPAIGN_TYPES, CUSTOM_CATEGORY, type CategoryField } from '@/lib/config';
 import { picsForBrand, type RequestFormDefaults } from '@/lib/requestForm';
 import { Field } from './ui';
 
@@ -19,6 +19,8 @@ interface Props {
   today: string;
   submitLabel: string;
   leadTimes: Record<string, number>;
+  /** Kategori aktif (bawaan + buatan web) beserta sub-jenis & kolom isiannya. */
+  categories: { name: string; subTypes: string[]; fields: CategoryField[] }[];
 }
 
 const formatRibuan = (v: string) => {
@@ -191,7 +193,7 @@ export function RequestForm(p: Props) {
         </h2>
         <div className={`field${e.kategori ? ' invalid' : ''}`}>
           <div className="choice-group" role="group" aria-label="Kategori">
-            {CATEGORIES.map((c) => (
+            {p.categories.map((c) => (
               <label className="choice" key={c.name}>
                 <input type="checkbox" name="kategori" value={c.name} checked={kategori.includes(c.name)} onChange={() => toggle(c.name)} />
                 {c.name}
@@ -201,7 +203,7 @@ export function RequestForm(p: Props) {
           {e.kategori ? <span className="error">{e.kategori}</span> : null}
         </div>
 
-        {CATEGORIES.filter((c) => kategori.includes(c.name)).map((c) => (
+        {p.categories.filter((c) => kategori.includes(c.name)).map((c) => (
           <div className="kat-block" key={c.name}>
             <h3>
               {c.name}{' '}

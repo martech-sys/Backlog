@@ -4,6 +4,7 @@ import { RowLink } from '@/components/RowLink';
 import { WorkloadChart } from '@/components/WorkloadChart';
 import { ACTIVE_STATUSES, CUSTOM_CATEGORY, STATUS, type Status } from '@/lib/config';
 import { dashQuery, drill } from '@/lib/drill';
+import { canManageKategori } from '@/lib/kategoriAdmin';
 import { BOARD_COLORS } from '@/lib/backlog';
 import { now } from '@/lib/clock';
 import { computeDashboard, defaultFilters } from '@/lib/dashboard';
@@ -46,7 +47,8 @@ function Kpi({
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: SP }) {
-  await requireUser();
+  const user = await requireUser();
+  const mayManageKategori = canManageKategori(user);
   const sp = await searchParams;
   const db = await getDb();
   const n = now();
@@ -505,14 +507,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
             empty="Tidak ada request custom di periode ini."
           />
           {d.customTypes.some((c) => c.candidate) ? (
-            <p className="subtle" style={{ marginBottom: 0 }}>
-              ★ Kandidat kategori baru:{' '}
-              {d.customTypes
-                .filter((c) => c.candidate)
-                .map((c) => `${c.jenis} (maks. ${c.maxPerMonth}x/bulan)`)
-                .join(', ')}
-              . Tambahkan ke sheet Master_Kategori bila disetujui.
-            </p>
+            <div className="subtle" style={{ marginBottom: 0 }}>
+              ★ Kandidat kategori baru (muncul lebih dari 3x dalam sebulan):
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                {d.customTypes
+                  .filter((c) => c.candidate)
+                  .map((c) => (
+                    <li key={c.jenis}>
+                      {c.jenis} (maks. {c.maxPerMonth}x/bulan)
+                      {mayManageKategori ? (
+                        <>
+                          {' · '}
+                          <Link href={`/admin/kategori?baru=${encodeURIComponent(c.jenis)}#tambah`}>Jadikan kategori →</Link>
+                        </>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+              {mayManageKategori ? null : <p style={{ margin: '6px 0 0' }}>Minta Admin menjadikannya kategori lewat menu Kelola kategori.</p>}
+            </div>
           ) : null}
         </section>
       </div>

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { submitRequestAction } from '@/app/actions';
 import { RequestForm } from '@/components/RequestForm';
+import { categoryDefs } from '@/lib/categories';
 import { now } from '@/lib/clock';
 import { todayWib } from '@/lib/dates';
 import { EMPTY_DEFAULTS } from '@/lib/requestForm';
@@ -17,7 +18,7 @@ export default async function NewRequestPage() {
   // Admin/Traffic/Head yang juga PIC tetap boleh mengajukan atas nama PIC lain.
   const canChoosePic = user.roles.some((r) => ['admin', 'superadmin', 'traffic', 'head', 'hocp'].includes(r));
   const leadTimes: Record<string, number> = {};
-  for (const k of db.master.kategori) leadTimes[k.kategori] = Math.max(leadTimes[k.kategori] || 0, k.leadTimeMin);
+  for (const k of db.master.kategori.filter((x) => x.active)) leadTimes[k.kategori] = Math.max(leadTimes[k.kategori] || 0, k.leadTimeMin);
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
@@ -40,6 +41,7 @@ export default async function NewRequestPage() {
           today={todayWib(now())}
           submitLabel="Kirim request"
           leadTimes={leadTimes}
+          categories={categoryDefs(db.master).map(({ name, subTypes, fields }) => ({ name, subTypes, fields }))}
         />
       </div>
     </div>
