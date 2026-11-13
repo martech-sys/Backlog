@@ -16,7 +16,7 @@ export function routeRequest(master: Master, brand: string, kategoriList: string
   const b = brandOf(master, brand);
   const grupName = b?.grup || '';
   const wanted = kategoriList.map((k) => k.toLowerCase());
-  const rules = master.kategori.filter((r) => wanted.includes(r.kategori.toLowerCase()));
+  const rules = master.kategori.filter((r) => r.active && wanted.includes(r.kategori.toLowerCase()));
   return {
     grup: grupName,
     traffic: trafficsFor(master, grupName)[0]?.name || '',
@@ -104,7 +104,7 @@ export function buildTaskDrafts(params: {
   const wanted = kategoriList.map((k) => k.toLowerCase());
   const drafts: TaskDraft[] = [];
 
-  for (const rule of master.kategori.filter(
+  for (const rule of master.kategori.filter((r) => r.active).filter(
     (r) => wanted.includes(r.kategori.toLowerCase()) && r.kategori !== CUSTOM_CATEGORY,
   )) {
     const isWomens = grup.toLowerCase().startsWith('women');

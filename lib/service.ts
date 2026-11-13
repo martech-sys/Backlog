@@ -4,7 +4,6 @@
  */
 import {
   CAMPAIGN_TYPES,
-  CATEGORIES,
   CUSTOM_CATEGORY,
   DIVISI,
   REQUEST_STATUS,
@@ -14,6 +13,7 @@ import {
   type Status,
   type TaskRow,
 } from './config';
+import { BUILTIN_DEFS, categoryDefs, findCategory, type CategoryInfo } from './categories';
 import { now } from './clock';
 import { addWorkingDays, formatWib, isYmd, todayWib } from './dates';
 import { findRequest, findTask, loadDb, tasksOf, type Db } from './db';
@@ -193,9 +193,10 @@ export function validateRequestInput(input: RequestInput, master: Master, today:
   if (input.budget && !/^\d+$/.test(String(input.budget).replace(/[.,\s]|^rp/gi, ''))) errors.budget = 'Budget harus berupa angka (Rp)';
   if (input.supportingLink && !isUrl(input.supportingLink)) errors.supportingLink = 'Link harus diawali http:// atau https://';
 
+  const defs = categoryDefs(master);
   for (const k of input.kategori || []) {
-    const def = CATEGORIES.find((c) => c.name === k);
-    if (!def || !master.kategori.some((r) => r.kategori === k)) {
+    const def = findCategory(defs, k);
+    if (!def || !master.kategori.some((r) => r.kategori === k && r.active)) {
       errors.kategori = `Kategori "${k}" tidak dikenal`;
       continue;
     }
@@ -210,10 +211,10 @@ export function validateRequestInput(input: RequestInput, master: Master, today:
   return errors;
 }
 
-export function formatDetails(input: Pick<RequestInput, 'kategori' | 'details'>): string {
+export function formatDetails(input: Pick<RequestInput, 'kategori' | 'details'>, defs: CategoryInfo[] = BUILTIN_DEFS): string {
   return input.kategori
     .map((k) => {
-      const def = CATEGORIES.find((c) => c.name === k);
+      const def = findCategory(defs, k);
       const parts = (def?.fields || [])
         .map((f) => [f.label, String(input.details[k]?.[f.key] ?? '').trim()] as const)
         .filter(([, v]) => v)
@@ -269,7 +270,7 @@ export async function submitRequest(
     Budget: Number(String(input.budget).replace(/[.,\s]|^rp/gi, '')) || 0,
     'Due Date': input.dueDate,
     Deliverables: input.deliverables.trim(),
-    'Detail Kategori': formatDetails(input),
+    'Detail Kategori': formatDetails(input, categoryDefs(db.master, { includeInactive: true })),
     'Supporting Link': input.supportingLink.trim(),
     Attachments: input.attachments.trim(),
     Traffic: route.traffic,
@@ -357,8 +358,9 @@ export async function cekBrief(
   });
   if (!drafts.length) return fail('Tidak ada aturan routing untuk kategori ini. Cek sheet Master_Kategori.');
 
+  const defs = categoryDefs(master, { includeInactive: true });
   const subByKategori = (k: string) => {
-    const def = CATEGORIES.find((c) => c.name === k);
+    const def = findCategory(defs, k);
     const chosen = r['Sub-jenis'].split(',').map((s) => s.trim());
     return chosen.filter((s) => def?.subTypes.includes(s)).join(', ');
   };
@@ -479,7 +481,7 @@ export async function updateBrief(
     'Due Date': input.dueDate,
     Deadline: input.dueDate,
     Deliverables: input.deliverables.trim(),
-    'Detail Kategori': formatDetails(input),
+    'Detail Kategori': formatDetails(input, categoryDefs(db.master, { includeInactive: true })),
     'Supporting Link': input.supportingLink.trim(),
     Attachments: input.attachments.trim(),
     'Lead Time Min (hari kerja)': route.leadTimeMin,
@@ -946,8 +948,8 @@ export async function setupCustomTask(
 // ---------------------------------------------------------------------------
 
 /** Ambil nilai field kategori dari baris "Kategori — Label: nilai; Label2: nilai2" di kolom Detail Kategori. */
-export function parseDetailLine(detailKategori: string, kategori: string): Record<string, string> {
-  const def = CATEGORIES.find((c) => c.name === kategori);
+export function parseDetailLine(detailKategori: string, kategori: string, defs: CategoryInfo[] = BUILTIN_DEFS): Record<string, string> {
+  const def = findCategory(defs, kategori);
   const line = String(detailKategori || '')
     .split('\n')
     .find((l) => l.startsWith(`${kategori} — `));
@@ -989,7 +991,8 @@ export function canEditBriefFromTask(db: Db, u: CurrentUser, t: TaskRow): boolea
 export async function editBriefFromTask(store: Store, user: CurrentUser, taskId: string, e: BriefEdit): Promise<ActionResult> {
   return withTask(store, user, taskId, async (tx, t, r) => {
     if (!canEditBriefFromTask(tx.db, user, t)) return fail('Kamu tidak punya akses mengubah brief task ini.');
-    const def = CATEGORIES.find((c) => c.name === t.Kategori);
+    const defs = categoryDefs(tx.db.master, { includeInactive: true });
+    const def = findCategory(defs, t.Kategori);
     if (!e.campaignName.trim()) return fail('Campaign Name wajib diisi.');
     if (!CAMPAIGN_TYPES.includes(e.campaignType)) return fail('Pilih Campaign Type.');
     if (!e.objective.trim()) return fail('Objective wajib diisi.');
@@ -1008,7 +1011,7 @@ export async function editBriefFromTask(store: Store, user: CurrentUser, taskId:
     const lines = String(r['Detail Kategori'] || '')
       .split('\n')
       .filter(Boolean);
-    const newLine = formatDetails({ kategori: [t.Kategori], details: { [t.Kategori]: e.details } });
+    const newLine = formatDetails({ kategori: [t.Kategori], details: { [t.Kategori]: e.details } }, defs);
     const idx = lines.findIndex((l) => l.startsWith(`${t.Kategori} — `));
     if (def) {
       if (idx >= 0) lines[idx] = newLine;

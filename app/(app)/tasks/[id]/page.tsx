@@ -23,11 +23,12 @@ import { CancelEdit, EditableSection } from '@/components/task/EditableSection';
 import { ImagePicker } from '@/components/task/ImagePicker';
 import { ThumbImg } from '@/components/task/ThumbImg';
 import { Flash, LinkOrDash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
-import { ACTIVE_STATUSES, CAMPAIGN_TYPES, CATEGORIES, CUSTOM_CATEGORY, DIVISI, DONE_STATUSES, STATUS, type Status, TASK_STATUSES } from '@/lib/config';
+import { ACTIVE_STATUSES, CAMPAIGN_TYPES, CUSTOM_CATEGORY, DIVISI, DONE_STATUSES, STATUS, type Status, TASK_STATUSES } from '@/lib/config';
 import { now } from '@/lib/clock';
 import { formatTanggal, formatWaktu, todayWib } from '@/lib/dates';
 import { findRequest, findTask } from '@/lib/db';
 import { getDbWithWa, requireUser } from '@/lib/session';
+import { categoryDefs } from '@/lib/categories';
 import { journeyOf } from '@/lib/journey';
 import { seenKey } from '@/lib/mine';
 import { canComment, canEditBriefFromTask, needsCustomSetup, parseDetailLine } from '@/lib/service';
@@ -121,9 +122,10 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
   const mayComment = canComment(db, user, t);
   const mayEditBrief = canEditBriefFromTask(db, user, t);
   const mayEditDraft = (Number(t['Versi Draft']) || 0) > 0 && !done && can.work(user, t);
-  const catDef = CATEGORIES.find((c) => c.name === t.Kategori);
+  const catDefs = categoryDefs(db.master, { includeInactive: true });
+  const catDef = catDefs.find((c) => c.name === t.Kategori);
   const taskSubs = String(t['Sub-jenis'] || '').split(',').map((x) => x.trim());
-  const detailValues = r ? parseDetailLine(r['Detail Kategori'], t.Kategori) : {};
+  const detailValues = r ? parseDetailLine(r['Detail Kategori'], t.Kategori, catDefs) : {};
   const canUpload = uploadConfigured();
   const mayEditDesc = !done && (can.work(user, t) || can.qc(user, t));
   const jenisOptions = [

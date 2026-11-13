@@ -1,4 +1,5 @@
-import { CATEGORIES, type RequestRow } from './config';
+import { BUILTIN_DEFS, findCategory, type CategoryInfo } from './categories';
+import type { RequestRow } from './config';
 
 export interface RequestFormDefaults {
   brand: string;
@@ -41,13 +42,13 @@ export const EMPTY_DEFAULTS: RequestFormDefaults = {
 };
 
 /** Ubah baris Request kembali menjadi nilai awal form (untuk "Lengkapi brief"). */
-export function defaultsFromRequest(r: RequestRow): RequestFormDefaults {
+export function defaultsFromRequest(r: RequestRow, defs: CategoryInfo[] = BUILTIN_DEFS): RequestFormDefaults {
   const kategori = r.Kategori.split(',').map((s) => s.trim()).filter(Boolean);
   const chosenSub = r['Sub-jenis'].split(',').map((s) => s.trim());
   const subJenis: Record<string, string[]> = {};
   const details: Record<string, Record<string, string>> = {};
   for (const k of kategori) {
-    const def = CATEGORIES.find((c) => c.name === k);
+    const def = findCategory(defs, k);
     if (!def) continue;
     subJenis[k] = chosenSub.filter((s) => def.subTypes.includes(s));
     const line = r['Detail Kategori'].split('\n').find((l) => l.startsWith(`${k} — `)) || '';

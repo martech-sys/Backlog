@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { CATEGORIES, CUSTOM_CATEGORY, DONE_STATUSES, STAGES, TASK_STATUSES, type Status, type TaskRow } from '@/lib/config';
+import { CUSTOM_CATEGORY, DONE_STATUSES, STAGES, TASK_STATUSES, type Status, type TaskRow } from '@/lib/config';
 import { FilterChips } from '@/components/FilterChips';
+import { categoryDefs } from '@/lib/categories';
 import { inPeriod } from '@/lib/drill';
 import { now } from '@/lib/clock';
 import { addDays, diffDays, formatTanggal, todayWib } from '@/lib/dates';
@@ -209,7 +210,7 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
           <label htmlFor="kategori">Kategori</label>
           <select id="kategori" name="kategori" defaultValue={sp.kategori || ''}>
             <option value="">Semua</option>
-            {CATEGORIES.map((c) => (
+            {categoryDefs(db.master, { includeInactive: true }).map((c) => (
               <option key={c.name}>{c.name}</option>
             ))}
           </select>

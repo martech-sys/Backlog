@@ -38,7 +38,9 @@ PIC balas ACC ──► assignee upload file final ──► WA ke PIC & Traffic
 
 **11 status baku**: Baru · Brief Kurang · Siap Assign · Dikerjakan · QC Lead · Revisi Internal · Review Brand · Revisi Brand · ACC · Final · Selesai. Setiap perpindahan dicatat di tab `Status` (dipakai untuk "lama per tahap") dan setiap pesan WA di tab `Log_WA`.
 
-**Routing otomatis**: brand → grup → Traffic & Creative Head; kategori → divisi & lead. Fotoshoot dipecah jadi task Foto + Styling. Desain grafis otomatis ke desainer dengan task aktif paling sedikit (lead tetap bisa mengganti). 3D/Motion langsung ke Habibi Al Huda. Semua diatur di tab `Master_Kategori`.
+**Routing otomatis**: brand → grup → Traffic & Creative Head; kategori → divisi & lead. Fotoshoot dipecah jadi task Foto + Styling. Desain grafis otomatis ke desainer dengan task aktif paling sedikit (lead tetap bisa mengganti). 3D/Motion langsung ke Habibi Al Huda. Semua diatur di tab `Master_Kategori`, atau lewat menu **Admin → Kelola kategori** di aplikasi.
+
+**Kelola kategori (Admin/Superadmin)**: tambah kategori baru tanpa programmer (nama, kode ID task, divisi, lead per sisi, cara assign, lead time, buffer, sub-jenis, serta kolom isian form: teks/angka/pilihan/teks panjang, wajib atau tidak). Kategori baru langsung muncul di form Request baru, filter, dashboard, dan routing. Kategori bawaan bisa diubah lead, lead time, cara assign, dan sub-jenisnya; kolom isian bawaannya tetap. Kategori bisa dinonaktifkan tanpa menghapus riwayat. Kandidat kategori di kartu "Pekerjaan custom" dashboard punya tombol **Jadikan kategori**.
 
 ## Struktur Google Sheets
 
@@ -53,7 +55,7 @@ PIC balas ACC ──► assignee upload file final ──► WA ke PIC & Traffic
 | `Master_Brand` | 11 brand, kode, grup | Admin |
 | `Master_PIC` | PIC brand: email login, **No WA** | Admin |
 | `Master_Tim` | Tim creative: peran, divisi, lead/intern, kapasitas, **No WA**, email login | Admin |
-| `Master_Kategori` | Routing kategori → divisi → lead, mode assign, lead time minimum, buffer review | Admin |
+| `Master_Kategori` | Routing kategori → divisi → lead, mode assign, lead time minimum, buffer review, kode, kolom isian (kategori buatan web, JSON), aktif. Diubah lewat menu Kelola kategori | Admin |
 | `Master_Libur` | Tanggal libur (tidak dihitung hari kerja) | Admin |
 | `Config` | Prefix tiket, hari reminder, batas revisi, eskalasi, admin | Admin |
 

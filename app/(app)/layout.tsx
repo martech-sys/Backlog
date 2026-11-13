@@ -1,5 +1,6 @@
 import { Sidebar, type SideItem } from '@/components/Sidebar';
 import { env } from '@/lib/env';
+import { canManageKategori } from '@/lib/kategoriAdmin';
 import { myTasks } from '@/lib/mine';
 import { getDb, requireUser } from '@/lib/session';
 import { ROLE_LABEL } from '@/lib/users';
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           { href: '/admin/whatsapp', label: 'Pengaturan WA', icon: 'chat', group: 'admin' as const },
         ]
       : []),
+    ...(canManageKategori(user) ? [{ href: '/admin/kategori', label: 'Kelola kategori', icon: 'tag', group: 'admin' as const }] : []),
   ];
   const mainRole = user.roles.find((r) => r !== 'admin' && r !== 'superadmin') || user.roles[0];
   const akses = user.roles.includes('superadmin') ? ' · Superadmin' : user.roles.includes('admin') ? ' · Admin' : '';

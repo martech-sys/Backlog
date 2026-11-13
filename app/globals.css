@@ -558,6 +558,8 @@ input[type='url'],
 input[type='number'],
 input[type='date'],
 input[type='search'],
+input[type='tel'],
+input:not([type]),
 select,
 textarea {
   font: inherit;
@@ -2071,5 +2073,85 @@ table.users td {
   }
   .sidebar.open .side-body {
     display: flex;
+  }
+}
+
+/* Kelola kategori: penyusun kolom isian */
+.field-builder {
+  display: grid;
+  gap: 8px;
+}
+.fb-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.4fr) 140px minmax(140px, 1.2fr) auto auto;
+  gap: 6px;
+  align-items: center;
+}
+.fb-req {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.fb-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+@media (max-width: 720px) {
+  .fb-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.kat-list {
+  display: grid;
+  gap: 10px;
+}
+.kat-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.kat-item.off {
+  opacity: 0.65;
+}
+.kat-item > summary {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) 70px 110px minmax(150px, 1.4fr) minmax(120px, 1fr) 100px 140px auto;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.kat-item > summary::-webkit-details-marker {
+  display: none;
+}
+.kat-item > summary > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.kat-item > summary .kat-name {
+  display: block;
+}
+.kat-item > summary .kat-name .subtle {
+  display: block;
+  margin-top: 2px;
+}
+.kat-item[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.kat-item[open] .kat-toggle {
+  background: var(--surface-2);
+}
+.kat-edit {
+  padding: 16px;
+}
+@media (max-width: 1100px) {
+  .kat-item > summary {
+    grid-template-columns: 1fr 1fr;
   }
 }

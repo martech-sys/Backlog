@@ -193,6 +193,9 @@ export const KATEGORI_HEADERS = [
   'Buffer Review (hari kerja)',
   'Kode',
   'Filter Peran',
+  /** Kategori yang dibuat dari web: kolom isian form dalam JSON. Kosong untuk kategori bawaan. */
+  'Field Form',
+  'Aktif',
 ] as const;
 
 export const LIBUR_HEADERS = [
@@ -596,13 +599,13 @@ export const SEED: Partial<Record<SheetName, (string | number)[][]>> = {
    * Lead time & buffer adalah angka awal; sesuaikan dengan SLA tim.
    */
   [SHEETS.KATEGORI]: [
-    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Foto', 'Ahmad Husen', 'Hamzah Benoti', 'Lead pilih', '', 7, 2, 'FT', ''],
-    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Styling', 'Salsa Rosyidah', 'Salsa Rosyidah', 'Default', 'Salsa Rosyidah', 7, 2, 'ST', ''],
-    ['Desain grafis', 'Poster, Banner, Postingan Instagram, Katalog web', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Otomatis beban', '', 3, 1, 'DG', ''],
-    ['Videografis', 'Reels, Story, Katalog web', 'Video', 'Ilham Almando', 'Ilham Almando', 'Lead pilih', '', 5, 2, 'VD', ''],
-    ['Moodboard', 'Visual direction', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Lead pilih', '', 2, 1, 'MB', ''],
-    ['3D/Motion', 'Motion graphic, 3D visual produk', '3D/Motion', 'Aulia Pramudya', 'Aulia Pramudya', 'Default', 'Habibi Al Huda', 7, 2, '3D', ''],
-    ['Photo editing', 'Retouch produk, Retouch model, Color grading, Hapus / ganti background, Resize & crop', 'Foto', 'Ahmad Husen', 'Hamzah Benoti', 'Otomatis beban', '', 2, 1, 'PE', 'Photo Editor'],
-    ['Lainnya (custom)', 'Custom', '', '', '', 'Lead pilih', '', 3, 1, 'CU', ''],
+    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Foto', 'Ahmad Husen', 'Hamzah Benoti', 'Lead pilih', '', 7, 2, 'FT', '', '', 'Ya'],
+    ['Fotoshoot', 'Katalog, Editorial campaign, Still life / esensial produk', 'Styling', 'Salsa Rosyidah', 'Salsa Rosyidah', 'Default', 'Salsa Rosyidah', 7, 2, 'ST', '', '', 'Ya'],
+    ['Desain grafis', 'Poster, Banner, Postingan Instagram, Katalog web', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Otomatis beban', '', 3, 1, 'DG', '', '', 'Ya'],
+    ['Videografis', 'Reels, Story, Katalog web', 'Video', 'Ilham Almando', 'Ilham Almando', 'Lead pilih', '', 5, 2, 'VD', '', '', 'Ya'],
+    ['Moodboard', 'Visual direction', 'Desain', 'Aulia Pramudya', 'Aulia Pramudya', 'Lead pilih', '', 2, 1, 'MB', '', '', 'Ya'],
+    ['3D/Motion', 'Motion graphic, 3D visual produk', '3D/Motion', 'Aulia Pramudya', 'Aulia Pramudya', 'Default', 'Habibi Al Huda', 7, 2, '3D', '', '', 'Ya'],
+    ['Photo editing', 'Retouch produk, Retouch model, Color grading, Hapus / ganti background, Resize & crop', 'Foto', 'Ahmad Husen', 'Hamzah Benoti', 'Otomatis beban', '', 2, 1, 'PE', 'Photo Editor', '', 'Ya'],
+    ['Lainnya (custom)', 'Custom', '', '', '', 'Lead pilih', '', 3, 1, 'CU', '', '', 'Ya'],
   ],
 };
