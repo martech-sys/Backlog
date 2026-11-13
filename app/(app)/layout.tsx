@@ -1,7 +1,4 @@
-import Link from 'next/link';
-import { logoutAction } from '@/app/actions';
-import { Nav } from '@/components/Nav';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { Sidebar, type SideItem } from '@/components/Sidebar';
 import { env } from '@/lib/env';
 import { myTasks } from '@/lib/mine';
 import { getDb, requireUser } from '@/lib/session';
@@ -13,54 +10,27 @@ export const dynamic = 'force-dynamic';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const mine = myTasks(await getDb(), user).length;
-  const items = [
-    { href: '/backlog', label: 'Team Backlog', badge: mine },
-    { href: '/dashboard', label: 'Dashboard' },
-    {
-      href: mine ? '/tracker?view=bola' : '/tracker',
-      label: 'Tracker',
-      badge: mine,
-    },
-    { href: '/requests', label: 'Request' },
-    ...(can.submitRequest(user) ? [{ href: '/requests/new', label: '+ Request baru' }] : []),
-    { href: '/panduan', label: 'Panduan' },
+  const items: SideItem[] = [
+    ...(can.submitRequest(user) ? [{ href: '/requests/new', label: 'Request baru', icon: 'plus', primary: true }] : []),
+    { href: '/backlog', label: 'Team Backlog', icon: 'board', badge: mine },
+    { href: '/dashboard', label: 'Dashboard', icon: 'chart' },
+    { href: mine ? '/tracker?view=bola' : '/tracker', label: 'Tracker', icon: 'list', badge: mine },
+    { href: '/requests', label: 'Request', icon: 'inbox' },
+    { href: '/panduan', label: 'Panduan', icon: 'book' },
     ...(user.roles.includes('superadmin')
       ? [
-          { href: '/admin/users', label: 'Kelola user' },
-          { href: '/admin/whatsapp', label: 'Pengaturan WA' },
+          { href: '/admin/users', label: 'Kelola user', icon: 'users', group: 'admin' as const },
+          { href: '/admin/whatsapp', label: 'Pengaturan WA', icon: 'chat', group: 'admin' as const },
         ]
       : []),
   ];
   const mainRole = user.roles.find((r) => r !== 'admin' && r !== 'superadmin') || user.roles[0];
   const akses = user.roles.includes('superadmin') ? ' · Superadmin' : user.roles.includes('admin') ? ' · Admin' : '';
+  const role = `${ROLE_LABEL[mainRole]}${mainRole !== 'superadmin' && mainRole !== 'admin' ? akses : ''}${env.demoMode ? ' · DEMO' : ''}`;
   return (
-    <>
-      <header className="topbar">
-        <div className="topbar-inner">
-          <Link href="/" className="brand">
-            <span className="brand-mark">CR</span>
-            <span className="brand-name">Creative Tracker</span>
-          </Link>
-          <Nav items={items} />
-          <div className="userbox">
-            <Link href="/akun" className="who" title="Akun saya">
-              <strong style={{ color: 'var(--text)' }}>{user.name}</strong>
-              <small>
-                {ROLE_LABEL[mainRole]}
-                {mainRole !== 'superadmin' && mainRole !== 'admin' ? akses : ''}
-                {env.demoMode ? ' · DEMO' : ''}
-              </small>
-            </Link>
-            <ThemeToggle />
-            <form action={logoutAction}>
-              <button className="btn small" type="submit">
-                Keluar
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+    <div className="shell">
+      <Sidebar items={items} user={{ name: user.name, role }} />
       <main className="page wide">{children}</main>
-    </>
+    </div>
   );
 }
