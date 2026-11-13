@@ -152,7 +152,7 @@ console.log(`  ${taskId} → ${assignee}`);
 step('Assignee: badge menu, Tugas kamu, deskripsi, upload draft v1');
 await loginAs(assignee);
 await page.goto(`${BASE}/tracker`);
-assert.ok(Number(await page.locator('.nav .nav-badge').first().textContent()) >= 1, 'badge tugas di menu');
+assert.ok(Number(await page.locator('.side-nav .nav-badge').first().textContent()) >= 1, 'badge tugas di menu');
 await page.goto(`${BASE}/tracker?view=bola`);
 const myRow = page.locator('tr.mine-row', { hasText: taskId });
 assert.equal(await myRow.count(), 1);
