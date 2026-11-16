@@ -274,14 +274,14 @@ h3 {
   font-size: 13px;
 }
 .kpi .value {
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 680;
   margin: 6px 0 2px;
   font-variant-numeric: tabular-nums;
 }
 .kpi .hint {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 13.5px;
 }
 .kpi.alert .value {
   color: var(--danger);
@@ -301,10 +301,10 @@ h3 {
 }
 .bar-row {
   display: grid;
-  grid-template-columns: minmax(90px, 140px) 1fr 44px;
+  grid-template-columns: minmax(100px, 160px) 1fr 48px;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .bar-row .name {
   overflow: hidden;
@@ -365,7 +365,7 @@ h3 {
   background: var(--danger);
 }
 .vbar .n {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 .vbar-labels {
@@ -375,7 +375,7 @@ h3 {
 }
 .vbar-labels span {
   flex: 1 0 34px;
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text-2);
   text-align: center;
   overflow: hidden;
@@ -386,7 +386,7 @@ h3 {
   display: flex;
   gap: 14px;
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-2);
   flex-wrap: wrap;
 }
@@ -859,28 +859,30 @@ textarea:focus {
 .section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: 12px;
+  font-size: 22px;
   font-weight: 800;
-  margin: 22px 0 10px;
+  letter-spacing: -0.01em;
+  margin: 30px 0 14px;
 }
 .section-title:first-child {
   margin-top: 0;
 }
 .section-title .num {
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
   display: grid;
   place-items: center;
   background: var(--text);
   color: var(--surface);
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 800;
-  border-radius: 3px;
+  border-radius: 6px;
 }
 .section-title .hint {
   font-weight: 500;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-3);
 }
 
@@ -995,13 +997,13 @@ textarea:focus {
 }
 .mcard .tab {
   position: absolute;
-  top: -22px;
+  top: -27px;
   left: -2px;
   background: var(--c);
   color: #fff;
-  font-size: 12px;
+  font-size: 14.5px;
   font-weight: 700;
-  padding: 3px 12px;
+  padding: 3px 13px;
   border-radius: 3px 3px 0 0;
   max-width: 70%;
   overflow: hidden;
@@ -1724,50 +1726,70 @@ table.users td {
 /* Pipeline jumlah task per tahap (Tracker) */
 .pipeline {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin: 0 0 14px;
+  align-items: stretch;
+  gap: 5px;
+  margin: 0 0 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
+/* Tiap tahap = blok gelap seperti thumbnail: angka besar di atas, nama tahap di bawah */
 .pipeline a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 18px;
-  color: var(--text-2);
+  flex: 1 0 96px;
+  max-width: 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--side-bg);
+  border: 2px solid var(--side-bg);
+  color: var(--side-text);
   text-decoration: none;
-  font-weight: 600;
-  font-size: 13px;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
 }
 .pipeline a:hover {
-  background: var(--surface-2);
+  background: var(--side-bg-2);
+  border-color: var(--side-bg-2);
+  text-decoration: none;
+  transform: translateY(-1px);
 }
 .pipeline a.active {
-  background: var(--primary-soft);
-  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
 }
 .pipeline .n {
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 11px;
-  border: 1px solid var(--border-strong);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: var(--text);
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.pipeline .lbl {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--side-muted);
+  white-space: nowrap;
+}
+.pipeline a.active .lbl,
+.pipeline a:hover .lbl {
+  color: #fff;
+}
+.pipeline a.warn .n {
+  color: #f6c453;
+}
+.pipeline a.danger .n {
+  color: #ff8a8a;
 }
 .pipeline .arrow {
+  align-self: center;
   color: var(--text-3);
-  font-size: 14px;
+  font-size: 13px;
+  flex: 0 0 auto;
 }
 .pipeline .sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border);
-  margin: 0 6px;
+  flex: 0 0 12px;
 }
 
 /* Tahap proses di detail task: judul besar */
@@ -2154,4 +2176,19 @@ table.users td {
   .kat-item > summary {
     grid-template-columns: 1fr 1fr;
   }
+}
+@media (max-width: 640px) {
+  .section-title {
+    font-size: 19px;
+  }
+  .section-title .num {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+}
+
+/* Dashboard: teks keterangan kartu sedikit lebih besar */
+.mcard .card-head p {
+  font-size: 14px;
 }

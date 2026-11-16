@@ -145,20 +145,23 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
               className={sp.status === st.status ? 'active' : ''}
               title={`Lihat task berstatus ${st.status}`}
             >
-              {st.status} <span className="n">{st.count}</span>
+              <span className="n">{st.count}</span>
+              <span className="lbl">{st.status}</span>
             </Link>
           </span>
         ))}
         <span className="sep" />
         <Link
           href={sp.status === 'Revisi' ? keep({ status: '' }) : keep({ view: 'semua', status: 'Revisi' })}
-          className={sp.status === 'Revisi' ? 'active' : ''}
+          className={`warn${sp.status === 'Revisi' ? ' active' : ''}`}
           title="Task yang sedang direvisi (internal atau brand)"
         >
-          Revisi <span className="n">{pipeline.revisi}</span>
+          <span className="n">{pipeline.revisi}</span>
+          <span className="lbl">Revisi</span>
         </Link>
-        <Link href={keep({ view: 'overdue', status: '' })} className={view === 'overdue' ? 'active' : ''} title="Task lewat deadline">
-          Overdue <span className="n">{pipeline.overdue}</span>
+        <Link href={keep({ view: 'overdue', status: '' })} className={`danger${view === 'overdue' ? ' active' : ''}`} title="Task lewat deadline">
+          <span className="n">{pipeline.overdue}</span>
+          <span className="lbl">Overdue</span>
         </Link>
       </nav>
 
