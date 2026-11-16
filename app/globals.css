@@ -1727,21 +1727,21 @@ table.users td {
 .pipeline {
   display: flex;
   align-items: stretch;
-  gap: 6px;
+  gap: 5px;
   margin: 0 0 16px;
   overflow-x: auto;
   padding-bottom: 4px;
 }
 /* Tiap tahap = blok gelap seperti thumbnail: angka besar di atas, nama tahap di bawah */
 .pipeline a {
-  flex: 1 0 104px;
+  flex: 1 0 84px;
+  max-width: 150px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 78px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  justify-content: center;
+  gap: 3px;
+  padding: 7px 11px;
+  border-radius: 8px;
   background: var(--side-bg);
   border: 2px solid var(--side-bg);
   color: var(--side-text);
@@ -1756,17 +1756,17 @@ table.users td {
 }
 .pipeline a.active {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  box-shadow: 0 0 0 2px var(--primary-soft);
 }
 .pipeline .n {
-  font-size: 28px;
+  font-size: 19px;
   font-weight: 800;
   line-height: 1;
   color: #fff;
   font-variant-numeric: tabular-nums;
 }
 .pipeline .lbl {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--side-muted);
@@ -1785,7 +1785,7 @@ table.users td {
 .pipeline .arrow {
   align-self: center;
   color: var(--text-3);
-  font-size: 16px;
+  font-size: 13px;
   flex: 0 0 auto;
 }
 .pipeline .sep {
