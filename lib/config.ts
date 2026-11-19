@@ -428,7 +428,12 @@ export interface CategoryField {
   required?: boolean;
   options?: string[];
   placeholder?: string;
+  /** Kolom jumlah (angka) yang memecah request: diisi N → N task terpisah di Tracker. */
+  split?: boolean;
 }
+
+/** Batas task hasil pemecahan per kategori dalam satu request. */
+export const MAX_SPLIT = 50;
 
 export interface CategoryDef {
   name: string;
@@ -453,7 +458,7 @@ export const CATEGORIES: CategoryDef[] = [
     subTypes: ['Poster', 'Banner', 'Postingan Instagram', 'Katalog web'],
     fields: [
       { key: 'ukuran', label: 'Ukuran / rasio', type: 'text', required: true, placeholder: 'mis. 1080x1350, 4:5' },
-      { key: 'jumlahDesain', label: 'Jumlah desain', type: 'number', required: true },
+      { key: 'jumlahDesain', label: 'Jumlah desain', type: 'number', required: true, split: true },
       { key: 'copy', label: 'Copy / teks di desain', type: 'textarea' },
     ],
   },
@@ -463,7 +468,7 @@ export const CATEGORIES: CategoryDef[] = [
     fields: [
       { key: 'durasi', label: 'Durasi (detik)', type: 'number', required: true },
       { key: 'rasio', label: 'Rasio', type: 'select', options: ['9:16', '4:5', '1:1', '16:9'], required: true },
-      { key: 'jumlahVideo', label: 'Jumlah video', type: 'number', required: true },
+      { key: 'jumlahVideo', label: 'Jumlah video', type: 'number', required: true, split: true },
     ],
   },
   {
@@ -480,7 +485,7 @@ export const CATEGORIES: CategoryDef[] = [
     fields: [
       { key: 'durasi', label: 'Durasi (detik)', type: 'number', required: true },
       { key: 'rasio', label: 'Rasio', type: 'select', options: ['9:16', '4:5', '1:1', '16:9'], required: true },
-      { key: 'jumlah', label: 'Jumlah output', type: 'number', required: true },
+      { key: 'jumlah', label: 'Jumlah output', type: 'number', required: true, split: true },
     ],
   },
   {
@@ -488,7 +493,7 @@ export const CATEGORIES: CategoryDef[] = [
     subTypes: ['Retouch produk', 'Retouch model', 'Color grading', 'Hapus / ganti background', 'Resize & crop'],
     fields: [
       { key: 'folderMentah', label: 'Link folder foto mentah', type: 'text', required: true, placeholder: 'https://drive.google.com/…' },
-      { key: 'jumlahFoto', label: 'Jumlah foto', type: 'number', required: true },
+      { key: 'jumlahFoto', label: 'Jumlah foto', type: 'number', required: true, split: true },
       { key: 'gaya', label: 'Gaya edit / referensi', type: 'text', placeholder: 'mis. warm tone, link referensi' },
       { key: 'ukuran', label: 'Ukuran & rasio output', type: 'text', placeholder: 'mis. 1080x1350 (4:5)' },
       { key: 'format', label: 'Format file', type: 'select', options: ['JPG', 'PNG', 'JPG + PNG'] },

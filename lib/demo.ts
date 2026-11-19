@@ -123,7 +123,7 @@ export async function seedDemoActivity(store: Store): Promise<void> {
           uniq.map((k) => [
             k,
             Object.fromEntries(
-              CATEGORIES.find((c) => c.name === k)!.fields.map((f) => [f.key, f.type === 'number' ? '3' : f.options?.[0] || 'Contoh']),
+              CATEGORIES.find((c) => c.name === k)!.fields.map((f) => [f.key, f.split ? (rand() < 0.8 ? '1' : '3') : f.type === 'number' ? '3' : f.options?.[0] || 'Contoh']),
             ),
           ]),
         ),
@@ -158,7 +158,7 @@ export async function seedDemoActivity(store: Store): Promise<void> {
           objective: r.Objective,
           kategori: uniq,
           subJenis: Object.fromEntries(uniq.map((k) => [k, [CATEGORIES.find((c) => c.name === k)!.subTypes[0]]])),
-          details: Object.fromEntries(uniq.map((k) => [k, Object.fromEntries(CATEGORIES.find((c) => c.name === k)!.fields.map((f) => [f.key, f.type === 'number' ? '4' : f.options?.[0] || 'Lengkap']))])),
+          details: Object.fromEntries(uniq.map((k) => [k, Object.fromEntries(CATEGORIES.find((c) => c.name === k)!.fields.map((f) => [f.key, f.split ? '1' : f.type === 'number' ? '4' : f.options?.[0] || 'Lengkap']))])),
           usp: r['Product Knowledge/USP'],
           keyMessage: r['Key Message'],
           creativeNote: r['Creative Note'],
@@ -277,7 +277,7 @@ async function showcase(store: Store, realNow: number): Promise<void> {
       objective: 'Mendorong penjualan koleksi baru di marketplace dan Instagram.',
       kategori: [kategori],
       subJenis: { [kategori]: [def.subTypes[0]] },
-      details: { [kategori]: Object.fromEntries(def.fields.map((f) => [f.key, f.type === 'number' ? '4' : f.options?.[0] || 'Sesuai referensi'])) },
+      details: { [kategori]: Object.fromEntries(def.fields.map((f) => [f.key, f.split ? '1' : f.type === 'number' ? '4' : f.options?.[0] || 'Sesuai referensi'])) },
       usp: 'Bahan premium, potongan regular fit.',
       keyMessage: 'Tampil rapi tanpa ribet.',
       creativeNote: 'Natural light, warna earth tone.',

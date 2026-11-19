@@ -9,6 +9,8 @@ import { formatTanggal, formatWaktu, todayWib } from '@/lib/dates';
 import { findRequest, tasksOf } from '@/lib/db';
 import { getDbWithWa, requireUser } from '@/lib/session';
 import { can } from '@/lib/workflow';
+import { categoryDefs } from '@/lib/categories';
+import { splitPlan } from '@/lib/service';
 
 type Params = Promise<{ id: string }>;
 type SP = Promise<Record<string, string | undefined>>;
@@ -31,6 +33,7 @@ export default async function RequestDetail({ params, searchParams }: { params: 
   const wa = db.waLog.filter((w) => ids.has(w['Ref ID'])).sort((a, b) => b.Timestamp.localeCompare(a.Timestamp));
   const canCek = can.cekBrief(user, r) && (r.Status === REQUEST_STATUS.BARU || r.Status === REQUEST_STATUS.BRIEF_KURANG);
   const canEdit = can.editBrief(user, r) && (r.Status === REQUEST_STATUS.BRIEF_KURANG || r.Status === REQUEST_STATUS.BARU);
+  const split = splitPlan(r, categoryDefs(db.master, { includeInactive: true }));
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -65,6 +68,19 @@ export default async function RequestDetail({ params, searchParams }: { params: 
               · <Link href={`/requests/${encodeURIComponent(id)}/edit`}>Lengkapi sekarang</Link>
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {split.length ? (
+        <div className="flash info" role="note">
+          {split.map((p, i) => (
+            <span key={p.kategori}>
+              {i ? ' · ' : ''}
+              <b>{p.kategori}</b>: {p.label.toLowerCase()} {p.n} →{' '}
+              {tasks.length ? <>split into {tasks.filter((t) => t.Kategori === p.kategori).length} tasks</> : <>will be split into {p.n} tasks once the brief is approved</>}
+            </span>
+          ))}
+          . Each task is tracked separately in the Tracker.
         </div>
       ) : null}
 

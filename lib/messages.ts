@@ -30,6 +30,18 @@ export const msg = {
   newTaskLead: (t: TaskRow, r: RequestRow) =>
     `🆕 *Tugas baru di divisi ${t.Divisi}*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nDeadline: ${formatTanggal(t.Deadline)} · target draft ${formatTanggal(t['Target Draft'])}\n${t.Assignee ? `Auto-assign ke *${t.Assignee}* (bisa diganti).` : 'Silakan pilih anggota.'}\n${taskLink(t['Task ID'])}`,
 
+  /** Request jumlah N yang dipecah jadi N task: satu pesan ringkas untuk lead. */
+  newTasksLeadBatch: (ts: TaskRow[], r: RequestRow) =>
+    `🆕 *${ts.length} tugas baru di divisi ${ts[0].Divisi}*${urgentTag(ts[0].Urgent)}\n${r['Request ID']} · ${ts[0].Brand} · ${ts[0].Kategori}\nCampaign: ${r['Campaign Name']}\nDeadline: ${formatTanggal(ts[0].Deadline)} · target draft ${formatTanggal(ts[0]['Target Draft'])}\n${ts
+      .map((t) => `• ${t['Task ID']}${t.Assignee ? ` → ${t.Assignee}` : ''}`)
+      .join('\n')}\n${ts.some((t) => !t.Assignee) ? 'Silakan pilih anggota untuk task yang belum di-assign.' : 'Assignee bisa diganti dari halaman task.'}\n${taskLink(ts[0]['Task ID'])}`,
+
+  /** Beberapa task hasil pecahan untuk assignee yang sama: satu pesan. */
+  tasksAssignedBatch: (ts: TaskRow[], r: RequestRow) =>
+    `🎯 *${ts.length} tugas baru untukmu*${urgentTag(ts[0].Urgent)}\n${r['Request ID']} · ${ts[0].Brand} · ${ts[0].Kategori}\nCampaign: ${r['Campaign Name']}\nTarget draft: ${formatTanggal(ts[0]['Target Draft'])}\nDeadline: ${formatTanggal(ts[0].Deadline)}\n${ts
+      .map((t) => `• ${t['Task ID']}${t.Judul ? ` · ${t.Judul}` : ''}: ${taskLink(t['Task ID'])}`)
+      .join('\n')}`,
+
   taskAssigned: (t: TaskRow, r: RequestRow) =>
     `🎯 *Tugas baru untukmu*${urgentTag(t.Urgent)}\n${taskLine(t)}\nCampaign: ${r['Campaign Name']}\nSub-jenis: ${t['Sub-jenis'] || '-'}\nDeliverables: ${r.Deliverables || '-'}\nTarget draft: ${formatTanggal(t['Target Draft'])}\nDeadline: ${formatTanggal(t.Deadline)}\n\nBrief & upload draft: ${taskLink(t['Task ID'])}`,
 

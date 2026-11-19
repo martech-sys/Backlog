@@ -90,7 +90,7 @@ test('kategori custom: masuk ke Traffic, lalu Traffic atur divisi & lead atau ub
       subJenis: { 'Lainnya (custom)': ['Custom'], 'Photo editing': ['Retouch produk'] },
       details: {
         'Lainnya (custom)': { kebutuhan: 'Banner marketplace Shopee 5 ukuran', contoh: '', output: '5 file' },
-        'Photo editing': { folderMentah: 'https://drive.google.com/x', jumlahFoto: '20', gaya: '', ukuran: '1:1', format: 'JPG' },
+        'Photo editing': { folderMentah: 'https://drive.google.com/x', jumlahFoto: '1', gaya: '', ukuran: '1:1', format: 'JPG' },
       },
       dueDate: '2026-11-13',
     }),
@@ -183,7 +183,7 @@ test('edit brief & link draft dari detail task; brief kreatif opsional saat requ
   const id = `${sub.id}-DG`;
   let db = await loadDb(store);
   const r0 = db.requests.find((x) => x['Request ID'] === sub.id)!;
-  assert.deepEqual(svc.parseDetailLine(r0['Detail Kategori'], 'Desain grafis'), { ukuran: '1080x1350', jumlahDesain: '3' });
+  assert.deepEqual(svc.parseDetailLine(r0['Detail Kategori'], 'Desain grafis'), { ukuran: '1080x1350', jumlahDesain: '1' });
 
   const edit = {
     campaignName: 'Payday Sale v2',

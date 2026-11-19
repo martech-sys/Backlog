@@ -6,6 +6,7 @@ import {
   CAMPAIGN_TYPES,
   CUSTOM_CATEGORY,
   DIVISI,
+  MAX_SPLIT,
   REQUEST_STATUS,
   SHEETS,
   STATUS,
@@ -210,6 +211,8 @@ export function validateRequestInput(input: RequestInput, master: Master, today:
       const v = String(input.details[k]?.[f.key] ?? '').trim();
       if (f.required && !v) errors[`detail:${k}:${f.key}`] = `${f.label} wajib diisi`;
       if (v && f.type === 'number' && !(Number(v) > 0)) errors[`detail:${k}:${f.key}`] = `${f.label} harus angka > 0`;
+      else if (v && f.split && Number(v) > MAX_SPLIT)
+        errors[`detail:${k}:${f.key}`] = `${f.label} maksimal ${MAX_SPLIT} (tiap ${f.label.toLowerCase().replace(/^jumlah\s*/, '') || 'item'} jadi 1 task)`;
     }
   }
   return errors;
@@ -353,6 +356,8 @@ export async function cekBrief(
     .filter(Boolean);
   const route = routeRequest(master, r.Brand, kategoriList);
   const urgent = isUrgent(tx.today, deadline, route.leadTimeMin, master.holidays);
+  const defs = categoryDefs(master, { includeInactive: true });
+  const plan = splitPlan(r, defs);
   const drafts = buildTaskDrafts({
     master,
     grup: r.Grup,
@@ -360,19 +365,20 @@ export async function cekBrief(
     deadline,
     today: tx.today,
     existingTasks: db.tasks,
+    quantities: Object.fromEntries(plan.map((p) => [p.kategori, p.n])),
   });
   if (!drafts.length) return fail('Tidak ada aturan routing untuk kategori ini. Cek sheet Master_Kategori.');
 
-  const defs = categoryDefs(master, { includeInactive: true });
   const subByKategori = (k: string) => {
     const def = findCategory(defs, k);
     const chosen = r['Sub-jenis'].split(',').map((s) => s.trim());
     return chosen.filter((s) => def?.subTypes.includes(s)).join(', ');
   };
 
+  // Task hasil pecahan diberi nomor urut: CR-2611-006-PE1, PE2, … ; judulnya "Judul 1", "Judul 2", …
   const ids = taskIds(
     r['Request ID'],
-    drafts.map((d) => d.code),
+    drafts.map((d) => (d.of > 1 ? `${d.code}${d.seq}` : d.code)),
   );
   const newTasks: TaskRow[] = drafts.map((d, i) => {
     const t = {
@@ -402,7 +408,7 @@ export async function cekBrief(
       'Status Sejak': tx.ts,
       'Selesai Pada': '',
       'Reminder Terkirim': '',
-      Judul: r.Judul || '',
+      Judul: d.of > 1 ? `${r.Judul || r['Campaign Name']} ${d.seq}`.trim() : r.Judul || '',
       _row: 0,
     } as TaskRow;
     t['Bola di'] = ballHolder(t.Status, t, r.Traffic);
@@ -430,7 +436,9 @@ export async function cekBrief(
   ]);
   tx.log(r['Request ID'], 'Request', r.Status, REQUEST_STATUS.DIPROSES, p.note.trim() || 'Brief lengkap');
 
-  for (const t of newTasks) {
+  const groups = new Map<string, TaskRow[]>();
+  newTasks.forEach((t, i) => {
+    const d = drafts[i];
     tx.log(
       t['Task ID'],
       'Task',
@@ -438,18 +446,59 @@ export async function cekBrief(
       STATUS.SIAP_ASSIGN,
       t.Kategori === CUSTOM_CATEGORY
         ? 'Custom: menunggu Traffic mengatur divisi, lead & deadline'
-        : `Routing ke ${t.Divisi} (lead ${t.Lead})`,
+        : `Routing ke ${t.Divisi} (lead ${t.Lead})${d.of > 1 ? ` · task ${d.seq} dari ${d.of}` : ''}`,
     );
     if (t.Assignee) tx.log(t['Task ID'], 'Task', STATUS.SIAP_ASSIGN, STATUS.DIKERJAKAN, `Auto-assign ke ${t.Assignee}`);
-    // Lead yang sekaligus assignee cukup menerima satu pesan "Tugas baru untukmu".
-    if (t.Lead && t.Lead !== t.Assignee) tx.notify.to(t.Lead, 'Tugas baru (lead)', t['Task ID'], msg.newTaskLead(t, r));
-    if (t.Assignee) tx.notify.to(t.Assignee, 'Tugas baru', t['Task ID'], msg.taskAssigned(t, r));
+    const key = `${t.Kategori}|${t.Divisi}`;
+    groups.set(key, [...(groups.get(key) || []), t]);
+  });
+  for (const list of groups.values()) {
+    if (list.length === 1) {
+      const t = list[0];
+      // Lead yang sekaligus assignee cukup menerima satu pesan "Tugas baru untukmu".
+      if (t.Lead && t.Lead !== t.Assignee) tx.notify.to(t.Lead, 'Tugas baru (lead)', t['Task ID'], msg.newTaskLead(t, r));
+      if (t.Assignee) tx.notify.to(t.Assignee, 'Tugas baru', t['Task ID'], msg.taskAssigned(t, r));
+      continue;
+    }
+    // Request jumlah N: satu pesan ringkas per orang, bukan N pesan.
+    const lead = list[0].Lead;
+    if (lead && !list.every((t) => t.Assignee === lead)) tx.notify.to(lead, 'Tugas baru (lead)', list[0]['Task ID'], msg.newTasksLeadBatch(list, r));
+    const byAssignee = new Map<string, TaskRow[]>();
+    for (const t of list) if (t.Assignee) byAssignee.set(t.Assignee, [...(byAssignee.get(t.Assignee) || []), t]);
+    for (const [name, mine] of byAssignee)
+      tx.notify.to(
+        name,
+        'Tugas baru',
+        mine[0]['Task ID'],
+        mine.length === 1 ? msg.taskAssigned(mine[0], r) : msg.tasksAssignedBatch(mine, r),
+      );
   }
   await tx.commit();
+  const splitNote = plan.length ? ` (${plan.map((p) => `${p.kategori}: ${p.n} task`).join(', ')})` : '';
   return {
     ok: true,
-    message: `Brief lengkap. ${newTasks.length} task dibuat dan dikirim ke lead divisi.`,
+    message: `Brief lengkap. ${newTasks.length} task dibuat${splitNote} dan dikirim ke lead divisi.`,
   };
+}
+
+/**
+ * Kategori yang dipecah jadi beberapa task karena kolom jumlahnya (mis. "Jumlah foto: 5") diisi lebih dari 1.
+ * Dipakai saat cek brief (membuat N task) dan di halaman Request (keterangan "dipecah jadi N task").
+ */
+export function splitPlan(
+  r: Pick<RequestRow, 'Kategori' | 'Detail Kategori'>,
+  defs: CategoryInfo[] = BUILTIN_DEFS,
+): { kategori: string; label: string; n: number }[] {
+  return String(r.Kategori || '')
+    .split(',')
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .flatMap((k) => {
+      const f = findCategory(defs, k)?.fields.find((x) => x.split);
+      if (!f) return [];
+      const n = Math.min(MAX_SPLIT, Math.floor(Number(parseDetailLine(r['Detail Kategori'], k, defs)[f.key]) || 0));
+      return n > 1 ? [{ kategori: k, label: f.label, n }] : [];
+    });
 }
 
 /** PIC melengkapi brief yang dikembalikan Traffic. */

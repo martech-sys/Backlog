@@ -38,7 +38,7 @@ test('alur lengkap: form → cek brief → assign → draft → QC → REV via W
   const desB = await userOf(store, 'Desainer B');
 
   at('2026-10-27T02:00:00Z'); // Selasa 09:00 WIB
-  const sub = await svc.submitRequest(store, brama, requestInput({ kategori: ['Desain grafis', 'Fotoshoot'], subJenis: { 'Desain grafis': ['Poster'], Fotoshoot: ['Katalog'] }, details: { 'Desain grafis': { ukuran: '4:5', jumlahDesain: '2' }, Fotoshoot: { jumlahSku: '12', lokasi: 'Studio', model: 'Ya' } }, dueDate: '2026-11-04' }));
+  const sub = await svc.submitRequest(store, brama, requestInput({ kategori: ['Desain grafis', 'Fotoshoot'], subJenis: { 'Desain grafis': ['Poster'], Fotoshoot: ['Katalog'] }, details: { 'Desain grafis': { ukuran: '4:5', jumlahDesain: '1' }, Fotoshoot: { jumlahSku: '12', lokasi: 'Studio', model: 'Ya' } }, dueDate: '2026-11-04' }));
   assert.equal(sub.ok, true, sub.message);
   assert.equal(sub.id, 'CR-2610-001');
   let db = await loadDb(store, { withWaLog: true });
@@ -62,7 +62,7 @@ test('alur lengkap: form → cek brief → assign → draft → QC → REV via W
   at('2026-10-27T03:00:00Z');
   assert.equal((await svc.cekBrief(store, evi, { requestId: 'CR-2610-001', decision: 'Kurang', note: 'Lampirkan foto produk' })).ok, true);
   at('2026-10-27T05:00:00Z');
-  const upd = await svc.updateBrief(store, brama, 'CR-2610-001', requestInput({ kategori: ['Desain grafis', 'Fotoshoot'], subJenis: { 'Desain grafis': ['Poster'], Fotoshoot: ['Katalog'] }, details: { 'Desain grafis': { ukuran: '4:5', jumlahDesain: '2' }, Fotoshoot: { jumlahSku: '12', lokasi: 'Studio', model: 'Ya' } }, attachments: 'https://drive.google.com/x', dueDate: '2026-11-13' }));
+  const upd = await svc.updateBrief(store, brama, 'CR-2610-001', requestInput({ kategori: ['Desain grafis', 'Fotoshoot'], subJenis: { 'Desain grafis': ['Poster'], Fotoshoot: ['Katalog'] }, details: { 'Desain grafis': { ukuran: '4:5', jumlahDesain: '1' }, Fotoshoot: { jumlahSku: '12', lokasi: 'Studio', model: 'Ya' } }, attachments: 'https://drive.google.com/x', dueDate: '2026-11-13' }));
   assert.equal(upd.ok, true, upd.message);
   at('2026-10-27T06:00:00Z');
   const ok = await svc.cekBrief(store, evi, { requestId: 'CR-2610-001', decision: 'Lengkap', note: '' });

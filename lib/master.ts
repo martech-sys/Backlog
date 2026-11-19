@@ -359,6 +359,7 @@ export function parseFieldForm(raw: unknown): CategoryField[] | null {
         type: (FIELD_TYPES.includes(String(f.type)) ? f.type : 'text') as CategoryField['type'],
         required: f.required === true,
         options: Array.isArray(f.options) ? f.options.map((o) => String(o).trim()).filter(Boolean) : undefined,
+        ...(f.split === true && f.type === 'number' ? { split: true } : {}),
       }))
       .filter((f) => f.key && f.label);
   } catch {

@@ -28,7 +28,7 @@ export interface KategoriInput {
   bufferReview: string;
   subJenis: string;
   filterPeran: string;
-  fields: { key?: string; label: string; type: string; required?: boolean; options?: string[] | string }[];
+  fields: { key?: string; label: string; type: string; required?: boolean; options?: string[] | string; split?: boolean }[];
   aktif: boolean;
 }
 
@@ -52,7 +52,9 @@ function cleanFields(raw: KategoriInput['fields']): { fields: CategoryField[]; e
     if (type === 'select' && options.length < 2) return { fields: [], error: `Kolom "${label}" bertipe pilihan butuh minimal 2 pilihan.` };
     const key = f.key && /^[a-z0-9_]{1,40}$/.test(f.key) && !taken.includes(f.key) ? f.key : fieldKey(label, taken);
     taken.push(key);
-    fields.push({ key, label, type, required: !!f.required, ...(type === 'select' ? { options } : {}) });
+    const split = type === 'number' && f.split === true;
+    if (split && fields.some((x) => x.split)) return { fields: [], error: 'Hanya satu kolom angka yang boleh memecah request menjadi beberapa task.' };
+    fields.push({ key, label, type, required: !!f.required, ...(type === 'select' ? { options } : {}), ...(split ? { split: true } : {}) });
   }
   return { fields };
 }

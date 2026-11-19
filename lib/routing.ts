@@ -79,6 +79,9 @@ export function pickLeastLoaded(
 
 export interface TaskDraft {
   code: string;
+  /** Urutan dalam pemecahan jumlah (1..of); of = 1 bila tidak dipecah. */
+  seq: number;
+  of: number;
   kategori: string;
   divisi: string;
   lead: string;
@@ -98,6 +101,8 @@ export function buildTaskDrafts(params: {
   deadline: string;
   today: string;
   existingTasks: Pick<TaskRow, 'Assignee' | 'Status'>[];
+  /** Jumlah task per kategori (dari kolom jumlah yang memecah request). Default 1. */
+  quantities?: Record<string, number>;
 }): TaskDraft[] {
   const { master, grup, kategoriList, deadline, today } = params;
   const load = activeLoad(params.existingTasks);
@@ -110,20 +115,23 @@ export function buildTaskDrafts(params: {
     const isWomens = grup.toLowerCase().startsWith('women');
     const preferred = (isWomens ? rule.leadWomenswear : rule.leadMenswear) || rule.leadMenswear || rule.leadWomenswear;
     const lead = leadFor(master, rule.divisi, grup, preferred);
-
-    let assignee = '';
-    if (rule.modeAssign === 'Default' && rule.assigneeDefault) {
-      assignee = rule.assigneeDefault;
-    } else if (rule.modeAssign === 'Otomatis beban') {
-      assignee = pickLeastLoaded(master, rule.divisi, grup, load, rule.filterPeran)?.name || '';
-    }
-    if (assignee && !findPerson(master, assignee)?.active) assignee = '';
-    if (assignee) load.set(assignee, (load.get(assignee) || 0) + 1);
+    const of = Math.max(1, Math.floor(params.quantities?.[rule.kategori] || 1));
 
     let targetDraft = addWorkingDays(deadline, -rule.bufferReview, master.holidays);
     if (targetDraft < today) targetDraft = today;
 
-    drafts.push({ code: taskCode(rule), kategori: rule.kategori, divisi: rule.divisi, lead, assignee, deadline, targetDraft });
+    for (let seq = 1; seq <= of; seq++) {
+      // Tiap task hasil pecahan dipilihkan assignee sendiri, jadi "Otomatis beban" ikut menyebar beban.
+      let assignee = '';
+      if (rule.modeAssign === 'Default' && rule.assigneeDefault) {
+        assignee = rule.assigneeDefault;
+      } else if (rule.modeAssign === 'Otomatis beban') {
+        assignee = pickLeastLoaded(master, rule.divisi, grup, load, rule.filterPeran)?.name || '';
+      }
+      if (assignee && !findPerson(master, assignee)?.active) assignee = '';
+      if (assignee) load.set(assignee, (load.get(assignee) || 0) + 1);
+      drafts.push({ code: taskCode(rule), seq, of, kategori: rule.kategori, divisi: rule.divisi, lead, assignee, deadline, targetDraft });
+    }
   }
   // Kategori custom: tanpa routing otomatis. Task dibuat tanpa divisi/lead; Traffic yang mengaturnya.
   if (wanted.includes(CUSTOM_CATEGORY.toLowerCase())) {
@@ -131,6 +139,8 @@ export function buildTaskDrafts(params: {
     if (targetDraft < today) targetDraft = today;
     drafts.push({
       code: DEFAULT_TASK_CODES[`${CUSTOM_CATEGORY}|`],
+      seq: 1,
+      of: 1,
       kategori: CUSTOM_CATEGORY,
       divisi: '',
       lead: '',

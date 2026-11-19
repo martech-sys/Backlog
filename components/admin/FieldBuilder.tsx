@@ -8,6 +8,7 @@ interface Field {
   type: string;
   required: boolean;
   options: string;
+  split: boolean;
 }
 
 const TYPES: [string, string][] = [
@@ -18,9 +19,13 @@ const TYPES: [string, string][] = [
 ];
 
 /** Penyusun kolom isian form untuk kategori buatan web. Hasilnya dikirim sebagai JSON di input `fields`. */
-export function FieldBuilder({ initial }: { initial: { key?: string; label: string; type: string; required?: boolean; options?: string[] }[] }) {
+export function FieldBuilder({
+  initial,
+}: {
+  initial: { key?: string; label: string; type: string; required?: boolean; options?: string[]; split?: boolean }[];
+}) {
   const [fields, setFields] = useState<Field[]>(
-    initial.map((f) => ({ key: f.key, label: f.label, type: f.type, required: !!f.required, options: (f.options || []).join(', ') })),
+    initial.map((f) => ({ key: f.key, label: f.label, type: f.type, required: !!f.required, options: (f.options || []).join(', '), split: !!f.split })),
   );
   const set = (i: number, patch: Partial<Field>) => setFields((xs) => xs.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const move = (i: number, d: number) =>
@@ -37,7 +42,9 @@ export function FieldBuilder({ initial }: { initial: { key?: string; label: stri
       <input
         type="hidden"
         name="fields"
-        value={JSON.stringify(fields.map((f) => ({ key: f.key, label: f.label, type: f.type, required: f.required, options: f.options })))}
+        value={JSON.stringify(
+          fields.map((f) => ({ key: f.key, label: f.label, type: f.type, required: f.required, options: f.options, split: f.type === 'number' && f.split })),
+        )}
       />
       {fields.length === 0 ? <p className="subtle" style={{ margin: 0 }}>Belum ada kolom isian khusus. Form hanya berisi brief umum.</p> : null}
       {fields.map((f, i) => (
@@ -51,7 +58,16 @@ export function FieldBuilder({ initial }: { initial: { key?: string; label: stri
             ))}
           </select>
           {f.type === 'select' ? (
-            <input value={f.options} onChange={(e) => set(i, { options: e.target.value })} placeholder="Pilihan, pisahkan koma" aria-label={`Pilihan kolom ${i + 1}`} />
+            <input value={f.options} onChange={(e) => set(i, { options: e.target.value })} placeholder="Options, comma separated" aria-label={`Options for field ${i + 1}`} />
+          ) : f.type === 'number' ? (
+            <label className="fb-req" title="Filled with N → the request becomes N separate tasks in the Tracker">
+              <input
+                type="checkbox"
+                checked={f.split}
+                onChange={(e) => setFields((xs) => xs.map((x, j) => ({ ...x, split: j === i ? e.target.checked : e.target.checked ? false : x.split })))}
+              />{' '}
+              Split into N tasks
+            </label>
           ) : (
             <span />
           )}
@@ -73,7 +89,7 @@ export function FieldBuilder({ initial }: { initial: { key?: string; label: stri
       ))}
       {fields.length < 12 ? (
         <div>
-          <button type="button" className="btn small" onClick={() => setFields((xs) => [...xs, { label: '', type: 'text', required: false, options: '' }])}>
+          <button type="button" className="btn small" onClick={() => setFields((xs) => [...xs, { label: '', type: 'text', required: false, options: '', split: false }])}>
             + Tambah kolom isian
           </button>
         </div>

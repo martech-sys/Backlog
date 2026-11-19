@@ -108,7 +108,14 @@ export function RequestForm(p: Props) {
       );
     }
     return (
-      <Field key={f.key} label={f.label} required={f.required} error={e[`detail:${k}:${f.key}`]} htmlFor={id}>
+      <Field
+        key={f.key}
+        label={f.label}
+        required={f.required}
+        help={f.split ? 'Each one becomes its own task in the Tracker (e.g. 5 → 5 tasks)' : undefined}
+        error={e[`detail:${k}:${f.key}`]}
+        htmlFor={id}
+      >
         {input}
       </Field>
     );

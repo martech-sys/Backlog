@@ -50,7 +50,7 @@ export function requestInput(over: Partial<RequestInput> = {}): RequestInput {
     objective: 'Naikkan penjualan',
     kategori: ['Desain grafis'],
     subJenis: { 'Desain grafis': ['Poster', 'Banner'] },
-    details: { 'Desain grafis': { ukuran: '1080x1350', jumlahDesain: '3', copy: '' } },
+    details: { 'Desain grafis': { ukuran: '1080x1350', jumlahDesain: '1', copy: '' } },
     usp: 'Bahan adem',
     keyMessage: 'Diskon 50%',
     creativeNote: 'Bold, kontras',

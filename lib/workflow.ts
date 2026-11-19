@@ -51,7 +51,7 @@ export interface WaReply {
 
 export function parseWaReply(text: string): WaReply | null {
   // ID task: CR-2611-001-PE (kode kategori) atau format lama CR-2611-001-1; ID request: CR-2611-001
-  const m = /^\s*\*?(ACC|REV|REVISI)\*?\s+([A-Za-z]+-\d{4}-\d{3,}(?:-[A-Za-z0-9]{1,4})?)(?=$|[\s:\-–])\s*[:\-–]?\s*([\s\S]*)$/i.exec(
+  const m = /^\s*\*?(ACC|REV|REVISI)\*?\s+([A-Za-z]+-\d{4}-\d{3,}(?:-[A-Za-z0-9]{1,7})?)(?=$|[\s:\-–])\s*[:\-–]?\s*([\s\S]*)$/i.exec(
     text || '',
   );
   if (!m) return null;
@@ -61,7 +61,7 @@ export function parseWaReply(text: string): WaReply | null {
 
 /** True bila id adalah Task ID (punya akhiran -N), bukan Request ID. */
 export function isTaskId(id: string): boolean {
-  return /^[A-Z]+-\d{4}-\d{3,}-[A-Z0-9]{1,4}$/i.test(id);
+  return /^[A-Z]+-\d{4}-\d{3,}-[A-Z0-9]{1,7}$/i.test(id);
 }
 
 // ---------------------------------------------------------------------------

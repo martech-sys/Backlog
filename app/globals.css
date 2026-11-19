@@ -2617,3 +2617,8 @@ a.kpi-link:hover > .kpi-tile {
 .dotnum circle.off {
   fill: rgba(255, 255, 255, 0.09);
 }
+.flash.info {
+  background: var(--primary-soft);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--primary) 25%, transparent);
+}
