@@ -48,6 +48,12 @@ test('dashboard dan papan dihitung dari data tracker', async () => {
   const d = computeDashboard({ ...db, filters: defaultFilters('2026-10-30'), now });
   assert.equal(d.kpi.requestsIn, 2);
   assert.equal(d.requestsPerBrand.find((b) => b.brand === 'Heymale')?.count, 1);
+  // Poin 6: per brand hanya task aktif (belum Final); Current Task = semua task belum Final.
+  assert.equal(d.activeTasksPerBrand.find((b) => b.brand === 'Heymale')?.count, db.tasks.filter((t) => t.Brand === 'Heymale').length);
+  assert.equal(d.activeTasksPerBrand.find((b) => b.brand === 'Zoma')?.count, 0, 'request Zoma belum jadi task');
+  assert.equal(d.kpi.activeTasks, db.tasks.length);
+  // Poin 7: semua task aktif masuk salah satu tingkat kesehatan.
+  assert.equal(d.health.reduce((n, h) => n + h.count, 0), d.kpi.activeTasks);
   assert.equal(d.statusPosition.find((s) => s.status === STATUS.BARU)?.count, 1);
   assert.equal(d.statusPosition.find((s) => s.status === STATUS.REVIEW_BRAND)?.count, 1);
   const qc = d.stageDurations.find((s) => s.stage === 'QC lead')!;

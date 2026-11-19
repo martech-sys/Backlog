@@ -11,6 +11,7 @@ import {
 } from './config';
 import { addDays, daysBetweenTimestamps, diffDays, formatWib } from './dates';
 import type { Master } from './master';
+import { HEALTH_LEVELS, taskHealth, taskTitle, type HealthKey } from './taskInfo';
 
 export interface DashboardFilters {
   from: string;
@@ -32,9 +33,15 @@ export interface DashboardData {
     doneCount: number;
     avgRevisi: number | null;
     overdueNow: number;
+    /** Current Task: task yang belum mencapai Final (termasuk revisi & overdue). */
     activeTasks: number;
   };
+  /** Request masuk per brand di periode ini (dipakai rekap mingguan WA). */
   requestsPerBrand: { brand: string; grup: string; count: number }[];
+  /** Panel dashboard: task aktif (belum Final) per brand, saat ini. */
+  activeTasksPerBrand: { brand: string; grup: string; count: number }[];
+  /** Creative Output Task Health: jumlah task aktif per tingkat. */
+  health: { key: HealthKey; badge: string; value: string; rule: string; count: number }[];
   statusPosition: { status: string; count: number }[];
   workload: { name: string; divisi: string; count: number; capacity: number; over: boolean }[];
   stageDurations: { stage: string; side: 'tim' | 'brand'; avgDays: number | null; samples: number }[];
@@ -44,6 +51,8 @@ export interface DashboardData {
   watchlist: {
     taskId: string;
     requestId: string;
+    title: string;
+    health: HealthKey | '';
     brand: string;
     divisi: string;
     assignee: string;
@@ -122,11 +131,14 @@ export function computeDashboard(params: {
 
   // Daftar overdue & mepet (saat ini)
   const open = tasks.filter((t) => !DONE_STATUSES.includes(t.Status as Status));
+  const reqById = new Map(params.requests.map((r) => [r['Request ID'], r]));
   const watch = open
     .filter((t) => t.Deadline)
     .map((t) => ({
       taskId: t['Task ID'],
       requestId: t['Request ID'],
+      title: taskTitle(t, reqById.get(t['Request ID'])),
+      health: taskHealth(t, today)?.key || ('' as const),
       brand: t.Brand,
       divisi: t.Divisi,
       assignee: t.Assignee,
@@ -145,6 +157,22 @@ export function computeDashboard(params: {
     .filter((b) => (!f.grup || b.grup === f.grup) && (!f.brand || b.name === f.brand))
     .map((b) => ({ brand: b.name, grup: b.grup, count: brandCounts.get(b.name) || 0 }))
     .sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+
+  // Task aktif per brand (definisi aktif sama dengan Current Task & tab "All active" di Tracker)
+  const activeByBrand = new Map<string, number>();
+  for (const t of open) activeByBrand.set(t.Brand, (activeByBrand.get(t.Brand) || 0) + 1);
+  const activeTasksPerBrand = master.brands
+    .filter((b) => (!f.grup || b.grup === f.grup) && (!f.brand || b.name === f.brand))
+    .map((b) => ({ brand: b.name, grup: b.grup, count: activeByBrand.get(b.name) || 0 }))
+    .sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+
+  // Kesehatan task aktif
+  const healthCount = new Map<string, number>();
+  for (const t of open) {
+    const h = taskHealth(t, today);
+    if (h) healthCount.set(h.key, (healthCount.get(h.key) || 0) + 1);
+  }
+  const health = HEALTH_LEVELS.map((h) => ({ ...h, count: healthCount.get(h.key) || 0 }));
 
   // Posisi pekerjaan saat ini
   const pos = new Map<string, number>();
@@ -266,6 +294,8 @@ export function computeDashboard(params: {
       activeTasks: open.length,
     },
     requestsPerBrand,
+    activeTasksPerBrand,
+    health,
     statusPosition,
     workload,
     stageDurations,

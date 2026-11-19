@@ -58,7 +58,7 @@ export function HBars({
   items,
   tone,
   format = (n: number) => String(n),
-  empty = 'Belum ada data',
+  empty = 'No data yet',
 }: {
   items: { label: string; value: number; tone?: 'muted' | 'danger' | ''; href?: string }[];
   tone?: 'muted' | 'danger' | '';
@@ -83,7 +83,7 @@ export function HBars({
           </>
         );
         return i.href ? (
-          <Link className="bar-row" key={i.label} href={i.href} title={`${i.label}: ${format(i.value)} · klik untuk lihat daftar`}>
+          <Link className="bar-row" key={i.label} href={i.href} title={`${i.label}: ${format(i.value)} · click to see the list`}>
             {inner}
           </Link>
         ) : (

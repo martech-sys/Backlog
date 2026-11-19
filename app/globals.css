@@ -2247,3 +2247,373 @@ table.users td {
 .mcard .card-head p {
   font-size: 14px;
 }
+
+/* =====================================================================
+   Ronde 2 — arah UI baru: modern & terasa "creative"
+   Kartu putih membulat, latar abu lembut, label pill lime, angka besar
+   dot-matrix di panel gradasi, ruang antar elemen lega.
+   ===================================================================== */
+:root {
+  --bg: #eceef2;
+  --surface: #ffffff;
+  --surface-2: #f3f4f7;
+  --border: #e6e8ed;
+  --border-strong: #d5d9e1;
+  --accent: #d8f35a;
+  --accent-text: #1b2210;
+  --bar: #6d9bf1;
+  --bar-women: #ec5f92;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 22px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.12);
+  --shadow-hover: 0 2px 4px rgba(16, 24, 40, 0.05), 0 14px 30px -12px rgba(16, 24, 40, 0.2);
+}
+:root[data-theme='dark'] {
+  --bg: #0e1116;
+  --surface: #181c24;
+  --surface-2: #20252f;
+  --border: #2a303c;
+  --border-strong: #394150;
+  --accent: #c6e24a;
+  --bar-women: #e86a98;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  letter-spacing: -0.005em;
+}
+h1 {
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+
+/* Kartu */
+.card,
+.mcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+.mcard.plain {
+  padding: 20px;
+}
+/* Label kartu lama (tab menempel di atas) → judul di dalam kartu */
+.mcard .tab {
+  position: static;
+  display: inline-block;
+  background: transparent;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 0;
+  margin-bottom: 4px;
+  border-radius: 0;
+  max-width: 100%;
+}
+.card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.card-title h3 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.card-sub {
+  margin: 2px 0 14px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.grid.stretch {
+  padding-top: 0 !important;
+  row-gap: 18px !important;
+}
+.grid {
+  gap: 18px;
+}
+
+/* Judul seksi: nomor dalam bulatan lime */
+.section-title {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  margin: 38px 0 16px;
+}
+.section-title .num {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 15px;
+}
+
+/* Tombol, input, tab, tabel */
+.btn {
+  border-radius: 999px;
+  padding: 8px 16px;
+}
+.btn.small {
+  padding: 5px 12px;
+}
+input[type='text'],
+input[type='password'],
+input[type='email'],
+input[type='url'],
+input[type='number'],
+input[type='date'],
+input[type='search'],
+input[type='tel'],
+input:not([type]),
+select,
+textarea {
+  border-radius: 12px;
+  background: var(--surface);
+}
+.filters,
+.table-wrap {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.filters {
+  padding: 16px;
+  gap: 10px;
+}
+.card .table-wrap,
+.mcard .table-wrap {
+  box-shadow: none;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px;
+  margin: 0;
+}
+th {
+  background: transparent;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px dashed var(--border-strong);
+}
+th,
+td {
+  padding: 12px 14px;
+}
+.tabs a {
+  padding: 7px 14px;
+  border-color: transparent;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.tabs a.active {
+  background: var(--text);
+  border-color: var(--text);
+}
+.flash {
+  border-radius: 14px;
+}
+.title-box {
+  border-radius: 999px;
+  border: none;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 6px 14px;
+}
+.stage-head {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--primary);
+  box-shadow: var(--shadow);
+}
+.action-card {
+  border: 1.5px solid var(--primary);
+}
+
+/* Batang grafik membulat */
+.bar-track {
+  height: 10px;
+  border-radius: 999px;
+}
+.bar-fill {
+  border-radius: 999px;
+}
+.vbars {
+  border-bottom: none;
+  background-image: repeating-linear-gradient(90deg, var(--border-strong) 0 1px, transparent 1px 7px);
+  background-size: 100% 6px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+  padding-bottom: 10px;
+}
+.vbar .col {
+  border-radius: 999px;
+  max-width: 40px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bar) 60%, white), var(--bar));
+}
+.vbar .col.danger {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 60%, white), var(--danger));
+}
+
+/* KPI: label pill lime + panel gradasi berisi angka dot-matrix */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1280px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+.kpi-tile {
+  --c: #6d9bf1;
+  height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+a.kpi-link,
+a.kpi-link:hover {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+  height: 100%;
+}
+a.kpi-link:hover > .kpi-tile {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+.pill {
+  align-self: flex-start;
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kpi-panel {
+  position: relative;
+  border-radius: 16px;
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  padding: 16px 12px 24px;
+  background:
+    radial-gradient(120% 90% at 20% 0%, color-mix(in srgb, var(--c) 55%, white) 0%, transparent 60%),
+    linear-gradient(160deg, color-mix(in srgb, var(--c) 82%, white), var(--c) 70%, color-mix(in srgb, var(--c) 80%, black));
+  overflow: hidden;
+}
+.kpi-panel .ticks {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  height: 8px;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0 1px, transparent 1px 6px);
+}
+.dotnum {
+  height: 56px;
+  width: auto;
+  max-width: 100%;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.35));
+}
+.dotnum circle.on {
+  fill: #fff;
+}
+.dotnum circle.off {
+  fill: rgba(255, 255, 255, 0.16);
+}
+.kpi-tile .hint {
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.4;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 6px 9px;
+}
+.kpi-tile.alert .kpi-panel {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+/* Creative Output Task Health */
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 900px) {
+  .health-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.health-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--text);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.health-tile:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--border));
+}
+.health-count {
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+.health-value {
+  font-weight: 650;
+}
+.health-tile.ontrack .health-value { color: #157a3a; }
+.health-tile.urgent .health-value { color: #b4580a; }
+.health-tile.veryurgent .health-value { color: #a8430e; }
+.health-tile.overdue .health-value { color: #c0322a; }
+.health-tile.critical .health-value { color: #9b1c13; }
+:root[data-theme='dark'] .health-tile .health-value { filter: brightness(1.6); }
+.bar-row {
+  grid-template-columns: minmax(100px, 160px) 1fr minmax(48px, max-content);
+}
+.dotnum {
+  height: 62px;
+}
+.dotnum circle.off {
+  fill: rgba(255, 255, 255, 0.09);
+}

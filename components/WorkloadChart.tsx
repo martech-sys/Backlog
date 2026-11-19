@@ -41,7 +41,7 @@ export function WorkloadChart({ items, max }: { items: WorkloadItem[]; max: numb
           const title = `${w.name} (${w.divisi}): ${w.count}/${w.capacity}`;
           if (w.count === 0)
             return (
-              <div className="vbar" key={w.name} title={`${title} · Tidak ada data`}>
+              <div className="vbar" key={w.name} title={`${title} · No data`}>
                 {bar(w)}
               </div>
             );
@@ -51,7 +51,7 @@ export function WorkloadChart({ items, max }: { items: WorkloadItem[]; max: numb
                 className="vbar link"
                 key={w.name}
                 href={`/tasks/${encodeURIComponent(w.tasks[0].id)}`}
-                title={`${title} · buka ${w.tasks[0].id}`}
+                title={`${title} · open ${w.tasks[0].id}`}
               >
                 {bar(w)}
               </Link>
@@ -61,7 +61,7 @@ export function WorkloadChart({ items, max }: { items: WorkloadItem[]; max: numb
               type="button"
               className="vbar link"
               key={w.name}
-              title={`${title} · lihat daftar task`}
+              title={`${title} · see task list`}
               onClick={() => {
                 setOpen(w);
                 dialog.current?.showModal();
@@ -96,14 +96,14 @@ export function WorkloadChart({ items, max }: { items: WorkloadItem[]; max: numb
               }}
             >
               <h3 style={{ margin: 0 }}>
-                {open.name} · {open.count} task aktif
+                {open.name} · {open.count} active tasks
               </h3>
-              <button type="button" className="btn small" onClick={() => dialog.current?.close()} aria-label="Tutup">
+              <button type="button" className="btn small" onClick={() => dialog.current?.close()} aria-label="Close">
                 ×
               </button>
             </div>
             <p className="subtle" style={{ marginTop: 4 }}>
-              {open.divisi} · kapasitas {open.capacity}
+              {open.divisi} · capacity {open.capacity}
             </p>
             <div className="table-wrap">
               <table>
@@ -132,7 +132,7 @@ export function WorkloadChart({ items, max }: { items: WorkloadItem[]; max: numb
               </table>
             </div>
             <p style={{ marginBottom: 0 }}>
-              <Link href={open.href}>Buka di Tracker →</Link>
+              <Link href={open.href}>Open in Tracker →</Link>
             </p>
           </div>
         ) : null}
