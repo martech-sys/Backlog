@@ -62,6 +62,7 @@ async function parseRequestForm(fd: FormData): Promise<svc.RequestInput> {
   return {
     brand: s(fd, 'brand'),
     picName: s(fd, 'picName'),
+    judul: s(fd, 'judul'),
     campaignName: s(fd, 'campaignName'),
     campaignType: s(fd, 'campaignType'),
     objective: s(fd, 'objective'),
@@ -164,6 +165,7 @@ export async function editBriefAction(fd: FormData) {
   const details: Record<string, string> = {};
   for (const [k, v] of fd.entries()) if (k.startsWith('detail:')) details[k.slice(7)] = String(v).trim();
   const r = await svc.editBriefFromTask(await getStore(), user, taskId, {
+    judul: fd.has('judul') ? s(fd, 'judul') : undefined,
     campaignName: s(fd, 'campaignName'),
     campaignType: s(fd, 'campaignType'),
     objective: s(fd, 'objective'),

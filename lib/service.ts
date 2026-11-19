@@ -22,6 +22,7 @@ import { msg } from './messages';
 import { holderName } from './mine';
 import { Notifier } from './notify';
 import { buildTaskDrafts, isUrgent, nextTicketId, routeRequest, taskIds } from './routing';
+import { taskTitle } from './taskInfo';
 import type { Cell, Store } from './store';
 import { ballHolder, can, canTransition, type CurrentUser } from './workflow';
 
@@ -153,6 +154,8 @@ function appendNote(existing: string, line: string): string {
 export interface RequestInput {
   brand: string;
   picName?: string;
+  /** Judul request/task (ala ClickUp), mis. "Reels HOW TO FIND USS BOOTH". */
+  judul: string;
   campaignName: string;
   campaignType: string;
   objective: string;
@@ -177,6 +180,7 @@ export function validateRequestInput(input: RequestInput, master: Master, today:
     if (Array.isArray(v) ? v.length === 0 : !String(v || '').trim()) errors[key] = `${label} wajib diisi`;
   };
   req('brand', 'Brand');
+  req('judul', 'Judul');
   req('campaignName', 'Campaign Name');
   req('campaignType', 'Campaign Type');
   req('objective', 'Objective');
@@ -258,6 +262,7 @@ export async function submitRequest(
     Grup: route.grup,
     'PIC Brand': pic!.name,
     'Email Requestor': user.email,
+    Judul: input.judul.trim().slice(0, 120),
     'Campaign Name': input.campaignName.trim(),
     'Campaign Type': input.campaignType,
     Kategori: input.kategori.join(', '),
@@ -397,6 +402,7 @@ export async function cekBrief(
       'Status Sejak': tx.ts,
       'Selesai Pada': '',
       'Reminder Terkirim': '',
+      Judul: r.Judul || '',
       _row: 0,
     } as TaskRow;
     t['Bola di'] = ballHolder(t.Status, t, r.Traffic);
@@ -468,6 +474,7 @@ export async function updateBrief(
   const route = routeRequest(db.master, r.Brand, input.kategori);
   const urgent = isUrgent(tx.today, input.dueDate, route.leadTimeMin, db.master.holidays);
   const patch: Record<string, Cell> = {
+    Judul: input.judul.trim().slice(0, 120),
     'Campaign Name': input.campaignName.trim(),
     'Campaign Type': input.campaignType,
     Kategori: input.kategori.join(', '),
@@ -967,6 +974,8 @@ export function parseDetailLine(detailKategori: string, kategori: string, defs: 
 }
 
 export interface BriefEdit {
+  /** Judul task ini saja (tidak mengubah task lain di request yang sama). Undefined = tidak diubah. */
+  judul?: string;
   campaignName: string;
   campaignType: string;
   objective: string;
@@ -1043,7 +1052,15 @@ export async function editBriefFromTask(store: Store, user: CurrentUser, taskId:
       'Detail Kategori': 'Detail',
     };
     const changed = Object.keys(next).filter((k) => String(next[k] ?? '') !== String((r as unknown as Record<string, Cell>)[k] ?? ''));
-    if (!changed.length) return { ok: true, message: 'Tidak ada perubahan.' };
+    const judul = e.judul === undefined ? undefined : e.judul.trim().slice(0, 120);
+    if (judul !== undefined && !judul) return fail('Judul wajib diisi.');
+    const judulChanged = judul !== undefined && judul !== taskTitle(t, r);
+    if (!changed.length && !judulChanged) return { ok: true, message: 'Tidak ada perubahan.' };
+    if (judulChanged) {
+      await writeTask(tx, taskId, { Judul: judul! });
+      tx.log(taskId, 'Task', t.Status, t.Status, `Judul diubah: ${taskTitle(t, r)} → ${judul}`);
+      if (!changed.length) return { ok: true, message: 'Judul task diperbarui.' };
+    }
 
     await tx.store.update(SHEETS.REQUEST, 'Request ID', [{ key: r['Request ID'], patch: next }]);
     const siblings = tasksOf(tx.db, r['Request ID']).filter((x) => x.Kategori === t.Kategori);

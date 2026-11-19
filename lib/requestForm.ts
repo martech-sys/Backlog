@@ -4,6 +4,7 @@ import type { RequestRow } from './config';
 export interface RequestFormDefaults {
   brand: string;
   picName: string;
+  judul: string;
   campaignName: string;
   campaignType: string;
   objective: string;
@@ -24,6 +25,7 @@ export interface RequestFormDefaults {
 export const EMPTY_DEFAULTS: RequestFormDefaults = {
   brand: '',
   picName: '',
+  judul: '',
   campaignName: '',
   campaignType: '',
   objective: '',
@@ -65,6 +67,7 @@ export function defaultsFromRequest(r: RequestRow, defs: CategoryInfo[] = BUILTI
   return {
     brand: r.Brand,
     picName: r['PIC Brand'],
+    judul: r.Judul || '',
     campaignName: r['Campaign Name'],
     campaignType: r['Campaign Type'],
     objective: r.Objective,

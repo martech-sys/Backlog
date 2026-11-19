@@ -44,6 +44,7 @@ export function at(iso: string) {
 export function requestInput(over: Partial<RequestInput> = {}): RequestInput {
   return {
     brand: 'Heymale',
+    judul: 'Poster Payday',
     campaignName: 'Payday Sale',
     campaignType: 'Small Campaign',
     objective: 'Naikkan penjualan',

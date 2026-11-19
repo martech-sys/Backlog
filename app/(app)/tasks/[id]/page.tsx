@@ -22,7 +22,8 @@ import { AssigneePicker } from '@/components/task/AssigneePicker';
 import { CancelEdit, EditableSection } from '@/components/task/EditableSection';
 import { ImagePicker } from '@/components/task/ImagePicker';
 import { ThumbImg } from '@/components/task/ThumbImg';
-import { Flash, LinkOrDash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
+import { Flash, HealthBadge, LinkOrDash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
+import { taskHealth, taskTitle } from '@/lib/taskInfo';
 import { ACTIVE_STATUSES, CAMPAIGN_TYPES, CUSTOM_CATEGORY, DIVISI, DONE_STATUSES, STATUS, type Status, TASK_STATUSES } from '@/lib/config';
 import { now } from '@/lib/clock';
 import { formatTanggal, formatWaktu, todayWib } from '@/lib/dates';
@@ -183,8 +184,11 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             ← {t['Request ID']}
           </Link>
           <h1 className="row">
-            {id} <StatusBadge status={t.Status} /> <UrgentBadge urgent={t.Urgent} />
+            {taskTitle(t, r)} <StatusBadge status={t.Status} /> <UrgentBadge urgent={t.Urgent} /> <HealthBadge health={taskHealth(t, today)} withValue />
           </h1>
+          <p className="task-code" style={{ fontSize: 12.5, marginTop: 0 }}>
+            {id}
+          </p>
           <p>
             {t.Brand} · {r?.['Campaign Name']} · {t.Kategori}
             {t['Jenis Custom'] ? ` "${t['Jenis Custom']}"` : ''} ({t.Divisi || 'divisi belum diatur'})
@@ -440,6 +444,8 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             view={
               r ? (
                 <dl className="kv">
+                  <dt>Title</dt>
+                  <dd>{taskTitle(t, r)}</dd>
                   <dt>Campaign</dt>
                   <dd>
                     {r['Campaign Name']} <span className="subtle">({r['Campaign Type']})</span>
@@ -480,6 +486,10 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
               r ? (
                 <form action={editBriefAction} className="stack">
                   <input type="hidden" name="taskId" value={id} />
+                  <div className="field">
+                    <label htmlFor="eb-judul">Title (this task only)</label>
+                    <input id="eb-judul" name="judul" defaultValue={taskTitle(t, r)} maxLength={120} required />
+                  </div>
                   <div className="form-grid">
                     <div className="field">
                       <label htmlFor="eb-campaignName">Campaign Name</label>

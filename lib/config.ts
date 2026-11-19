@@ -236,6 +236,8 @@ export const REQUEST_HEADERS = [
   'Status Sejak',
   'Brief OK Pada',
   'Selesai Pada',
+  /** Judul request (mis. "Reels HOW TO FIND USS BOOTH"); jadi judul task di Tracker. */
+  'Judul',
 ] as const;
 
 export const TASK_HEADERS = [
@@ -267,6 +269,10 @@ export const TASK_HEADERS = [
   'Reminder Terkirim',
   'Deskripsi',
   'Jenis Custom',
+  /** Judul task (ala ClickUp). Kosong pada data lama → tampil Campaign Name. */
+  'Judul',
+  /** Diisi saat task diarsipkan admin ("timestamp · oleh"); task arsip disembunyikan dari semua tampilan. */
+  'Diarsipkan',
 ] as const;
 
 export const STATUS_LOG_HEADERS = [

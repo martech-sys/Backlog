@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { diffDays, sisaLabel } from '@/lib/dates';
+import type { HealthLevel } from '@/lib/taskInfo';
 
 const STATUS_TONE: Record<string, string> = {
   Baru: 'blue',
@@ -23,6 +24,17 @@ export function StatusBadge({ status }: { status: string }) {
 export function UrgentBadge({ urgent }: { urgent: string | boolean }) {
   if (!(urgent === true || urgent === 'Ya')) return null;
   return <span className="badge red">URGENT</span>;
+}
+
+/** Creative Output Task Health: badge berwarna hijau → oranye → merah makin gelap. */
+export function HealthBadge({ health, withValue = false }: { health: HealthLevel | null; withValue?: boolean }) {
+  if (!health) return <span className="subtle">-</span>;
+  return (
+    <span className={`health ${health.key}`} title={`${health.badge}: ${health.value} — ${health.rule}`}>
+      {health.badge}
+      {withValue ? <b>{health.value}</b> : null}
+    </span>
+  );
 }
 
 export function Sisa({ deadline, today, done }: { deadline: string; today: string; done?: boolean }) {

@@ -11,7 +11,8 @@ import { Journey } from '@/components/Journey';
 import { journeyCounts, journeyOf } from '@/lib/journey';
 import { REVISI_STATUSES } from '@/lib/revisi';
 import { getDb, requireUser } from '@/lib/session';
-import { Flash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
+import { Flash, HealthBadge, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
+import { bySubmittedDesc, HEALTH_LEVELS, submittedAt, taskHealth, taskTitle } from '@/lib/taskInfo';
 import type { CurrentUser } from '@/lib/workflow';
 
 export const metadata = { title: 'Tracker' };
@@ -19,25 +20,26 @@ export const metadata = { title: 'Tracker' };
 type SP = Promise<Record<string, string | undefined>>;
 
 const VIEWS = [
-  { key: 'bola', label: 'Tugas saya' },
-  { key: 'aktif', label: 'Semua aktif' },
-  { key: 'mine', label: 'Terkait saya' },
+  { key: 'bola', label: 'My tasks' },
+  { key: 'aktif', label: 'All active' },
+  { key: 'mine', label: 'Involving me' },
   { key: 'overdue', label: 'Overdue' },
   { key: 'urgent', label: 'URGENT' },
-  { key: 'selesai', label: 'Final & selesai' },
-  { key: 'semua', label: 'Semua' },
+  { key: 'selesai', label: 'Final & done' },
+  { key: 'semua', label: 'All' },
 ] as const;
 
 const FILTER_LABELS: Record<string, string> = {
-  grup: 'Grup',
+  grup: 'Group',
   brand: 'Brand',
-  kategori: 'Kategori',
-  divisi: 'Divisi',
+  kategori: 'Category',
+  divisi: 'Division',
   status: 'Status',
-  tahap: 'Tahap',
+  health: 'Health',
+  tahap: 'Stage',
   anggota: 'Assignee',
-  from: 'Selesai',
-  q: 'Cari',
+  from: 'Completed',
+  q: 'Search',
 };
 
 function involves(u: CurrentUser, t: TaskRow) {
@@ -86,17 +88,20 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         (!stage || stage.statuses.includes(t.Status as Status)) &&
         (!sp.from || (!!t['Selesai Pada'] && inPeriod(t['Selesai Pada'], sp.from, sp.to))) &&
         (!sp.anggota || t.Assignee === sp.anggota) &&
+        (!sp.health || taskHealth(t, today)?.key === sp.health) &&
         (!q ||
-          `${t['Task ID']} ${t.Brand} ${t.Kategori} ${t['Jenis Custom'] || ''} ${t.Assignee} ${t.Lead} ${reqById.get(t['Request ID'])?.['Campaign Name'] || ''}`
+          `${t['Task ID']} ${taskTitle(t, reqById.get(t['Request ID']))} ${t.Brand} ${t.Kategori} ${t['Jenis Custom'] || ''} ${t.Assignee} ${t.Lead} ${reqById.get(t['Request ID'])?.['Campaign Name'] || ''}`
             .toLowerCase()
             .includes(q));
+  // Default: urut waktu pengajuan (terbaru di atas). Urutan tetap stabil apa pun filternya.
+  const bySubmitted = bySubmittedDesc<TaskRow>(reqById);
   const filtered = db.tasks
     .filter((t) => matchView(view, t) && matchStatus(t) && matchOther(t))
     .sort((a, b) => {
-      if (sp.sort === 'lama') return (a['Status Sejak'] || '').localeCompare(b['Status Sejak'] || '');
-      if (sp.sort === 'revisi') return (Number(b['Ronde Revisi']) || 0) - (Number(a['Ronde Revisi']) || 0);
-      if (view === 'selesai') return (b['Selesai Pada'] || '').localeCompare(a['Selesai Pada'] || '');
-      return (a.Deadline || '9999').localeCompare(b.Deadline || '9999') || a['Task ID'].localeCompare(b['Task ID']);
+      if (sp.sort === 'lama') return (a['Status Sejak'] || '').localeCompare(b['Status Sejak'] || '') || bySubmitted(a, b);
+      if (sp.sort === 'revisi') return (Number(b['Ronde Revisi']) || 0) - (Number(a['Ronde Revisi']) || 0) || bySubmitted(a, b);
+      if (sp.sort === 'deadline') return (a.Deadline || '9999').localeCompare(b.Deadline || '9999') || bySubmitted(a, b);
+      return bySubmitted(a, b);
     });
 
   const pipeline = journeyCounts(db.tasks.filter(matchOther), today);
@@ -117,11 +122,11 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
       <div className="page-head">
         <div>
           <h1>Tracker</h1>
-          <p>Semua task tim creative dengan status baku, penanggung jawab, dan posisi bola.</p>
+          <p>Every creative task with its stage, owner, and who holds the ball. Newest submissions first.</p>
         </div>
         <div className="actions-row">
           <Link className="btn" href="/backlog">
-            Lihat sebagai papan
+            View as board
           </Link>
         </div>
       </div>
@@ -136,14 +141,14 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         ))}
       </div>
 
-      <nav className="pipeline" aria-label="Progress journey: jumlah task per tahap">
+      <nav className="pipeline" aria-label="Progress journey: tasks per stage">
         {pipeline.stages.map((st, i) => (
           <span key={st.status} style={{ display: 'contents' }}>
             {i ? <span className="arrow">→</span> : null}
             <Link
               href={sp.status === st.status ? keep({ status: '' }) : keep({ view: 'semua', status: st.status })}
               className={sp.status === st.status ? 'active' : ''}
-              title={`Lihat task berstatus ${st.status}`}
+              title={`Show tasks in ${st.status}`}
             >
               <span className="n">{st.count}</span>
               <span className="lbl">{st.status}</span>
@@ -154,12 +159,12 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         <Link
           href={sp.status === 'Revisi' ? keep({ status: '' }) : keep({ view: 'semua', status: 'Revisi' })}
           className={`warn${sp.status === 'Revisi' ? ' active' : ''}`}
-          title="Task yang sedang direvisi (internal atau brand)"
+          title="Tasks in revision (internal or brand)"
         >
           <span className="n">{pipeline.revisi}</span>
           <span className="lbl">Revisi</span>
         </Link>
-        <Link href={keep({ view: 'overdue', status: '' })} className={`danger${view === 'overdue' ? ' active' : ''}`} title="Task lewat deadline">
+        <Link href={keep({ view: 'overdue', status: '' })} className={`danger${view === 'overdue' ? ' active' : ''}`} title="Tasks past deadline">
           <span className="n">{pipeline.overdue}</span>
           <span className="lbl">Overdue</span>
         </Link>
@@ -169,11 +174,19 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         path="/tracker"
         sp={sp}
         labels={FILTER_LABELS}
-        format={(k, v) => (k === 'from' ? `${formatTanggal(v, false)} – ${formatTanggal(sp.to || v, false)}` : v)}
+        format={(k, v) =>
+          k === 'from'
+            ? `${formatTanggal(v, false)} – ${formatTanggal(sp.to || v, false)}`
+            : k === 'health'
+              ? HEALTH_LEVELS.find((h) => h.key === v)?.badge || v
+              : v
+        }
       />
       {sp.sort ? (
         <p className="subtle" style={{ marginTop: -4 }}>
-          Diurutkan: {sp.sort === 'lama' ? 'paling lama di status saat ini lebih dulu' : 'ronde revisi terbanyak lebih dulu'}.
+          Sorted by:{' '}
+          {sp.sort === 'lama' ? 'longest in current stage first' : sp.sort === 'deadline' ? 'nearest deadline first' : 'most revision rounds first'}.{' '}
+          <Link href={keep({ sort: '' })}>Back to newest submissions</Link>
         </p>
       ) : null}
 
@@ -183,9 +196,9 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
           sp[k] ? <input key={k} type="hidden" name={k} value={sp[k]} /> : null,
         )}
         <div className="field">
-          <label htmlFor="grup">Grup</label>
+          <label htmlFor="grup">Group</label>
           <select id="grup" name="grup" defaultValue={sp.grup || ''}>
-            <option value="">Semua</option>
+            <option value="">All</option>
             {db.master.grups.map((g) => (
               <option key={g.name}>{g.name}</option>
             ))}
@@ -194,25 +207,25 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         <div className="field">
           <label htmlFor="brand">Brand</label>
           <select id="brand" name="brand" defaultValue={sp.brand || ''}>
-            <option value="">Semua</option>
+            <option value="">All</option>
             {brands.map((b) => (
               <option key={b}>{b}</option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="divisi">Divisi</label>
+          <label htmlFor="divisi">Division</label>
           <select id="divisi" name="divisi" defaultValue={sp.divisi || ''}>
-            <option value="">Semua</option>
+            <option value="">All</option>
             {divisi.map((d) => (
               <option key={d}>{d}</option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="kategori">Kategori</label>
+          <label htmlFor="kategori">Category</label>
           <select id="kategori" name="kategori" defaultValue={sp.kategori || ''}>
-            <option value="">Semua</option>
+            <option value="">All</option>
             {categoryDefs(db.master, { includeInactive: true }).map((c) => (
               <option key={c.name}>{c.name}</option>
             ))}
@@ -221,27 +234,38 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         <div className="field">
           <label htmlFor="status">Status</label>
           <select id="status" name="status" defaultValue={sp.status || ''}>
-            <option value="">Semua</option>
+            <option value="">All</option>
             {TASK_STATUSES.map((s) => (
               <option key={s}>{s}</option>
             ))}
           </select>
         </div>
         <div className="field">
+          <label htmlFor="health">Health</label>
+          <select id="health" name="health" defaultValue={sp.health || ''}>
+            <option value="">All</option>
+            {HEALTH_LEVELS.map((h) => (
+              <option key={h.key} value={h.key}>
+                {h.badge} · {h.value}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
           <label htmlFor="anggota">Assignee</label>
           <select id="anggota" name="anggota" defaultValue={sp.anggota || ''}>
-            <option value="">Semua</option>
+            <option value="">All</option>
             {anggota.map((a) => (
               <option key={a}>{a}</option>
             ))}
           </select>
         </div>
         <div className="field wide">
-          <label htmlFor="q">Cari</label>
-          <input id="q" type="search" name="q" placeholder="ID, brand, campaign, nama" defaultValue={sp.q || ''} />
+          <label htmlFor="q">Search</label>
+          <input id="q" type="search" name="q" placeholder="Title, ID, brand, campaign, name" defaultValue={sp.q || ''} />
         </div>
         <button className="btn primary" type="submit">
-          Terapkan
+          Apply
         </button>
         <Link className="btn" href={`/tracker?view=${view}`}>
           Reset
@@ -249,25 +273,27 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
       </form>
 
       <div className="table-wrap">
-        <table>
+        <table className="tracker-table">
           <thead>
             <tr>
               <th>Task</th>
-              <th>Brand · Campaign</th>
-              <th>Kategori</th>
+              <th>Brand</th>
+              <th>Category</th>
               <th>Assignee</th>
               <th>Status</th>
-              <th>Bola di</th>
+              <th>Health</th>
+              <th>Ball with</th>
+              <th>Submitted</th>
               <th>Deadline</th>
-              <th>Sisa</th>
-              <th>Revisi</th>
+              <th>Time left</th>
+              <th>Rev.</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="empty">
-                  Tidak ada task.
+                <td colSpan={11} className="empty">
+                  No tasks.
                 </td>
               </tr>
             ) : (
@@ -276,14 +302,19 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
                 const late = !isDone(t) && t.Deadline && diffDays(today, t.Deadline.slice(0, 10)) < 0;
                 const mineRow = ballIsMine(user, t, r?.Traffic || '');
                 const urg = urgency(t, today, tomorrow);
+                const sub = submittedAt(t, r);
                 return (
                   <tr key={t['Task ID']} className={[mineRow ? 'mine-row' : '', urg ? `urg-${urg}` : ''].join(' ').trim() || undefined}>
-                    <td className="nowrap">
-                      <Link className="title" href={`/tasks/${t['Task ID']}`}>
-                        {t['Task ID']}
+                    <td className="task-cell">
+                      <Link className="task-title" href={`/tasks/${t['Task ID']}`}>
+                        {taskTitle(t, r)}
                       </Link>
-                      <div className="row" style={{ gap: 4, marginTop: 2 }}>
-                        {mineRow ? <span className="badge blue">Tugas kamu</span> : null}
+                      {r?.['Campaign Name'] && taskTitle(t, r) !== r['Campaign Name'] ? (
+                        <div className="task-campaign">{r['Campaign Name']}</div>
+                      ) : null}
+                      <div className="task-code">{t['Task ID']}</div>
+                      <div className="row" style={{ gap: 4, marginTop: 4 }}>
+                        {mineRow ? <span className="badge blue">Your task</span> : null}
                         {mineRow ? <NewMarker seenKey={seenKey(t)} /> : null}
                         <UrgentBadge urgent={t.Urgent} />
                         {late ? <span className="badge red">Overdue</span> : null}
@@ -291,12 +322,12 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
                     </td>
                     <td>
                       <div className="title">{t.Brand}</div>
-                      <div className="subtle">{r?.['Campaign Name'] || '-'}</div>
+                      <div className="subtle">{t.Grup}</div>
                     </td>
                     <td>
                       {t.Kategori === CUSTOM_CATEGORY ? (
                         <>
-                          <span className="badge violet">Custom</span> {t['Jenis Custom'] || <span className="subtle">belum diatur</span>}
+                          <span className="badge violet">Custom</span> {t['Jenis Custom'] || <span className="subtle">not set</span>}
                         </>
                       ) : (
                         t.Kategori
@@ -307,14 +338,27 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
                       </div>
                     </td>
                     <td>
-                      {t.Assignee || <span className="badge outline">Belum assign</span>}
-                      <div className="subtle">Lead: {t.Lead}</div>
+                      {t.Assignee || <span className="badge outline">Unassigned</span>}
+                      <div className="subtle">Lead: {t.Lead || '-'}</div>
                     </td>
                     <td>
                       <StatusBadge status={t.Status} />
                       <Journey pos={journeyOf(t, today)} />
                     </td>
+                    <td>
+                      <HealthBadge health={taskHealth(t, today)} />
+                    </td>
                     <td>{t['Bola di']}</td>
+                    <td className="nowrap">
+                      {sub ? (
+                        <>
+                          {formatTanggal(sub.slice(0, 10), false)}
+                          <div className="subtle">{sub.slice(11, 16)}</div>
+                        </>
+                      ) : (
+                        <span className="subtle">-</span>
+                      )}
+                    </td>
                     <td className="nowrap deadline-cell">{formatTanggal(t.Deadline)}</td>
                     <td className="nowrap">
                       <Sisa deadline={t.Deadline} today={today} done={isDone(t)} />
@@ -322,7 +366,7 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
                     <td>
                       <span className={(Number(t['Ronde Revisi']) || 0) > 2 ? 'rev-warn' : ''}>{Number(t['Ronde Revisi']) || 0}</span>
                       {sp.sort === 'lama' ? (
-                        <div className="subtle">sejak {formatTanggal(t['Status Sejak'].slice(0, 10), false)}</div>
+                        <div className="subtle">since {formatTanggal(t['Status Sejak'].slice(0, 10), false)}</div>
                       ) : null}
                     </td>
                   </tr>
@@ -333,8 +377,9 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         </table>
       </div>
       <p className="subtle" style={{ marginTop: 8 }}>
-        {filtered.length} task · <span style={{ color: 'var(--danger)' }}>merah</span> = overdue/URGENT,{' '}
-        <span style={{ color: 'var(--warning)' }}>oranye</span> = deadline hari ini/besok, baris biru = bola di kamu.
+        {filtered.length} tasks · <span style={{ color: 'var(--danger)' }}>red</span> = overdue/URGENT,{' '}
+        <span style={{ color: 'var(--warning)' }}>orange</span> = due today/tomorrow, blue row = the ball is with you ·{' '}
+        <Link href={keep({ sort: 'deadline' })}>sort by deadline</Link>
       </p>
     </>
   );

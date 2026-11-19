@@ -73,6 +73,8 @@ const CAMPAIGNS = [
   'Year End Sale',
 ];
 
+const JUDUL = ['Teaser', 'Hero visual', 'Konten launching', 'Lookbook', 'Promo countdown', 'Behind the scene', 'Konten edukasi'];
+
 export async function seedDemoActivity(store: Store): Promise<void> {
   const rand = mulberry32(20261027);
   const pick = <T,>(arr: T[]): T => arr[Math.floor(rand() * arr.length)];
@@ -111,6 +113,7 @@ export async function seedDemoActivity(store: Store): Promise<void> {
       at(t);
       const res = await svc.submitRequest(store, user(pic.name), {
         brand: brand.name,
+        judul: `${pick(JUDUL)} ${uniq[0]}`,
         campaignName: `${pick(CAMPAIGNS)} ${brand.name}`,
         campaignType: pick(['Big Campaign', 'Medium Campaign', 'Small Campaign', 'Always-on / Reguler']),
         objective: 'Meningkatkan awareness dan penjualan koleksi terbaru.',
@@ -149,6 +152,7 @@ export async function seedDemoActivity(store: Store): Promise<void> {
         const r = (await loadDb(store)).requests.find((x) => x['Request ID'] === rid)!;
         await svc.updateBrief(store, user(pic.name), rid, {
           brand: r.Brand,
+          judul: r.Judul,
           campaignName: r['Campaign Name'],
           campaignType: r['Campaign Type'],
           objective: r.Objective,
@@ -267,6 +271,7 @@ async function showcase(store: Store, realNow: number): Promise<void> {
     const today = todayWib(new Date(realNow));
     return {
       brand,
+      judul: `${campaign} — ${kategori}`,
       campaignName: `${campaign} ${brand}`,
       campaignType: 'Medium Campaign',
       objective: 'Mendorong penjualan koleksi baru di marketplace dan Instagram.',

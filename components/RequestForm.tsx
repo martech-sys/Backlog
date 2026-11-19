@@ -169,6 +169,15 @@ export function RequestForm(p: Props) {
               <input id="requestor" type="text" value={p.currentUser} disabled />
             </Field>
           )}
+          <Field
+            label="Judul"
+            required
+            help="Nama pekerjaan yang tampil di Tracker, mis. Reels HOW TO FIND USS BOOTH"
+            error={e.judul}
+            htmlFor="judul"
+          >
+            <input id="judul" name="judul" type="text" maxLength={120} defaultValue={p.defaults.judul} />
+          </Field>
           <Field label="Campaign Name" required error={e.campaignName} htmlFor="campaignName">
             <input id="campaignName" name="campaignName" type="text" defaultValue={p.defaults.campaignName} />
           </Field>
