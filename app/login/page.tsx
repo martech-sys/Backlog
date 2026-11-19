@@ -19,9 +19,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="mcard login-card" style={{ ['--c' as string]: '#2f6fed', marginTop: 22 }}>
         <div className="tab">{APP_NAME}</div>
         <div className="row" style={{ gap: 12, marginBottom: 6 }}>
-          <span className="brand-mark" style={{ width: 40, height: 40, fontSize: 16 }}>
-            CR
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.svg" alt="" width={44} height={44} className="app-icon" />
           <div>
             <h1 style={{ fontSize: 20 }}>Creative Request Tracker</h1>
             <p className="muted" style={{ margin: 0 }}>

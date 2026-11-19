@@ -2707,3 +2707,8 @@ tr:hover .icon-btn,
   background: #ef4444;
   box-shadow: 0 0 0 2px var(--side-bg);
 }
+.app-icon {
+  display: block;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}

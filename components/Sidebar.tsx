@@ -53,7 +53,8 @@ export function Sidebar({ items, user }: { items: SideItem[]; user: { name: stri
     <aside className={`sidebar${open ? ' open' : ''}`}>
       <div className="side-top">
         <Link href="/" className="side-brand">
-          <span className="brand-mark">CR</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.svg" alt="" width={28} height={28} className="app-icon" />
           <span className="lbl">Creative Tracker</span>
         </Link>
         <button type="button" className="side-menu-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? 'Tutup menu' : 'Buka menu'}>
