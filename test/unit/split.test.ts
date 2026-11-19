@@ -65,3 +65,33 @@ test('jumlah pemecahan dibatasi', async () => {
   assert.equal(r.ok, false);
   assert.ok(r.errors?.['detail:Desain grafis:jumlahDesain']);
 });
+
+test('approve / tolak request secara massal (poin 10)', async () => {
+  const store = testStore();
+  const brama = await userOf(store, 'Brama');
+  const evi = await userOf(store, 'Evi');
+  at('2026-10-27T02:00:00Z');
+  const ids: string[] = [];
+  for (let i = 0; i < 4; i++) ids.push((await svc.submitRequest(store, brama, requestInput({ dueDate: '2026-11-13' }))).id!);
+
+  const noNote = await svc.bulkCekBrief(store, evi, ids.slice(2), 'Kurang', '');
+  assert.equal(noNote.ok, false, 'tolak wajib alasan');
+
+  const ok = await svc.bulkCekBrief(store, evi, [ids[0], ids[1], 'CR-0000-999'], 'Lengkap', '');
+  assert.deepEqual(ok.done, [ids[0], ids[1]]);
+  assert.equal(ok.failed.length, 1);
+  assert.match(ok.message, /^2 dari 3 request disetujui\. Gagal: CR-0000-999/);
+
+  const rej = await svc.bulkCekBrief(store, evi, ids.slice(2), 'Kurang', 'Lengkapi referensi visual');
+  assert.equal(rej.ok, true, rej.message);
+  const db = await loadDb(store);
+  assert.deepEqual(
+    db.requests.map((r) => r.Status),
+    ['Diproses', 'Diproses', 'Brief Kurang', 'Brief Kurang'],
+  );
+  assert.equal(db.tasks.length, 2, 'tiap request yang disetujui jadi task sesuai default kategori');
+  assert.ok(db.tasks.every((t) => t.Lead && t.Assignee), 'lead & assignee terisi otomatis dari default kategori');
+
+  const pic = await svc.bulkCekBrief(store, brama, [ids[2]], 'Lengkap', '');
+  assert.equal(pic.ok, false, 'PIC brand tidak boleh approve');
+});

@@ -501,6 +501,36 @@ export function splitPlan(
     });
 }
 
+/**
+ * Approve / tolak banyak request sekaligus (halaman Request). Approve = brief lengkap dengan deadline request
+ * itu sendiri (routing & assign otomatis mengikuti default kategori); tolak = brief kurang, kembali ke PIC dengan
+ * satu catatan yang sama. Request yang gagal tidak menghentikan yang lain; hasilnya diringkas.
+ */
+export async function bulkCekBrief(
+  store: Store,
+  user: CurrentUser,
+  ids: string[],
+  decision: 'Lengkap' | 'Kurang',
+  note: string,
+): Promise<ActionResult & { done: string[]; failed: { id: string; reason: string }[] }> {
+  const unique = [...new Set(ids.map((x) => x.trim()).filter(Boolean))].slice(0, 100);
+  if (!unique.length) return { ok: false, message: 'Pilih minimal satu request.', done: [], failed: [] };
+  if (decision === 'Kurang' && !note.trim())
+    return { ok: false, message: 'Tulis alasan penolakan agar PIC tahu apa yang perlu dilengkapi.', done: [], failed: [] };
+  const done: string[] = [];
+  const failed: { id: string; reason: string }[] = [];
+  for (const id of unique) {
+    const r = await cekBrief(store, user, { requestId: id, decision, note });
+    if (r.ok) done.push(id);
+    else failed.push({ id, reason: r.message });
+  }
+  const verb = decision === 'Lengkap' ? 'disetujui' : 'dikembalikan ke PIC';
+  const message =
+    `${done.length} dari ${unique.length} request ${verb}.` +
+    (failed.length ? ` Gagal: ${failed.map((f) => `${f.id} (${f.reason})`).join('; ')}` : '');
+  return { ok: done.length > 0 && !failed.length, message, done, failed };
+}
+
 /** PIC melengkapi brief yang dikembalikan Traffic. */
 export async function updateBrief(
   store: Store,

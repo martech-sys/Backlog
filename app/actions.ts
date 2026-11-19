@@ -111,6 +111,13 @@ export async function cekBriefAction(fd: FormData) {
   done(safeBack(fd, `/requests/${requestId}`), r);
 }
 
+export async function bulkCekBriefAction(fd: FormData) {
+  const user = await requireUser();
+  const decision = s(fd, 'decision') === 'Kurang' ? 'Kurang' : 'Lengkap';
+  const r = await svc.bulkCekBrief(await getStore(), user, list(fd, 'ids'), decision, s(fd, 'note'));
+  done(safeBack(fd, '/requests'), r);
+}
+
 export async function assignAction(fd: FormData) {
   const user = await requireUser();
   const taskId = s(fd, 'taskId');
