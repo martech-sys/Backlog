@@ -8,7 +8,7 @@ const MAX_BYTES = 4 * 1024 * 1024;
 
 /** Perkecil foto besar di browser (JPEG ±85%) agar upload cepat dan di bawah 4 MB. */
 async function compress(file: File): Promise<File> {
-  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Hanya gambar JPG atau PNG.');
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Only JPG or PNG images.');
   if (file.size < 800 * 1024) return file;
   const bmp = await createImageBitmap(file);
   const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
@@ -33,7 +33,7 @@ async function compress(file: File): Promise<File> {
 export function ImagePicker({
   name = 'lampiran',
   folder,
-  label = 'Lampiran gambar',
+  label = 'Image attachments',
   allowLink = true,
   canUpload = false,
   children,
@@ -58,7 +58,7 @@ export function ImagePicker({
       setBusy((n) => n + 1);
       try {
         const file = await compress(f);
-        if (file.size > MAX_BYTES) throw new Error('Ukuran gambar maksimal 4 MB.');
+        if (file.size > MAX_BYTES) throw new Error('Maximum image size is 4 MB.');
         const fd = new FormData();
         fd.set('file', file);
         fd.set('folder', folder);
@@ -68,7 +68,7 @@ export function ImagePicker({
           url?: string;
           message?: string;
         };
-        if (!j.ok || !j.url) throw new Error(j.message || `Upload gagal (${res.status})`);
+        if (!j.ok || !j.url) throw new Error(j.message || `Upload failed (${res.status})`);
         const url = j.url;
         setItems((xs) => [...xs, { url, preview: url }]);
       } catch (e) {
@@ -82,7 +82,7 @@ export function ImagePicker({
   function addLink() {
     const u = link.trim();
     if (!/^https?:\/\/\S+$/.test(u)) {
-      setError('Link harus diawali https://');
+      setError('Link must start with https://');
       return;
     }
     const drive = u.match(/\/d\/([\w-]{20,})|[?&]id=([\w-]{20,})/);
@@ -100,7 +100,7 @@ export function ImagePicker({
         if (!files.length) return;
         e.preventDefault();
         if (canUpload) void upload(files);
-        else setError('Gambar tidak bisa ditempel langsung. Simpan dulu ke Google Drive-mu, lalu tempel link-nya di kolom di bawah.');
+        else setError('Images cannot be pasted directly. Save it to your Google Drive first, then paste the link in the field below.');
       }}
     >
       {children}
@@ -109,8 +109,8 @@ export function ImagePicker({
         <div className="thumbs">
           {items.map((it, i) => (
             <span key={it.url + i} className="thumb">
-              <ThumbImg src={it.preview} alt={`Lampiran ${i + 1}`} />
-              <button type="button" aria-label="Hapus lampiran" onClick={() => setItems((xs) => xs.filter((_, j) => j !== i))}>
+              <ThumbImg src={it.preview} alt={`Attachment ${i + 1}`} />
+              <button type="button" aria-label="Remove attachment" onClick={() => setItems((xs) => xs.filter((_, j) => j !== i))}>
                 ×
               </button>
               <input type="hidden" name={name} value={it.url} />
@@ -118,7 +118,7 @@ export function ImagePicker({
           ))}
           {canUpload && items.length < 6 ? (
             <button type="button" className="thumb add" onClick={() => input.current?.click()} disabled={busy > 0}>
-              {busy ? 'Upload…' : '+ Gambar'}
+              {busy ? 'Uploading…' : '+ Image'}
             </button>
           ) : null}
         </div>
@@ -134,7 +134,7 @@ export function ImagePicker({
           }}
         />
         {canUpload ? (
-          <span className="help">JPG/PNG maks. 4 MB (foto besar diperkecil otomatis). Bisa juga tempel screenshot dengan Ctrl/Cmd + V di sini.</span>
+          <span className="help">JPG/PNG max. 4 MB (large photos are resized automatically). You can also paste a screenshot here with Ctrl/Cmd + V.</span>
         ) : null}
         {allowLink ? (
           <div className="row" style={{ gap: 6, marginTop: 4, flexWrap: 'nowrap' }}>
@@ -148,18 +148,18 @@ export function ImagePicker({
                   addLink();
                 }
               }}
-              placeholder={canUpload ? 'atau tempel link gambar / Google Drive' : 'Tempel link gambar dari Google Drive-mu'}
+              placeholder={canUpload ? 'or paste an image / Google Drive link' : 'Paste an image link from your Google Drive'}
               style={{ flex: 1 }}
             />
             <button type="button" className="btn small" onClick={addLink} disabled={!link.trim()}>
-              Tambah
+              Add
             </button>
           </div>
         ) : null}
         {allowLink ? (
           <span className="help">
-            Upload gambar ke Google Drive-mu → klik kanan → <b>Bagikan</b> → Akses umum: <b>siapa saja di organisasi</b> atau{' '}
-            <b>siapa saja yang memiliki link</b> → <b>Salin link</b>. Tanpa itu, tim hanya melihat tulisan &quot;Buka link&quot;.
+            Upload the image to your Google Drive → right-click → <b>Share</b> → General access: <b>anyone in the organization</b> or{' '}
+            <b>anyone with the link</b> → <b>Copy link</b>. Otherwise the team only sees &quot;Open link&quot;.
           </span>
         ) : null}
         {error ? (

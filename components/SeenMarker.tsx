@@ -18,7 +18,7 @@ export function NewMarker({ seenKey }: { seenKey: string }) {
   useEffect(() => {
     setIsNew(!readSeen().includes(seenKey));
   }, [seenKey]);
-  return isNew ? <span className="badge violet">Baru</span> : null;
+  return isNew ? <span className="badge violet">New</span> : null;
 }
 
 /** Dipasang di detail task: catat bahwa tugas ini sudah dibuka. */

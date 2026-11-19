@@ -64,16 +64,24 @@ function Notes({ text }: { text: string }) {
 }
 
 const STAGE_HINT: Record<string, string> = {
-  'Siap Assign': 'Menunggu lead memilih anggota yang mengerjakan.',
-  Dikerjakan: 'Assignee sedang mengerjakan draft.',
-  'QC Lead': 'Draft menunggu dicek lead divisi.',
-  'Revisi Internal': 'Draft dikembalikan lead untuk diperbaiki.',
-  'Review Brand': 'Draft menunggu review PIC brand.',
-  'Revisi Brand': 'PIC brand meminta revisi; assignee memperbaiki draft.',
-  ACC: 'Draft disetujui brand; tinggal upload file final.',
-  Final: 'File final sudah diupload; menunggu Traffic menutup tiket.',
-  Selesai: 'Tiket sudah ditutup.',
+  'Siap Assign': 'Waiting for the lead to pick a member to work on it.',
+  Dikerjakan: 'The assignee is working on the draft.',
+  'QC Lead': 'Draft is waiting for the division lead to check it.',
+  'Revisi Internal': 'Draft was sent back by the lead for fixes.',
+  'Review Brand': 'Draft is waiting for review by the brand PIC.',
+  'Revisi Brand': 'The brand PIC requested a revision; the assignee is fixing the draft.',
+  ACC: 'Draft approved by the brand; only the final file upload is left.',
+  Final: 'Final file uploaded; waiting for Traffic to close the ticket.',
+  Selesai: 'Ticket closed.',
 };
+
+// Label tampilan untuk jenis komentar (nilai data tetap bahasa Indonesia).
+const JENIS_LABEL: Record<string, string> = {
+  'QC lead': 'Lead QC',
+  'Revisi brand': 'Brand revision',
+  Catatan: 'Note',
+};
+const jenisLabel = (j: string) => JENIS_LABEL[j] || j;
 
 const JENIS_CLASS: Record<string, string> = {
   'QC lead': 'qc',
@@ -94,8 +102,8 @@ function Thumbs({ urls, size = '' }: { urls: string[]; size?: string }) {
       {urls.map((u, i) => {
         const src = previewUrl(u);
         return (
-          <a key={u + i} href={u} target="_blank" rel="noreferrer" className={`thumb ${size}`} title="Buka ukuran penuh">
-            <ThumbImg src={src} alt={`Lampiran ${i + 1}`} />
+          <a key={u + i} href={u} target="_blank" rel="noreferrer" className={`thumb ${size}`} title="Open full size">
+            <ThumbImg src={src} alt={`Attachment ${i + 1}`} />
           </a>
         );
       })}
@@ -186,7 +194,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((p) => ({
       name: p.name,
-      label: `${p.name}${p.isIntern ? ' (intern)' : ''} · ${divisiLabel(p.divisi)} · ${load.get(p.name) || 0}/${p.capacity} aktif`,
+      label: `${p.name}${p.isIntern ? ' (intern)' : ''} · ${divisiLabel(p.divisi)} · ${load.get(p.name) || 0}/${p.capacity} active`,
     }));
 
   return (
@@ -204,21 +212,21 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
           </p>
           <p>
             {t.Brand} · {r?.['Campaign Name']} · {t.Kategori}
-            {t['Jenis Custom'] ? ` "${t['Jenis Custom']}"` : ''} ({t.Divisi || 'divisi belum diatur'})
+            {t['Jenis Custom'] ? ` "${t['Jenis Custom']}"` : ''} ({t.Divisi || 'division not set'})
           </p>
         </div>
         <div className="row">
-          <span className="badge outline">Bola di: {t['Bola di']}</span>
+          <span className="badge outline">Ball with: {t['Bola di']}</span>
           <Sisa deadline={t.Deadline} today={today} done={done} />
         </div>
       </div>
       <Flash ok={sp.ok} err={sp.err} big />
       <div className="stage-head">
-        <div className="eyebrow">Tahap saat ini</div>
+        <div className="eyebrow">Current stage</div>
         <div className="stage-name">{t.Status}</div>
         <div className="stage-sub">
           {STAGE_HINT[t.Status] || ''}
-          {t['Bola di'] && t['Bola di'] !== '-' ? ` Bola di: ${t['Bola di']}.` : ''}
+          {t['Bola di'] && t['Bola di'] !== '-' ? ` Ball with: ${t['Bola di']}.` : ''}
         </div>
         <Journey pos={journeyOf(t, today)} size="lg" />
       </div>
@@ -229,48 +237,48 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
           {customPending ? (
             can.prioritize(user, t) ? (
               <section className="card action-card">
-                <h2>Atur task custom</h2>
+                <h2>Set up custom task</h2>
                 <p className="muted">
-                  Request ini memakai kategori <b>Lainnya (custom)</b>, jadi tidak dirouting otomatis. Tentukan divisi, lead, dan deadline,
-                  atau ubah ke kategori yang sudah ada bila ternyata cocok.
+                  This request uses the <b>Lainnya (custom)</b> category, so it is not routed automatically. Set the division, lead, and deadline,
+                  or switch to an existing category if one fits.
                 </p>
                 <form action={customSetupAction} className="stack">
                   <input type="hidden" name="taskId" value={id} />
                   <div className="grid grid-2" style={{ gap: 12 }}>
                     <div className="field">
-                      <label htmlFor="ckat">Kategori</label>
+                      <label htmlFor="ckat">Category</label>
                       <select id="ckat" name="kategori" defaultValue={CUSTOM_CATEGORY}>
-                        <option value={CUSTOM_CATEGORY}>Tetap custom</option>
+                        <option value={CUSTOM_CATEGORY}>Keep custom</option>
                         {[...new Set(db.master.kategori.map((k) => k.kategori))]
                           .filter((k) => k !== CUSTOM_CATEGORY)
                           .map((k) => (
                             <option key={k} value={k}>
-                              Ubah ke: {k}
+                              Switch to: {k}
                             </option>
                           ))}
                       </select>
                     </div>
                     <div className="field">
-                      <label htmlFor="cjenis">Jenis pekerjaan (untuk rekap)</label>
-                      <input id="cjenis" name="jenisCustom" placeholder="Mis. Banner marketplace" maxLength={60} />
-                      <span className="help">Wajib bila tetap custom. Jenis yang muncul &gt; 3x/bulan jadi kandidat kategori baru.</span>
+                      <label htmlFor="cjenis">Work type (for reports)</label>
+                      <input id="cjenis" name="jenisCustom" placeholder="E.g. Marketplace banner" maxLength={60} />
+                      <span className="help">Required if kept custom. Types that appear &gt; 3x/month become candidates for a new category.</span>
                     </div>
                     <div className="field">
-                      <label htmlFor="cdiv">Divisi</label>
+                      <label htmlFor="cdiv">Division</label>
                       <select id="cdiv" name="divisi" defaultValue="">
-                        <option value="">Pilih divisi…</option>
+                        <option value="">Select division…</option>
                         {DIVISI.map((d) => (
                           <option key={d.value} value={d.value}>
                             {d.label}
                           </option>
                         ))}
                       </select>
-                      <span className="help">Bila mengubah kategori, divisi mengikuti aturan kategori itu.</span>
+                      <span className="help">If you switch category, the division follows that category's rules.</span>
                     </div>
                     <div className="field">
                       <label htmlFor="clead">Lead</label>
                       <select id="clead" name="lead" defaultValue="">
-                        <option value="">Otomatis (lead divisi & grup)</option>
+                        <option value="">Automatic (division & group lead)</option>
                         {db.master.people
                           .filter((p) => p.active && p.isLead)
                           .map((p) => (
@@ -286,48 +294,48 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                     </div>
                   </div>
                   <div>
-                    <SubmitButton>Simpan & kirim ke lead</SubmitButton>
+                    <SubmitButton>Save & send to lead</SubmitButton>
                   </div>
                 </form>
               </section>
             ) : (
-              <div className="flash">Task custom ini sedang menunggu Traffic mengatur divisi, lead, dan deadline.</div>
+              <div className="flash">This custom task is waiting for Traffic to set the division, lead, and deadline.</div>
             )
           ) : null}
           {actions.includes('draft') ? (
             <section className="card action-card">
-              <h2>{t.Status === STATUS.DIKERJAKAN ? 'Upload draft' : 'Upload draft revisi'}</h2>
+              <h2>{t.Status === STATUS.DIKERJAKAN ? 'Upload draft' : 'Upload revised draft'}</h2>
               <p className="muted">
-                Simpan file di Google Drive, lalu tempel link-nya. Draft dikirim ke {t.Lead} untuk QC sebelum ke brand.
+                Save the file to Google Drive, then paste its link. The draft goes to {t.Lead} for QC before the brand.
               </p>
               {t.Status === STATUS.REVISI_INTERNAL && t['Catatan QC'] ? (
-                <div className="flash err">Catatan QC terakhir: {t['Catatan QC'].split('\n').pop()}</div>
+                <div className="flash err">Latest QC note: {t['Catatan QC'].split('\n').pop()}</div>
               ) : null}
               {t.Status === STATUS.REVISI_BRAND && t['Catatan Revisi'] ? (
-                <div className="flash err">Revisi brand: {t['Catatan Revisi'].split('\n').pop()}</div>
+                <div className="flash err">Brand revision: {t['Catatan Revisi'].split('\n').pop()}</div>
               ) : null}
               <form action={draftAction}>
                 <input type="hidden" name="taskId" value={id} />
                 <div className="field">
-                  <label htmlFor="link">Link draft v{(Number(t['Versi Draft']) || 0) + 1}</label>
+                  <label htmlFor="link">Draft link v{(Number(t['Versi Draft']) || 0) + 1}</label>
                   <input id="link" type="url" name="link" required placeholder="https://drive.google.com/…" />
                 </div>
                 {canUpload ? (
-                  <ImagePicker folder={id} label="Preview draft (opsional, agar lead & PIC bisa lihat tanpa buka Drive)" allowLink={false} canUpload>
+                  <ImagePicker folder={id} label="Draft preview (optional, so the lead & PIC can see it without opening Drive)" allowLink={false} canUpload>
                     <div className="field">
-                      <label htmlFor="dnote">Catatan untuk lead (opsional)</label>
-                      <textarea id="dnote" name="note" rows={2} placeholder="Mis. sudah ganti warna background sesuai revisi R1" />
+                      <label htmlFor="dnote">Note for the lead (optional)</label>
+                      <textarea id="dnote" name="note" rows={2} placeholder="E.g. changed the background color per revision R1" />
                     </div>
                   </ImagePicker>
                 ) : (
                   <div className="field">
-                    <label htmlFor="dnote">Catatan untuk lead (opsional)</label>
-                    <textarea id="dnote" name="note" rows={2} placeholder="Mis. sudah ganti warna background sesuai revisi R1" />
-                    <span className="help">Bila link draft berupa gambar di Drive yang sudah dibagikan, pratinjaunya tampil otomatis di daftar versi.</span>
+                    <label htmlFor="dnote">Note for the lead (optional)</label>
+                    <textarea id="dnote" name="note" rows={2} placeholder="E.g. changed the background color per revision R1" />
+                    <span className="help">If the draft link is a shared image on Drive, its preview shows up automatically in the version list.</span>
                   </div>
                 )}
                 <div>
-                  <SubmitButton>Kirim ke QC</SubmitButton>
+                  <SubmitButton>Send to QC</SubmitButton>
                 </div>
               </form>
             </section>
@@ -337,21 +345,21 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             <section className="card action-card">
               <h2>QC draft v{t['Versi Draft']}</h2>
               <p className="muted">
-                Draft: <LinkOrDash href={t['Link Draft']} /> · oleh {t.Assignee}
+                Draft: <LinkOrDash href={t['Link Draft']} /> · by {t.Assignee}
               </p>
               <form action={qcAction}>
                 <input type="hidden" name="taskId" value={id} />
                 <div className="field">
-                  <label htmlFor="qcnote">Catatan QC</label>
-                  <textarea id="qcnote" name="note" placeholder="Wajib bila belum lolos" />
+                  <label htmlFor="qcnote">QC note</label>
+                  <textarea id="qcnote" name="note" placeholder="Required if not passed" />
                 </div>
-                <ImagePicker folder={id} canUpload={canUpload} label="Lampiran (opsional, mis. screenshot yang ditandai)" />
+                <ImagePicker folder={id} canUpload={canUpload} label="Attachments (optional, e.g. a marked-up screenshot)" />
                 <div className="actions-row">
                   <SubmitButton name="decision" value="pass" className="btn success">
-                    Lolos QC, kirim ke brand
+                    Passed QC, send to brand
                   </SubmitButton>
                   <SubmitButton name="decision" value="fail" className="btn danger">
-                    Belum lolos, kembalikan
+                    Not passed, send back
                   </SubmitButton>
                 </div>
               </form>
@@ -364,24 +372,24 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
               <p className="muted">
                 Draft v{t['Versi Draft']}: <LinkOrDash href={t['Link Draft']} />
                 <br />
-                PIC juga bisa membalas lewat WhatsApp: <b>ACC {id}</b> atau <b>REV {id} &lt;catatan&gt;</b>.
+                The PIC can also reply via WhatsApp: <b>ACC {id}</b> or <b>REV {id} &lt;note&gt;</b>.
               </p>
               <form action={reviewAction}>
                 <input type="hidden" name="taskId" value={id} />
                 <div className="field">
-                  <label htmlFor="revnote">Catatan revisi</label>
-                  <textarea id="revnote" name="note" placeholder="Wajib bila minta revisi" />
+                  <label htmlFor="revnote">Revision note</label>
+                  <textarea id="revnote" name="note" placeholder="Required when requesting a revision" />
                   <span className="help">
-                    Ronde revisi saat ini: {Number(t['Ronde Revisi']) || 0} (batas {db.master.config.maxRevisi})
+                    Current revision round: {Number(t['Ronde Revisi']) || 0} (limit {db.master.config.maxRevisi})
                   </span>
                 </div>
-                <ImagePicker folder={id} canUpload={canUpload} label="Lampiran revisi (opsional, mis. screenshot yang ditandai)" />
+                <ImagePicker folder={id} canUpload={canUpload} label="Revision attachments (optional, e.g. a marked-up screenshot)" />
                 <div className="actions-row">
                   <SubmitButton name="decision" value="ACC" className="btn success">
                     ACC
                   </SubmitButton>
                   <SubmitButton name="decision" value="REV" className="btn danger">
-                    Minta revisi
+                    Request revision
                   </SubmitButton>
                 </div>
               </form>
@@ -390,12 +398,12 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
 
           {actions.includes('final') ? (
             <section className="card action-card">
-              <h2>Upload file final</h2>
-              <p className="muted">Draft sudah di-ACC brand. Upload file final ke Drive dan tempel link-nya.</p>
+              <h2>Upload final file</h2>
+              <p className="muted">The brand has approved (ACC) the draft. Upload the final file to Drive and paste its link.</p>
               <form action={finalAction}>
                 <input type="hidden" name="taskId" value={id} />
                 <div className="field">
-                  <label htmlFor="final">Link file final</label>
+                  <label htmlFor="final">Final file link</label>
                   <input
                     id="final"
                     type="url"
@@ -405,7 +413,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   />
                 </div>
                 <div>
-                  <SubmitButton>Simpan file final</SubmitButton>
+                  <SubmitButton>Save final file</SubmitButton>
                 </div>
               </form>
             </section>
@@ -413,19 +421,19 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
 
           {actions.includes('close') ? (
             <section className="card action-card">
-              <h2>Tutup tiket</h2>
+              <h2>Close ticket</h2>
               <p className="muted">
-                File final: <LinkOrDash href={t['Link Final']} />
+                Final file: <LinkOrDash href={t['Link Final']} />
               </p>
               <form action={closeAction}>
                 <input type="hidden" name="taskId" value={id} />
-                <SubmitButton className="btn success">Tutup tiket</SubmitButton>
+                <SubmitButton className="btn success">Close ticket</SubmitButton>
               </form>
             </section>
           ) : null}
 
           <section className="card" id="deskripsi">
-            <h2 style={{ marginBottom: 10 }}>Deskripsi & catatan pengerjaan</h2>
+            <h2 style={{ marginBottom: 10 }}>Description & work notes</h2>
             {mayEditDesc ? (
               <form action={descriptionAction} className="stack">
                 <input type="hidden" name="taskId" value={id} />
@@ -433,17 +441,17 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   name="deskripsi"
                   rows={4}
                   defaultValue={t.Deskripsi}
-                  placeholder="Mis. konsep yang dipakai, ukuran file, hal yang perlu diperhatikan, progres…"
+                  placeholder="E.g. concept used, file sizes, things to watch out for, progress…"
                 />
                 <div>
-                  <SubmitButton className="btn small">Simpan deskripsi</SubmitButton>
+                  <SubmitButton className="btn small">Save description</SubmitButton>
                 </div>
               </form>
             ) : t.Deskripsi ? (
               <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{t.Deskripsi}</p>
             ) : (
               <p className="muted" style={{ margin: 0 }}>
-                Belum ada deskripsi. Assignee atau lead bisa menambahkannya.
+                No description yet. The assignee or lead can add one.
               </p>
             )}
           </section>
@@ -463,7 +471,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   <dd>
                     {r['Campaign Name']} <span className="subtle">({r['Campaign Type']})</span>
                   </dd>
-                  <dt>Sub-jenis</dt>
+                  <dt>Sub-type</dt>
                   <dd>{t['Sub-jenis'] || '-'}</dd>
                   <dt>Detail</dt>
                   <dd>
@@ -486,13 +494,13 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   <dd>{Number(r.Budget) ? `Rp ${Number(r.Budget).toLocaleString('id-ID')}` : '-'}</dd>
                   <dt>Deliverables</dt>
                   <dd>{r.Deliverables || '-'}</dd>
-                  <dt>Referensi</dt>
+                  <dt>References</dt>
                   <dd>
                     <LinkOrDash href={r['Supporting Link']} /> <LinkOrDash href={r.Attachments} />
                   </dd>
                 </dl>
               ) : (
-                <p className="muted">Request induk tidak ditemukan.</p>
+                <p className="muted">Parent request not found.</p>
               )
             }
             form={
@@ -519,7 +527,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   </div>
                   {catDef && catDef.subTypes.length > 1 ? (
                     <div className="field">
-                      <span className="label">Sub-jenis {t.Kategori}</span>
+                      <span className="label">Sub-type {t.Kategori}</span>
                       <div className="choice-group">
                         {catDef.subTypes.map((x) => (
                           <label className="choice" key={x}>
@@ -542,7 +550,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                           </label>
                           {f.type === 'select' ? (
                             <select id={`eb-d-${f.key}`} name={`detail:${f.key}`} defaultValue={detailValues[f.key] || ''}>
-                              <option value="">Pilih…</option>
+                              <option value="">Select…</option>
                               {(f.options || []).map((o) => (
                                 <option key={o}>{o}</option>
                               ))}
@@ -605,10 +613,10 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                     </div>
                   </div>
                   <div className="actions-row">
-                    <SubmitButton>Simpan brief</SubmitButton>
+                    <SubmitButton>Save brief</SubmitButton>
                     <CancelEdit />
                   </div>
-                  <span className="help">Perubahan berlaku untuk request {r['Request ID']}, tercatat di riwayat, dan tim task diberi tahu lewat WA.</span>
+                  <span className="help">Changes apply to request {r['Request ID']}, are recorded in the history, and the task team is notified via WhatsApp.</span>
                 </form>
               ) : null
             }
@@ -620,14 +628,14 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
             key={`draft-${sp.ok || ''}`}
             id="draft"
             title=<>
-                Draft ({versionList.length} versi){' '}
+                Draft ({versionList.length} versions){' '}
                 {t['Link Final'] ? (
                   <span className="badge green" style={{ marginLeft: 6 }}>
-                    Final tersedia
+                    Final available
                   </span>
                 ) : null}
               </>
-            editLabel="Ubah link draft terbaru"
+            editLabel="Change latest draft link"
             canEdit={mayEditDraft}
             view={
               <>
@@ -639,11 +647,11 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                     <div key={v.v} className="version">
                       <Thumbs urls={imgs.slice(0, 1)} size="lg" />
                       <b>
-                        v{v.v} {v.v === String(Number(t['Versi Draft']) || 0) ? <span className="badge blue">terbaru</span> : null}
+                        v{v.v} {v.v === String(Number(t['Versi Draft']) || 0) ? <span className="badge blue">latest</span> : null}
                       </b>
                       <span className="subtle">{formatWaktu(v.ts)}</span>
                       <a href={v.link} target="_blank" rel="noreferrer">
-                        Buka file
+                        Open file
                       </a>
                       {v.previews.length > 1 ? <span className="subtle">+{v.previews.length - 1} preview</span> : null}
                     </div>
@@ -652,7 +660,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
               </div>
             ) : (
               <p className="muted" style={{ margin: 0 }}>
-                Belum ada draft.
+                No drafts yet.
               </p>
             )}
             {t['Link Final'] ? (
@@ -666,12 +674,12 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
               <form action={editDraftLinkAction} className="stack">
                 <input type="hidden" name="taskId" value={id} />
                 <div className="field">
-                  <label htmlFor="ed-link">Link draft v{Number(t['Versi Draft']) || 0}</label>
+                  <label htmlFor="ed-link">Draft link v{Number(t['Versi Draft']) || 0}</label>
                   <input id="ed-link" name="link" type="url" required defaultValue={t['Link Draft']} />
-                  <span className="help">Untuk memperbaiki link yang salah tempel. Mengirim versi baru tetap lewat Upload draft.</span>
+                  <span className="help">For fixing a wrongly pasted link. To send a new version, use Upload draft.</span>
                 </div>
                 <div className="actions-row">
-                  <SubmitButton>Simpan link</SubmitButton>
+                  <SubmitButton>Save link</SubmitButton>
                   <CancelEdit />
                 </div>
               </form>
@@ -679,13 +687,13 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
           />
 
           <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Catatan QC & revisi brand ({Number(t['Ronde Revisi']) || 0} ronde)</h2>
+            <h2 style={{ marginBottom: 10 }}>QC notes & brand revisions ({Number(t['Ronde Revisi']) || 0} rounds)</h2>
             {qcRev.length ? (
               <ul className="comments">
                 {[...qcRev].reverse().map((k) => (
                   <li key={k['Komentar ID']} className={`comment ${JENIS_CLASS[k.Jenis] || ''}`}>
                     <div className="comment-head">
-                      <span className={`badge ${JENIS_BADGE[k.Jenis] || ''}`}>{k.Jenis}</span>
+                      <span className={`badge ${JENIS_BADGE[k.Jenis] || ''}`}>{jenisLabel(k.Jenis)}</span>
                       <b>{k.Oleh}</b>
                       <span className="subtle">
                         v{k.Versi} · {formatWaktu(k.Timestamp)}
@@ -702,7 +710,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
           </section>
 
           <section className="card" id="komentar">
-            <h2 style={{ marginBottom: 10 }}>Komentar ({komentar.length})</h2>
+            <h2 style={{ marginBottom: 10 }}>Comments ({komentar.length})</h2>
             {komentar.length ? (
               <ul className="comments">
                 {komentar.map((k) => (
@@ -710,9 +718,9 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                     <div className="comment-head">
                       <b>{k.Oleh}</b>
                       <span className="subtle">{k.Peran}</span>
-                      <span className={`badge ${JENIS_BADGE[k.Jenis] || ''}`}>{k.Jenis === 'Draft' ? `Draft v${k.Versi}` : k.Jenis}</span>
+                      <span className={`badge ${JENIS_BADGE[k.Jenis] || ''}`}>{k.Jenis === 'Draft' ? `Draft v${k.Versi}` : jenisLabel(k.Jenis)}</span>
                       <span className="subtle" style={{ marginLeft: 'auto' }}>
-                        {k.Jenis !== 'Draft' && Number(k.Versi) > 0 ? `untuk v${k.Versi} · ` : ''}
+                        {k.Jenis !== 'Draft' && Number(k.Versi) > 0 ? `for v${k.Versi} · ` : ''}
                         {formatWaktu(k.Timestamp)}
                       </span>
                     </div>
@@ -722,19 +730,19 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                 ))}
               </ul>
             ) : (
-              <p className="muted">Belum ada komentar.</p>
+              <p className="muted">No comments yet.</p>
             )}
             {mayComment ? (
               <form action={commentAction} key={komentar.length} className="stack" style={{ marginTop: 14 }}>
                 <input type="hidden" name="taskId" value={id} />
                 <ImagePicker folder={id} canUpload={canUpload}>
                   <div className="field">
-                    <label htmlFor="isi">Tulis komentar</label>
+                    <label htmlFor="isi">Write a comment</label>
                     <textarea
                       id="isi"
                       name="isi"
                       rows={3}
-                      placeholder={canUpload ? 'Tulis komentar… (bisa tempel screenshot dengan Ctrl/Cmd + V)' : 'Tulis komentar…'}
+                      placeholder={canUpload ? 'Write a comment… (you can paste a screenshot with Ctrl/Cmd + V)' : 'Write a comment…'}
                     />
                   </div>
                 </ImagePicker>
@@ -745,8 +753,8 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                       <select id="jenis" name="jenis" defaultValue="Catatan">
                         {jenisOptions.map((j) => (
                           <option key={j} value={j}>
-                            {j}
-                            {j === 'Revisi brand' ? ' (ronde revisi +1)' : ''}
+                            {jenisLabel(j)}
+                            {j === 'Revisi brand' ? ' (revision round +1)' : ''}
                           </option>
                         ))}
                       </select>
@@ -756,21 +764,21 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   )}
                   {Number(t['Versi Draft']) > 0 ? (
                     <div className="field" style={{ minWidth: 130 }}>
-                      <label htmlFor="versi">Untuk draft</label>
+                      <label htmlFor="versi">For draft</label>
                       <select id="versi" name="versi" defaultValue={String(Number(t['Versi Draft']))}>
                         {Array.from({ length: Number(t['Versi Draft']) }, (_, i) => Number(t['Versi Draft']) - i).map((v) => (
                           <option key={v} value={v}>
                             v{v}
-                            {v === Number(t['Versi Draft']) ? ' (terbaru)' : ''}
+                            {v === Number(t['Versi Draft']) ? ' (latest)' : ''}
                           </option>
                         ))}
                       </select>
                     </div>
                   ) : null}
-                  <SubmitButton pendingText="Mengirim…">Kirim komentar</SubmitButton>
+                  <SubmitButton pendingText="Sending…">Send comment</SubmitButton>
                 </div>
                 <span className="help">
-                  Label Revisi brand selalu untuk draft terbaru. Pemegang bola ({t['Bola di']}) diberi tahu lewat WA.
+                  The Brand revision label always applies to the latest draft. The ball holder ({t['Bola di']}) is notified via WhatsApp.
                 </span>
               </form>
             ) : null}
@@ -857,18 +865,18 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
 
           {actions.includes('assign') ? (
             <section className="card">
-              <h2>{t.Assignee ? 'Ganti assignee' : 'Assign anggota'}</h2>
+              <h2>{t.Assignee ? 'Change assignee' : 'Assign member'}</h2>
               <form action={assignAction} className="stack" style={{ marginTop: 10 }}>
                 <input type="hidden" name="taskId" value={id} />
                 <AssigneePicker options={assigneeOptions} current={t.Assignee} />
-                <SubmitButton className="btn primary block">{t.Assignee ? 'Ganti' : 'Assign'}</SubmitButton>
+                <SubmitButton className="btn primary block">{t.Assignee ? 'Change' : 'Assign'}</SubmitButton>
               </form>
             </section>
           ) : null}
 
           {actions.includes('priority') ? (
             <section className="card">
-              <h2>Prioritas & deadline</h2>
+              <h2>Priority & deadline</h2>
               <form action={priorityAction} className="stack" style={{ marginTop: 10 }}>
                 <input type="hidden" name="taskId" value={id} />
                 <div className="field">
@@ -876,20 +884,20 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                   <input id="pdeadline" type="date" name="deadline" defaultValue={t.Deadline} required />
                 </div>
                 <div className="field">
-                  <label htmlFor="purgent">Prioritas</label>
+                  <label htmlFor="purgent">Priority</label>
                   <select id="purgent" name="urgent" defaultValue={t.Urgent === 'Ya' ? 'Ya' : 'Tidak'}>
                     <option value="Tidak">Normal</option>
                     <option value="Ya">URGENT</option>
                   </select>
                 </div>
-                <SubmitButton className="btn block">Simpan</SubmitButton>
+                <SubmitButton className="btn block">Save</SubmitButton>
               </form>
             </section>
           ) : null}
 
           {actions.includes('override') ? (
             <section className="card">
-              <h2>Koreksi status (admin)</h2>
+              <h2>Status correction (admin)</h2>
               <form action={overrideAction} className="stack" style={{ marginTop: 10 }}>
                 <input type="hidden" name="taskId" value={id} />
                 <select name="status" defaultValue={t.Status}>
@@ -897,8 +905,8 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                     <option key={s}>{s}</option>
                   ))}
                 </select>
-                <input type="text" name="note" placeholder="Alasan (wajib)" required />
-                <SubmitButton className="btn danger block">Paksa status</SubmitButton>
+                <input type="text" name="note" placeholder="Reason (required)" required />
+                <SubmitButton className="btn danger block">Force status</SubmitButton>
               </form>
             </section>
           ) : null}
@@ -922,7 +930,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
           ) : null}
 
           <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Riwayat status</h2>
+            <h2 style={{ marginBottom: 10 }}>Status history</h2>
             <ul className="timeline">
               {logs.map((l, i) => (
                 <li key={i}>
@@ -941,7 +949,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
           </section>
 
           <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Notifikasi WA</h2>
+            <h2 style={{ marginBottom: 10 }}>WhatsApp notifications</h2>
             {wa.length ? (
               <ul className="timeline">
                 {wa.slice(0, 15).map((w, i) => (
@@ -959,7 +967,7 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                 ))}
               </ul>
             ) : (
-              <p className="muted">Belum ada pesan.</p>
+              <p className="muted">No messages yet.</p>
             )}
           </section>
         </div>

@@ -48,12 +48,12 @@ export default async function RequestDetail({ params, searchParams }: { params: 
             {r['Request ID']} <StatusBadge status={r.Status} /> <UrgentBadge urgent={r.Urgent} />
           </h1>
           <p>
-            {r.Brand} · {r['Campaign Name']} · diajukan {r['PIC Brand']} {formatWaktu(r.Timestamp)}
+            {r.Brand} · {r['Campaign Name']} · submitted by {r['PIC Brand']} {formatWaktu(r.Timestamp)}
           </p>
         </div>
         {canEdit ? (
           <Link className="btn" href={`/requests/${encodeURIComponent(id)}/edit`}>
-            {r.Status === REQUEST_STATUS.BRIEF_KURANG ? 'Lengkapi brief' : 'Edit brief'}
+            {r.Status === REQUEST_STATUS.BRIEF_KURANG ? 'Complete brief' : 'Edit brief'}
           </Link>
         ) : null}
       </div>
@@ -61,11 +61,11 @@ export default async function RequestDetail({ params, searchParams }: { params: 
 
       {r.Status === REQUEST_STATUS.BRIEF_KURANG ? (
         <div className="flash err">
-          Brief dikembalikan oleh Traffic: <b>{r['Catatan Traffic'] || '-'}</b>
+          Brief sent back by Traffic: <b>{r['Catatan Traffic'] || '-'}</b>
           {canEdit ? (
             <>
               {' '}
-              · <Link href={`/requests/${encodeURIComponent(id)}/edit`}>Lengkapi sekarang</Link>
+              · <Link href={`/requests/${encodeURIComponent(id)}/edit`}>Complete now</Link>
             </>
           ) : null}
         </div>
@@ -90,29 +90,29 @@ export default async function RequestDetail({ params, searchParams }: { params: 
             <section className="card action-card" id="cek-brief">
               <div className="card-head">
                 <div>
-                  <h2>Cek brief (Traffic)</h2>
-                  <p>Pastikan brief lengkap dan konfirmasi deadline. Bila lengkap, sistem memecah request menjadi task per divisi dan mengabari lead.</p>
+                  <h2>Brief check (Traffic)</h2>
+                  <p>Make sure the brief is complete and confirm the deadline. Once complete, the system splits the request into tasks per division and notifies the leads.</p>
                 </div>
               </div>
               <form action={cekBriefAction}>
                 <input type="hidden" name="requestId" value={id} />
                 <div className="form-grid">
                   <div className="field">
-                    <label htmlFor="deadline">Deadline final</label>
+                    <label htmlFor="deadline">Final deadline</label>
                     <input id="deadline" type="date" name="deadline" defaultValue={r.Deadline || r['Due Date']} min={today} />
-                    <span className="help">Due date dari PIC: {formatTanggal(r['Due Date'])}. Lead time minimum {r['Lead Time Min (hari kerja)']} hari kerja.</span>
+                    <span className="help">Due date from PIC: {formatTanggal(r['Due Date'])}. Minimum lead time {r['Lead Time Min (hari kerja)']} working days.</span>
                   </div>
                   <div className="field">
-                    <label htmlFor="note">Catatan untuk PIC / tim</label>
-                    <textarea id="note" name="note" placeholder="Wajib diisi bila brief kurang: apa yang perlu dilengkapi" />
+                    <label htmlFor="note">Note for PIC / team</label>
+                    <textarea id="note" name="note" placeholder="Required if the brief is incomplete: what needs to be added" />
                   </div>
                 </div>
                 <div className="actions-row">
                   <SubmitButton name="decision" value="Lengkap" className="btn success">
-                    Brief lengkap, proses
+                    Brief complete, process
                   </SubmitButton>
                   <SubmitButton name="decision" value="Kurang" className="btn danger">
-                    Brief kurang, kembalikan ke PIC
+                    Brief incomplete, send back to PIC
                   </SubmitButton>
                 </div>
               </form>
@@ -133,12 +133,12 @@ export default async function RequestDetail({ params, searchParams }: { params: 
               <dd>{r['Campaign Name']}</dd>
               <dt>Objective</dt>
               <dd>{r.Objective}</dd>
-              <dt>Kategori</dt>
+              <dt>Category</dt>
               <dd>
                 {r.Kategori}
                 {r['Sub-jenis'] ? <span className="subtle"> · {r['Sub-jenis']}</span> : null}
               </dd>
-              <dt>Detail kategori</dt>
+              <dt>Category details</dt>
               <dd>{r['Detail Kategori'] || '-'}</dd>
               <dt>Product knowledge / USP</dt>
               <dd>{r['Product Knowledge/USP']}</dd>
@@ -156,7 +156,7 @@ export default async function RequestDetail({ params, searchParams }: { params: 
               <dd>
                 <LinkOrDash href={r['Supporting Link']} />
               </dd>
-              <dt>Lampiran</dt>
+              <dt>Attachments</dt>
               <dd>
                 <LinkOrDash href={r.Attachments} />
               </dd>
@@ -165,8 +165,8 @@ export default async function RequestDetail({ params, searchParams }: { params: 
 
           <section className="card">
             <div className="card-head">
-              <h2>Task per divisi</h2>
-              <span className="subtle">{tasks.length} task</span>
+              <h2>Tasks per division</h2>
+              <span className="subtle">{tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}</span>
             </div>
             {tasks.length ? (
               <div className="table-wrap">
@@ -174,13 +174,13 @@ export default async function RequestDetail({ params, searchParams }: { params: 
                   <thead>
                     <tr>
                       <th>Task</th>
-                      <th>Divisi</th>
+                      <th>Division</th>
                       <th>Lead</th>
                       <th>Assignee</th>
                       <th>Status</th>
-                      <th>Bola di</th>
+                      <th>Ball with</th>
                       <th>Deadline</th>
-                      <th>Sisa</th>
+                      <th>Time left</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -196,7 +196,7 @@ export default async function RequestDetail({ params, searchParams }: { params: 
                           <div className="subtle">{t.Kategori}</div>
                         </td>
                         <td>{t.Lead}</td>
-                        <td>{t.Assignee || <span className="badge outline">Belum assign</span>}</td>
+                        <td>{t.Assignee || <span className="badge outline">Unassigned</span>}</td>
                         <td>
                           <StatusBadge status={t.Status} />
                         </td>
@@ -211,14 +211,14 @@ export default async function RequestDetail({ params, searchParams }: { params: 
                 </table>
               </div>
             ) : (
-              <p className="muted">Task dibuat otomatis setelah Traffic menyatakan brief lengkap.</p>
+              <p className="muted">Tasks are created automatically once Traffic marks the brief complete.</p>
             )}
           </section>
         </div>
 
         <div className="stack">
           <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Ringkasan</h2>
+            <h2 style={{ marginBottom: 10 }}>Summary</h2>
             <dl className="kv" style={{ gridTemplateColumns: '110px minmax(0,1fr)' }}>
               <dt>PIC brand</dt>
               <dd>{r['PIC Brand']}</dd>
@@ -233,11 +233,11 @@ export default async function RequestDetail({ params, searchParams }: { params: 
                 {formatTanggal(r.Deadline)}{' '}
                 <Sisa deadline={r.Deadline} today={today} done={r.Status === REQUEST_STATUS.SELESAI} />
               </dd>
-              <dt>Cek brief</dt>
-              <dd>{r['Cek Brief'] || 'Belum'}</dd>
+              <dt>Brief check</dt>
+              <dd>{r['Cek Brief'] || 'Not yet'}</dd>
               {r['Catatan Traffic'] ? (
                 <>
-                  <dt>Catatan Traffic</dt>
+                  <dt>Traffic note</dt>
                   <dd>{r['Catatan Traffic']}</dd>
                 </>
               ) : null}
@@ -245,7 +245,7 @@ export default async function RequestDetail({ params, searchParams }: { params: 
           </section>
 
           <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Riwayat status</h2>
+            <h2 style={{ marginBottom: 10 }}>Status history</h2>
             {logs.length ? (
               <ul className="timeline">
                 {logs.map((l, i) => (
@@ -263,12 +263,12 @@ export default async function RequestDetail({ params, searchParams }: { params: 
                 ))}
               </ul>
             ) : (
-              <p className="muted">Belum ada riwayat.</p>
+              <p className="muted">No history yet.</p>
             )}
           </section>
 
           <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Notifikasi WA</h2>
+            <h2 style={{ marginBottom: 10 }}>WhatsApp notifications</h2>
             {wa.length ? (
               <ul className="timeline">
                 {wa.slice(0, 20).map((w, i) => (
@@ -284,7 +284,7 @@ export default async function RequestDetail({ params, searchParams }: { params: 
                 ))}
               </ul>
             ) : (
-              <p className="muted">Belum ada pesan.</p>
+              <p className="muted">No messages yet.</p>
             )}
           </section>
         </div>

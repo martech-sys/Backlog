@@ -6,7 +6,7 @@ import { JOURNEY, type JourneyPos } from '@/lib/journey';
  */
 export function Journey({ pos, size = 'sm', flags = size === 'lg' }: { pos: JourneyPos; size?: 'sm' | 'lg'; flags?: boolean }) {
   return (
-    <div className={`journey ${size}`} aria-label={`Tahap ${pos.index + 1} dari ${JOURNEY.length}: ${pos.stage}`}>
+    <div className={`journey ${size}`} aria-label={`Stage ${pos.index + 1} of ${JOURNEY.length}: ${pos.stage}`}>
       <ol>
         {JOURNEY.map((s, i) => (
           <li key={s} className={i < pos.index ? 'done' : i === pos.index ? 'current' : ''} title={s}>

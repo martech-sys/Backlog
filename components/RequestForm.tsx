@@ -87,7 +87,7 @@ export function RequestForm(p: Props) {
     if (f.type === 'select') {
       input = (
         <select id={id} name={name} defaultValue={dv}>
-          <option value="">Pilih…</option>
+          <option value="">Select…</option>
           {f.options!.map((o) => (
             <option key={o}>{o}</option>
           ))}
@@ -149,7 +149,7 @@ export function RequestForm(p: Props) {
               onChange={(ev) => setBrand(ev.target.value)}
               disabled={p.lockBrand}
             >
-              <option value="">Pilih brand…</option>
+              <option value="">Select brand…</option>
               {['Menswear', 'Womenswear'].map((g) => (
                 <optgroup key={g} label={g}>
                   {p.brands
@@ -165,7 +165,7 @@ export function RequestForm(p: Props) {
           {p.choosePic ? (
             <Field label="PIC Brand (requestor)" required error={e.picName} htmlFor="picName">
               <select id="picName" name="picName" defaultValue={p.defaults.picName}>
-                <option value="">Pilih PIC…</option>
+                <option value="">Select PIC…</option>
                 {picOptions.map((x) => (
                   <option key={x.name}>{x.name}</option>
                 ))}
@@ -177,9 +177,9 @@ export function RequestForm(p: Props) {
             </Field>
           )}
           <Field
-            label="Judul"
+            label="Title"
             required
-            help="Nama pekerjaan yang tampil di Tracker, mis. Reels HOW TO FIND USS BOOTH"
+            help="Job name shown in the Tracker, e.g. Reels HOW TO FIND USS BOOTH"
             error={e.judul}
             htmlFor="judul"
           >
@@ -188,27 +188,27 @@ export function RequestForm(p: Props) {
           <Field label="Campaign Name" required error={e.campaignName} htmlFor="campaignName">
             <input id="campaignName" name="campaignName" type="text" defaultValue={p.defaults.campaignName} />
           </Field>
-          <Field label="Campaign Type" required help="Tipe campaign diklasifikasi berdasarkan budget" error={e.campaignType} htmlFor="campaignType">
+          <Field label="Campaign Type" required help="Campaign type is classified by budget" error={e.campaignType} htmlFor="campaignType">
             <select id="campaignType" name="campaignType" defaultValue={p.defaults.campaignType}>
-              <option value="">Pilih…</option>
+              <option value="">Select…</option>
               {CAMPAIGN_TYPES.map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
           </Field>
         </div>
-        <Field label="Objective" required help="Tujuan utama dari campaign" error={e.objective} htmlFor="objective">
+        <Field label="Objective" required help="Main goal of the campaign" error={e.objective} htmlFor="objective">
           <textarea id="objective" name="objective" defaultValue={p.defaults.objective} />
         </Field>
       </div>
 
       <div className="form-section">
         <h2 className="section-title">
-          <span className="num">2</span> Kategori pekerjaan
-          <span className="hint">· boleh lebih dari satu, tiap kategori jadi task di divisinya</span>
+          <span className="num">2</span> Work category
+          <span className="hint">· you can pick more than one; each category becomes a task in its division</span>
         </h2>
         <div className={`field${e.kategori ? ' invalid' : ''}`}>
-          <div className="choice-group" role="group" aria-label="Kategori">
+          <div className="choice-group" role="group" aria-label="Category">
             {p.categories.map((c) => (
               <label className="choice" key={c.name}>
                 <input type="checkbox" name="kategori" value={c.name} checked={kategori.includes(c.name)} onChange={() => toggle(c.name)} />
@@ -223,14 +223,14 @@ export function RequestForm(p: Props) {
           <div className="kat-block" key={c.name}>
             <h3>
               {c.name}{' '}
-              <span className="subtle">· lead time minimum {p.leadTimes[c.name] ?? '-'} hari kerja</span>
+              <span className="subtle">· minimum lead time {p.leadTimes[c.name] ?? '-'} working days</span>
             </h3>
             {c.subTypes.length === 1 ? (
               <input type="hidden" name={`sub:${c.name}`} value={c.subTypes[0]} />
             ) : (
               <div className={`field${e[`sub:${c.name}`] ? ' invalid' : ''}`}>
                 <span className="label">
-                  Sub-jenis <span className="req">*</span>
+                  Sub-type <span className="req">*</span>
                 </span>
                 <div className="choice-group">
                   {c.subTypes.map((s) => (
@@ -245,7 +245,7 @@ export function RequestForm(p: Props) {
             )}
             {c.name === CUSTOM_CATEGORY ? (
               <p className="subtle" style={{ marginTop: 0 }}>
-                Kebutuhan custom tidak dirouting otomatis: Traffic akan menentukan divisi, lead, dan deadline setelah cek brief.
+                Custom requests are not routed automatically: Traffic will set the division, lead, and deadline after the brief check.
               </p>
             ) : null}
             <div className="form-grid">{c.fields.map((f) => renderField(c.name, f))}</div>
@@ -255,25 +255,25 @@ export function RequestForm(p: Props) {
 
       <div className="form-section">
         <h2 className="section-title">
-          <span className="num">3</span> Brief kreatif
+          <span className="num">3</span> Creative brief
         </h2>
         <p className="subtle" style={{ marginTop: -6 }}>
-          Bagian ini opsional agar request bisa dikirim cepat. Detailnya bisa dilengkapi nanti dari halaman detail task.
+          This section is optional so you can submit quickly. Details can be filled in later from the task detail page.
         </p>
-        <Field label="Product Knowledge/USP" help="Keunggulan utama produk (opsional)" error={e.usp} htmlFor="usp">
+        <Field label="Product Knowledge/USP" help="Key product advantages (optional)" error={e.usp} htmlFor="usp">
           <textarea id="usp" name="usp" defaultValue={p.defaults.usp} />
         </Field>
-        <Field label="Key Message" help="Opsional" error={e.keyMessage} htmlFor="keyMessage">
+        <Field label="Key Message" help="Optional" error={e.keyMessage} htmlFor="keyMessage">
           <textarea id="keyMessage" name="keyMessage" defaultValue={p.defaults.keyMessage} />
         </Field>
-        <Field label="Creative Note" help="Mood, suasana, atau situasi visual yang diinginkan (opsional)" error={e.creativeNote} htmlFor="creativeNote">
+        <Field label="Creative Note" help="Desired mood, atmosphere, or visual setting (optional)" error={e.creativeNote} htmlFor="creativeNote">
           <textarea id="creativeNote" name="creativeNote" defaultValue={p.defaults.creativeNote} />
         </Field>
         <div className="form-grid">
-          <Field label="Target Audience" help="Opsional" error={e.targetAudience} htmlFor="targetAudience">
+          <Field label="Target Audience" help="Optional" error={e.targetAudience} htmlFor="targetAudience">
             <input id="targetAudience" name="targetAudience" type="text" defaultValue={p.defaults.targetAudience} />
           </Field>
-          <Field label="Budget (Rp)" help="Opsional" error={e.budget} htmlFor="budget">
+          <Field label="Budget (Rp)" help="Optional" error={e.budget} htmlFor="budget">
             <BudgetInput defaultValue={p.defaults.budget} />
           </Field>
         </div>
@@ -284,15 +284,15 @@ export function RequestForm(p: Props) {
           <span className="num">4</span> Deadline & output
         </h2>
         <div className="form-grid">
-          <Field label="Due Date" required help="Isi dengan tanggal OPOR atau tanggal campaign" error={e.dueDate} htmlFor="dueDate">
+          <Field label="Due Date" required help="Enter the OPOR date or campaign date" error={e.dueDate} htmlFor="dueDate">
             <input id="dueDate" name="dueDate" type="date" min={p.today} value={due} onChange={(ev) => setDue(ev.target.value)} />
             {urgent ? (
               <span className="badge red" style={{ alignSelf: 'flex-start' }}>
-                URGENT: sisa {daysLeft} hari kerja, lead time minimum {leadTime} hari kerja
+                URGENT: {daysLeft} working days left, minimum lead time {leadTime} working days
               </span>
             ) : null}
           </Field>
-          <Field label="Deliverables" help="Opsional" error={e.deliverables} htmlFor="deliverables">
+          <Field label="Deliverables" help="Optional" error={e.deliverables} htmlFor="deliverables">
             <input
               id="deliverables"
               name="deliverables"
@@ -304,7 +304,7 @@ export function RequestForm(p: Props) {
           <Field label="Supporting Link" error={e.supportingLink} htmlFor="supportingLink">
             <input id="supportingLink" name="supportingLink" type="url" placeholder="https://" defaultValue={p.defaults.supportingLink} />
           </Field>
-          <Field label="Attachments" help="Link Google Drive berisi lampiran (referensi, produk, logo)" htmlFor="attachments">
+          <Field label="Attachments" help="Google Drive link with attachments (references, products, logos)" htmlFor="attachments">
             <input id="attachments" name="attachments" type="text" placeholder="https://drive.google.com/…" defaultValue={p.defaults.attachments} />
           </Field>
         </div>
@@ -312,7 +312,7 @@ export function RequestForm(p: Props) {
 
       <div className="form-section">
         <button type="submit" className="btn primary block" disabled={pending} style={{ padding: '12px 16px', fontSize: 15 }}>
-          {pending ? 'Mengirim…' : p.submitLabel}
+          {pending ? 'Sending…' : p.submitLabel}
         </button>
       </div>
     </form>

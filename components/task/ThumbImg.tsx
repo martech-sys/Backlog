@@ -7,8 +7,8 @@ export function ThumbImg({ src, alt }: { src: string | null; alt: string }) {
   const [failed, setFailed] = useState(false);
   if (!src || failed)
     return (
-      <span className="subtle" style={{ fontSize: 12, padding: 4, textAlign: 'center' }} title={src ? 'Pratinjau tidak bisa dimuat: cek akses berbagi file' : undefined}>
-        Buka link
+      <span className="subtle" style={{ fontSize: 12, padding: 4, textAlign: 'center' }} title={src ? 'Preview could not be loaded: check the file sharing access' : undefined}>
+        Open link
       </span>
     );
   // eslint-disable-next-line @next/next/no-img-element

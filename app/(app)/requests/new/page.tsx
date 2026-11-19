@@ -8,11 +8,11 @@ import { EMPTY_DEFAULTS } from '@/lib/requestForm';
 import { getDb, requireUser } from '@/lib/session';
 import { can } from '@/lib/workflow';
 
-export const metadata = { title: 'Request baru' };
+export const metadata = { title: 'New request' };
 
 export default async function NewRequestPage() {
   const user = await requireUser();
-  if (!can.submitRequest(user)) redirect('/requests?err=' + encodeURIComponent('Akunmu belum terdaftar sebagai PIC brand atau Traffic.'));
+  if (!can.submitRequest(user)) redirect('/requests?err=' + encodeURIComponent('Your account is not registered as a brand PIC or Traffic.'));
   const db = await getDb();
   const isPic = user.roles.includes('pic');
   // Admin/Traffic/Head yang juga PIC tetap boleh mengajukan atas nama PIC lain.
@@ -24,8 +24,8 @@ export default async function NewRequestPage() {
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
       <div className="page-head">
         <div>
-          <h1>Request konten baru</h1>
-          <p>Satu form untuk semua brand. Setelah dikirim, kamu dapat ID tiket lewat WhatsApp dan Traffic akan mengecek brief.</p>
+          <h1>New content request</h1>
+          <p>One form for all brands. After you submit, you'll get a ticket ID via WhatsApp and Traffic will check the brief.</p>
         </div>
       </div>
       <div className="card">
@@ -39,7 +39,7 @@ export default async function NewRequestPage() {
           currentUser={user.name}
           defaults={isPic ? { ...EMPTY_DEFAULTS, picName: user.name } : EMPTY_DEFAULTS}
           today={todayWib(now())}
-          submitLabel="Kirim request"
+          submitLabel="Submit request"
           leadTimes={leadTimes}
           categories={categoryDefs(db.master).map(({ name, subTypes, fields }) => ({ name, subTypes, fields }))}
         />

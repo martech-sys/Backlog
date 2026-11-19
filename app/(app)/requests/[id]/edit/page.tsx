@@ -11,7 +11,7 @@ import { defaultsFromRequest } from '@/lib/requestForm';
 import { getDb, requireUser } from '@/lib/session';
 import { can } from '@/lib/workflow';
 
-export const metadata = { title: 'Lengkapi brief' };
+export const metadata = { title: 'Complete brief' };
 
 export default async function EditBriefPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -21,7 +21,7 @@ export default async function EditBriefPage({ params }: { params: Promise<{ id: 
   if (!r) notFound();
   const editable = r.Status === REQUEST_STATUS.BRIEF_KURANG || r.Status === REQUEST_STATUS.BARU;
   if (!can.editBrief(user, r) || !editable) {
-    redirect(`/requests/${encodeURIComponent(id)}?err=${encodeURIComponent('Brief ini tidak bisa diubah lagi.')}`);
+    redirect(`/requests/${encodeURIComponent(id)}?err=${encodeURIComponent('This brief can no longer be edited.')}`);
   }
   const leadTimes: Record<string, number> = {};
   for (const k of db.master.kategori) leadTimes[k.kategori] = Math.max(leadTimes[k.kategori] || 0, k.leadTimeMin);
@@ -33,8 +33,8 @@ export default async function EditBriefPage({ params }: { params: Promise<{ id: 
           <Link href={`/requests/${encodeURIComponent(id)}`} className="subtle">
             ← {id}
           </Link>
-          <h1>{r.Status === REQUEST_STATUS.BRIEF_KURANG ? 'Lengkapi brief' : 'Edit brief'}</h1>
-          {r['Catatan Traffic'] ? <p>Catatan Traffic: {r['Catatan Traffic']}</p> : null}
+          <h1>{r.Status === REQUEST_STATUS.BRIEF_KURANG ? 'Complete brief' : 'Edit brief'}</h1>
+          {r['Catatan Traffic'] ? <p>Traffic note: {r['Catatan Traffic']}</p> : null}
         </div>
       </div>
       <div className="card">
@@ -47,7 +47,7 @@ export default async function EditBriefPage({ params }: { params: Promise<{ id: 
           defaults={defaultsFromRequest(r, categoryDefs(db.master, { includeInactive: true }))}
           lockBrand
           today={todayWib(now())}
-          submitLabel={r.Status === REQUEST_STATUS.BRIEF_KURANG ? 'Kirim ulang ke Traffic' : 'Simpan perubahan'}
+          submitLabel={r.Status === REQUEST_STATUS.BRIEF_KURANG ? 'Resubmit to Traffic' : 'Save changes'}
           leadTimes={leadTimes}
           categories={categoryDefs(db.master).map(({ name, subTypes, fields }) => ({ name, subTypes, fields }))}
         />

@@ -7,7 +7,7 @@ export function SubmitButton({
   className = 'btn primary',
   name,
   value,
-  pendingText = 'Menyimpan…',
+  pendingText = 'Saving…',
 }: {
   children: React.ReactNode;
   className?: string;

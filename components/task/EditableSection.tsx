@@ -44,7 +44,7 @@ export function CancelEdit() {
   const close = useContext(Ctx);
   return (
     <button type="button" className="btn" onClick={close}>
-      Batal
+      Cancel
     </button>
   );
 }

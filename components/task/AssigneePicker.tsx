@@ -24,18 +24,18 @@ export function AssigneePicker({ options, current }: { options: AssigneeOption[]
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder={`Cari nama (${options.length} anggota)…`}
-        aria-label="Cari anggota"
+        placeholder={`Search name (${options.length} members)…`}
+        aria-label="Search members"
         autoComplete="off"
       />
-      <select name="assignee" required value={selected} onChange={(e) => setValue(e.target.value)} aria-label="Pilih anggota">
+      <select name="assignee" required value={selected} onChange={(e) => setValue(e.target.value)} aria-label="Select member">
         <option value="" disabled>
-          {shown.length ? 'Pilih anggota…' : 'Tidak ada nama yang cocok'}
+          {shown.length ? 'Select member…' : 'No matching names'}
         </option>
         {shown.map((o) => (
           <option key={o.name} value={o.name} disabled={o.name === current}>
             {o.label}
-            {o.name === current ? ' (saat ini)' : ''}
+            {o.name === current ? ' (current)' : ''}
           </option>
         ))}
       </select>
