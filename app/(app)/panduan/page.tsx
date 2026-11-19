@@ -3,38 +3,38 @@ import { BALL_OWNER, STATUS_ORDER } from '@/lib/config';
 import { getDb, requireUser } from '@/lib/session';
 import { StatusBadge } from '@/components/ui';
 
-export const metadata = { title: 'Panduan' };
+export const metadata = { title: 'Guide' };
 
 const ROLES = [
   {
-    role: 'PIC brand',
+    role: 'Brand PIC',
     who: 'Dennis, Aliza, Brama (Menswear); Dea, Tiwi, Zahra, Mey (Womenswear)',
-    tasks: 'Isi form request; lengkapi brief bila diminta; review draft lalu balas ACC atau REV (di web atau WhatsApp).',
-    wa: 'Request diterima + ID tiket; brief perlu dilengkapi; draft siap direview; file final siap.',
+    tasks: 'Fill in the request form; complete the brief when asked; review drafts and reply ACC or REV (on the web or WhatsApp).',
+    wa: 'Request received + ticket ID; brief needs more info; draft ready for review; final file ready.',
   },
   {
     role: 'Traffic',
     who: 'Evi (Menswear), Nadia Syifa (Womenswear)',
-    tasks: 'Cek kelengkapan brief dan konfirmasi deadline; pantau tiket grupnya; tutup tiket setelah file final.',
-    wa: 'Request baru; request URGENT; task overdue; digest pagi.',
+    tasks: 'Check the brief is complete and confirm the deadline (one by one or several at once from the Requests list); monitor their group’s tickets; close tickets once the final file is in.',
+    wa: 'New requests; URGENT requests; overdue tasks; morning digest.',
   },
   {
-    role: 'Lead divisi',
-    who: 'Hamzah Benoti & Ahmad Husen (foto), Aulia Pramudya (desain, moodboard, 3D), Ilham Almando (video), Salsa Rosyidah (styling)',
-    tasks: 'Assign anggota (desain dipilih otomatis, bisa diganti); QC draft sebelum dikirim ke brand.',
-    wa: 'Tugas baru di divisinya; draft menunggu QC; task anggota overdue.',
+    role: 'Division lead',
+    who: 'Hamzah Benoti & Ahmad Husen (photo), Aulia Pramudya (design, moodboard, 3D), Ilham Almando (video), Salsa Rosyidah (styling)',
+    tasks: 'Assign members (design is picked automatically and can be changed); QC drafts before they go to the brand.',
+    wa: 'New tasks in their division; drafts waiting for QC; members’ overdue tasks.',
   },
   {
-    role: 'Tim creative',
+    role: 'Creative team',
     who: 'Photographer, photo editor, designer, videographer, stylist, assistant studio, intern',
-    tasks: 'Kerjakan task; upload link draft per versi; kerjakan revisi; upload link file final.',
-    wa: 'Tugas baru; reminder H-2, H-1, hari H; catatan revisi masuk.',
+    tasks: 'Work on tasks; upload a draft link for each version; handle revisions; upload the final file link.',
+    wa: 'New tasks; reminders 2 days before, 1 day before and on the deadline; incoming revision notes.',
   },
   {
     role: 'Creative Head & Head of Creative Production',
     who: 'Ammar Habibullah, Abdul Malik, Daniel Pranata',
-    tasks: 'Pantau dashboard; ubah prioritas/deadline bila bentrok.',
-    wa: 'Eskalasi overdue; rekap mingguan.',
+    tasks: 'Monitor the dashboard; change priorities/deadlines when they clash. Admins can delete (archive) tasks and restore them from the Tracker’s Deleted tab.',
+    wa: 'Overdue escalations; weekly recap.',
   },
 ];
 
@@ -45,59 +45,66 @@ export default async function PanduanPage() {
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       <div className="page-head">
         <div>
-          <h1>Panduan</h1>
-          <p>Alur dari form sampai final: siapa mengerjakan apa di tiap tahap.</p>
+          <h1>Guide</h1>
+          <p>The flow from form to final: who does what at each stage.</p>
         </div>
       </div>
 
       <h2 className="section-title">
-        <span className="num">1</span> Alur kerja
+        <span className="num">1</span> Workflow
       </h2>
       <div className="frame">
         <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
           <li>
-            <b>PIC brand</b> mengisi form request → sistem membuat <b>ID tiket</b> dan mengabari PIC & Traffic lewat WA.
+            The <b>brand PIC</b> fills in the request form → the system creates a <b>ticket ID</b> and notifies the PIC & Traffic via WhatsApp.
           </li>
           <li>
-            <b>Traffic</b> mengecek brief. Kurang → kembali ke PIC. Lengkap → sistem memecah request jadi task per divisi (routing otomatis).
+            <b>Traffic</b> checks the brief. Incomplete → back to the PIC. Complete → the system splits the request into tasks per division (automatic routing). A request with a quantity field (Jumlah foto/desain/video/output) is split into that many separate tasks. Traffic can approve or reject several requests at once from the Requests list.
           </li>
           <li>
-            <b>Lead divisi</b> memilih anggota (desain grafis dipilih otomatis ke desainer dengan beban paling ringan).
+            The <b>division lead</b> picks a member (graphic design is assigned automatically to the designer with the lightest load).
           </li>
           <li>
-            <b>Tim creative</b> mengerjakan dan meng-upload link draft → <b>QC lead</b>. Belum lolos → kembali ke produksi.
+            The <b>creative team</b> does the work and uploads a draft link → <b>lead QC</b>. Not passed → back to production.
           </li>
           <li>
-            Lolos QC → <b>PIC brand</b> review dan balas <b>ACC</b> atau <b>REV</b>. REV → kembali ke produksi (revisi tercatat per ronde).
+            QC passed → the <b>brand PIC</b> reviews and replies <b>ACC</b> or <b>REV</b>. REV → back to production (revisions are logged per round).
           </li>
           <li>
-            ACC → assignee upload <b>file final</b> ke Drive → <b>Traffic</b> menutup tiket → masuk dashboard.
+            ACC → the assignee uploads the <b>final file</b> to Drive → <b>Traffic</b> closes the ticket → it shows up on the dashboard.
           </li>
         </ol>
+        <ul style={{ margin: '12px 0 0', paddingLeft: 18, display: 'grid', gap: 4 }} className="muted">
+          <li>
+            Each task gets a health label based on days left until the deadline: <b>ON TRACK</b> (3+ days), <b>URGENT</b> (0–2
+            days), <b>VERY URGENT</b> (1 day late), <b>OVERDUE</b> (2 days late), <b>CRITICAL</b> (3+ days late, escalate).
+          </li>
+          <li>Red badges in the sidebar show new items since you last opened Requests, Tracker or Dashboard.</li>
+        </ul>
       </div>
 
       <h2 className="section-title">
-        <span className="num">2</span> Balas lewat WhatsApp
+        <span className="num">2</span> Reply via WhatsApp
       </h2>
       <div className="frame">
-        <p style={{ marginTop: 0 }}>Saat draft siap direview, PIC menerima pesan WA dan cukup membalas:</p>
+        <p style={{ marginTop: 0 }}>When a draft is ready for review, the PIC gets a WhatsApp message (in Indonesian) and just replies:</p>
         <pre className="pre" style={{ background: 'var(--surface-2)', padding: 12, borderRadius: 4 }}>
           {`ACC CR-2610-001-DG\nREV CR-2610-001-DG warna background lebih terang, logo diperbesar`}
         </pre>
-        <p className="muted">Pakai ID request (mis. CR-2610-001) untuk menjawab semua task request itu yang sedang menunggu review sekaligus.</p>
+        <p className="muted">Anything after the ID on a REV line is the revision note. Use the request ID (e.g. CR-2610-001) to answer all of that request’s tasks waiting for review at once.</p>
       </div>
 
       <h2 className="section-title">
-        <span className="num">3</span> Peran
+        <span className="num">3</span> Roles
       </h2>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Peran</th>
-              <th>Orang</th>
-              <th>Tugas di sistem</th>
-              <th>Notifikasi WA</th>
+              <th>Role</th>
+              <th>People</th>
+              <th>Tasks in the system</th>
+              <th>WhatsApp notifications</th>
             </tr>
           </thead>
           <tbody>
@@ -114,14 +121,14 @@ export default async function PanduanPage() {
       </div>
 
       <h2 className="section-title">
-        <span className="num">4</span> 11 status baku
+        <span className="num">4</span> The 11 standard statuses
       </h2>
       <div className="frame">
         <div className="row" style={{ gap: 10 }}>
           {STATUS_ORDER.map((s, i) => (
             <span key={s} className="row" style={{ gap: 4 }}>
               <span className="subtle">{i + 1}.</span> <StatusBadge status={s} />
-              <span className="subtle">bola di {BALL_OWNER[s]}</span>
+              <span className="subtle">ball with {BALL_OWNER[s]}</span>
             </span>
           ))}
         </div>
@@ -134,13 +141,13 @@ export default async function PanduanPage() {
         <table>
           <thead>
             <tr>
-              <th>Kategori</th>
-              <th>Divisi</th>
+              <th>Category</th>
+              <th>Division</th>
               <th>Lead Menswear</th>
               <th>Lead Womenswear</th>
               <th>Assign</th>
-              <th>Lead time min</th>
-              <th>Buffer review</th>
+              <th>Min. lead time</th>
+              <th>Review buffer</th>
             </tr>
           </thead>
           <tbody>
@@ -158,14 +165,14 @@ export default async function PanduanPage() {
                   {k.modeAssign}
                   {k.assigneeDefault ? ` → ${k.assigneeDefault}` : ''}
                 </td>
-                <td>{k.leadTimeMin} hari kerja</td>
-                <td>{k.bufferReview} hari kerja</td>
+                <td>{k.leadTimeMin} working days</td>
+                <td>{k.bufferReview} working days</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="subtle">Ubah routing, SLA, tim, dan nomor WA langsung di Google Sheets (tab Master_*). Perubahan langsung terbaca aplikasi.</p>
+      <p className="subtle">Change routing, SLAs, the team and WhatsApp numbers directly in Google Sheets (the Master_* tabs). The app picks up changes right away.</p>
     </div>
   );
 }

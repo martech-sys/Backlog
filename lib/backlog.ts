@@ -10,12 +10,12 @@ export type Lane = 'onHold' | 'todo' | 'ongoing' | 'unplanned' | 'blocker' | 'do
 export type Priority = 'low' | 'med' | 'high';
 
 export const LANES: { key: Lane; label: string; hint: string }[] = [
-  { key: 'onHold', label: 'On Hold', hint: 'Menunggu QC lead atau ACC brand' },
-  { key: 'todo', label: 'To Do', hint: 'Belum ada draft' },
-  { key: 'ongoing', label: 'Ongoing', hint: 'Revisi atau upload final' },
-  { key: 'unplanned', label: 'Unplanned', hint: 'Request URGENT (di bawah lead time)' },
-  { key: 'blocker', label: 'Blocker', hint: 'Lewat deadline' },
-  { key: 'done', label: 'Done', hint: 'Final 7 hari terakhir' },
+  { key: 'onHold', label: 'On Hold', hint: 'Waiting for lead QC or brand ACC' },
+  { key: 'todo', label: 'To Do', hint: 'No draft yet' },
+  { key: 'ongoing', label: 'Ongoing', hint: 'Revisions or final upload' },
+  { key: 'unplanned', label: 'Unplanned', hint: 'URGENT requests (under lead time)' },
+  { key: 'blocker', label: 'Blocker', hint: 'Past deadline' },
+  { key: 'done', label: 'Done', hint: 'Final in the last 7 days' },
 ];
 
 /** 10 warna papan seperti template Mural. */
@@ -126,7 +126,7 @@ export function buildBoards(params: {
   );
 
   const keyOf = (t: TaskRow) =>
-    groupBy === 'brand' ? t.Brand : groupBy === 'divisi' ? t.Divisi : t.Assignee || (t.Status === STATUS.SIAP_ASSIGN ? `Belum assign · ${t.Divisi}` : '');
+    groupBy === 'brand' ? t.Brand : groupBy === 'divisi' ? t.Divisi : t.Assignee || (t.Status === STATUS.SIAP_ASSIGN ? `Unassigned · ${t.Divisi}` : '');
 
   // Kelompok yang selalu tampil walau kosong: anggota creative aktif / semua brand / semua divisi
   const baseKeys: string[] =
@@ -190,8 +190,8 @@ export function buildBoards(params: {
         : brand
           ? `Brand ${brand.grup}`
           : groupBy === 'divisi'
-            ? `Divisi ${key}`
-            : 'Menunggu lead memilih anggota',
+            ? `Division ${key}`
+            : 'Waiting for the lead to pick a member',
       initials: initials(key),
       color: BOARD_COLORS[i++ % BOARD_COLORS.length],
       load: active,

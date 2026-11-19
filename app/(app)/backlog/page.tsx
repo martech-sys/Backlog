@@ -15,7 +15,7 @@ function StickyNote({ s, tone }: { s: Sticky; tone?: string }) {
     <Link
       href={`/tasks/${s.taskId}`}
       className={`sticky ${cls}`}
-      title={`${s.taskId}\n${s.brand} · ${s.kategori}${s.subJenis ? ` (${s.subJenis})` : ''}\nStatus: ${s.status}\nDeadline: ${formatTanggal(s.deadline)} (${sisaLabel(s.daysLeft)})${s.revisi ? `\nRevisi: ${s.revisi} ronde` : ''}`}
+      title={`${s.taskId}\n${s.brand} · ${s.kategori}${s.subJenis ? ` (${s.subJenis})` : ''}\nStatus: ${s.status}\nDeadline: ${formatTanggal(s.deadline)} (${sisaLabel(s.daysLeft)})${s.revisi ? `\nRevisions: ${s.revisi} round${s.revisi === 1 ? '' : 's'}` : ''}`}
     >
       <b>{s.brand}</b>
       <span>{s.kategori}</span>
@@ -49,7 +49,7 @@ function SplitLane({ items }: { items: Sticky[] }) {
 function Board({ card, groupBy }: { card: BoardCard; groupBy: GroupBy }) {
   const pct = Math.min(100, Math.round((card.load / Math.max(card.capacity, 1)) * 100));
   const filterHref =
-    groupBy === 'anggota' && !card.key.startsWith('Belum assign')
+    groupBy === 'anggota' && !card.key.startsWith('Unassigned')
       ? `/tracker?anggota=${encodeURIComponent(card.key)}`
       : groupBy === 'brand'
         ? `/tracker?brand=${encodeURIComponent(card.key)}`
@@ -70,21 +70,21 @@ function Board({ card, groupBy }: { card: BoardCard; groupBy: GroupBy }) {
           </div>
           <div className="head-boxes">
             <div className="head-box">
-              <div className="label">Bulan ini</div>
+              <div className="label">This month</div>
               <div className="box">
                 <div className="stat-line">
-                  Task aktif <b>{card.stats.active}</b>
+                  Active tasks <b>{card.stats.active}</b>
                 </div>
                 <div className="stat-line">
-                  Selesai <b>{card.stats.doneMonth}</b>
+                  Completed <b>{card.stats.doneMonth}</b>
                 </div>
                 <div className="stat-line">
-                  Tepat waktu <b>{card.stats.onTimePct === null ? '-' : `${card.stats.onTimePct}%`}</b>
+                  On time <b>{card.stats.onTimePct === null ? '-' : `${card.stats.onTimePct}%`}</b>
                 </div>
               </div>
             </div>
             <div className="head-box">
-              <div className="label">Update terbaru</div>
+              <div className="label">Latest updates</div>
               <div className="box">
                 {card.updates.length ? (
                   <ul>
@@ -95,19 +95,19 @@ function Board({ card, groupBy }: { card: BoardCard; groupBy: GroupBy }) {
                     ))}
                   </ul>
                 ) : (
-                  <span className="subtle">Belum ada aktivitas</span>
+                  <span className="subtle">No activity yet</span>
                 )}
               </div>
             </div>
           </div>
-          <div className="energy" title={`Beban ${card.load} dari kapasitas ${card.capacity} task aktif`}>
+          <div className="energy" title={`Load ${card.load} of a capacity of ${card.capacity} active tasks`}>
             <div className="track">
               <span className="pin" style={{ left: `${pct}%` }} />
             </div>
             <div className="scale">
               <span>0%</span>
               <span>
-                Beban <b>{card.load}</b>/{card.capacity}
+                Load <b>{card.load}</b>/{card.capacity}
               </span>
               <span>100%</span>
             </div>
@@ -173,10 +173,10 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
       <aside className="board-side">
         <div className="frame side-block">
           <h1 style={{ fontSize: 20, marginBottom: 6 }}>Team Backlog</h1>
-          <p>Gambaran prioritas tim creative. Diperbarui otomatis dari tracker setiap ada perubahan status.</p>
+          <p>An overview of the creative team's priorities. Updated automatically from the tracker whenever a status changes.</p>
         </div>
         <div className="frame side-block">
-          <h3 style={{ background: BOARD_COLORS[8] }}>Kolom</h3>
+          <h3 style={{ background: BOARD_COLORS[8] }}>Columns</h3>
           <ul>
             {LANES.map((l, i) => (
               <li key={l.key}>
@@ -191,21 +191,21 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
           </ul>
         </div>
         <div className="frame side-block">
-          <h3 style={{ background: BOARD_COLORS[2] }}>Prioritas</h3>
+          <h3 style={{ background: BOARD_COLORS[2] }}>Priority</h3>
           <ul>
             <li>
-              <b>High</b>: URGENT atau deadline ≤ 1 hari
+              <b>High</b>: URGENT or deadline ≤ 1 day away
             </li>
             <li>
-              <b>Med</b>: deadline 2–3 hari lagi
+              <b>Med</b>: deadline in 2–3 days
             </li>
             <li>
-              <b>Low</b>: deadline &gt; 3 hari
+              <b>Low</b>: deadline &gt; 3 days away
             </li>
           </ul>
         </div>
         <div className="frame side-block">
-          <h3 style={{ background: BOARD_COLORS[3] }}>Warna sticky</h3>
+          <h3 style={{ background: BOARD_COLORS[3] }}>Sticky colors</h3>
           <div className="board-legend" style={{ display: 'grid', gap: 6 }}>
             <span>
               <i style={{ background: '#fff2a8' }} />
@@ -217,11 +217,11 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
             </span>
             <span>
               <i style={{ background: '#dfe9ff' }} />
-              Menunggu QC / brand
+              Waiting for QC / brand
             </span>
             <span>
               <i style={{ background: '#ffc9c9' }} />
-              Lewat deadline
+              Past deadline
             </span>
             <span>
               <i style={{ background: '#d6f2c9' }} />
@@ -245,44 +245,44 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
         </div>
         <form className="filters" style={{ marginTop: 12 }}>
           <div className="field">
-            <label htmlFor="by">Kelompokkan</label>
+            <label htmlFor="by">Group by</label>
             <select id="by" name="by" defaultValue={groupBy}>
-              <option value="anggota">Per anggota</option>
-              <option value="brand">Per brand</option>
-              <option value="divisi">Per divisi</option>
+              <option value="anggota">Member</option>
+              <option value="brand">Brand</option>
+              <option value="divisi">Division</option>
             </select>
           </div>
           <div className="field">
-            <label htmlFor="grup">Grup</label>
+            <label htmlFor="grup">Group</label>
             <select id="grup" name="grup" defaultValue={sp.grup || ''}>
-              <option value="">Semua</option>
+              <option value="">All</option>
               {db.master.grups.map((g) => (
                 <option key={g.name}>{g.name}</option>
               ))}
             </select>
           </div>
           <div className="field">
-            <label htmlFor="divisi">Divisi</label>
+            <label htmlFor="divisi">Division</label>
             <select id="divisi" name="divisi" defaultValue={sp.divisi || ''}>
-              <option value="">Semua</option>
+              <option value="">All</option>
               {divisiOptions.map((d) => (
                 <option key={d}>{d}</option>
               ))}
             </select>
           </div>
           <div className="field wide">
-            <label htmlFor="q">Cari</label>
-            <input id="q" type="search" name="q" placeholder="ID, brand, kategori, nama" defaultValue={sp.q || ''} />
+            <label htmlFor="q">Search</label>
+            <input id="q" type="search" name="q" placeholder="ID, brand, category, name" defaultValue={sp.q || ''} />
           </div>
           <div className="field" style={{ flex: '0 0 auto', minWidth: 0 }}>
-            <label htmlFor="kosong">Papan kosong</label>
+            <label htmlFor="kosong">Empty boards</label>
             <select id="kosong" name="kosong" defaultValue={sp.kosong || ''}>
-              <option value="">Sembunyikan</option>
-              <option value="1">Tampilkan</option>
+              <option value="">Hide</option>
+              <option value="1">Show</option>
             </select>
           </div>
           <button className="btn primary" type="submit">
-            Terapkan
+            Apply
           </button>
           {Object.keys(sp).length ? (
             <Link className="btn" href="/backlog">
@@ -299,7 +299,7 @@ export default async function BacklogPage({ searchParams }: { searchParams: SP }
           </div>
         ) : (
           <div className="frame empty">
-            Tidak ada pekerjaan yang cocok dengan filter. <Link href={qs({ kosong: '1' })}>Tampilkan papan kosong</Link>
+            No work matches the filters. <Link href={qs({ kosong: '1' })}>Show empty boards</Link>
           </div>
         )}
       </div>
