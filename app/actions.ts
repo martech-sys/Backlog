@@ -3,9 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import * as accounts from '@/lib/accounts';
+import { BADGE_MENUS, markSeen, type BadgeMenu } from '@/lib/badges';
 import { now } from '@/lib/clock';
 import { categoryDefs } from '@/lib/categories';
 import { saveKategori, type KategoriInput } from '@/lib/kategoriAdmin';
+import { replaceLead } from '@/lib/leadAdmin';
 import { SHEETS, TASK_STATUSES, type Status } from '@/lib/config';
 import { formatWib, todayWib } from '@/lib/dates';
 import { loadDb } from '@/lib/db';
@@ -146,6 +148,15 @@ export async function restoreTaskAction(fd: FormData) {
   done(safeBack(fd, '/tracker?view=arsip'), r);
 }
 
+/** Badge sidebar: tandai menu sudah dibuka user ini (dipanggil halaman Request/Tracker/Dashboard bila badge > 0). */
+export async function markMenuSeenAction(menu: string) {
+  const user = await requireUser();
+  if (!(BADGE_MENUS as readonly string[]).includes(menu)) return;
+  const store = await getStore();
+  const db = await loadDb(store, { fresh: true });
+  if (await markSeen(store, db.accountRows, user.email, menu as BadgeMenu, formatWib(now()))) revalidatePath('/', 'layout');
+}
+
 export async function assignAction(fd: FormData) {
   const user = await requireUser();
   const taskId = s(fd, 'taskId');
@@ -252,6 +263,12 @@ export async function saveKategoriAction(fd: FormData) {
     aktif: s(fd, 'aktif') === 'Ya',
   });
   done(originalCode ? `/admin/kategori?buka=${encodeURIComponent(originalCode)}#k-${originalCode}` : r.ok ? '/admin/kategori#daftar' : '/admin/kategori#tambah', r);
+}
+
+export async function replaceLeadAction(fd: FormData) {
+  const user = await requireUser();
+  const r = await replaceLead(await getStore(), user, { from: s(fd, 'from'), to: s(fd, 'to'), removeRole: s(fd, 'removeRole') === 'Ya' });
+  done('/admin/kategori#ganti-lead', r);
 }
 
 export async function customSetupAction(fd: FormData) {

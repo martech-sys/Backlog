@@ -10,7 +10,8 @@ import { canManageKategori } from '@/lib/kategoriAdmin';
 import { now } from '@/lib/clock';
 import { computeDashboard, defaultFilters } from '@/lib/dashboard';
 import { addDays, formatTanggal, sisaLabel, todayWib } from '@/lib/dates';
-import { getDb, requireUser } from '@/lib/session';
+import { getBadges, getDb, requireUser } from '@/lib/session';
+import { MarkMenuSeen } from '@/components/MarkMenuSeen';
 
 export const metadata = { title: 'Dashboard' };
 
@@ -164,6 +165,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: SP
         </div>
       </div>
       <Flash ok={sp.ok} err={sp.err} />
+      <MarkMenuSeen menu="dashboard" pending={(await getBadges()).dashboard} />
 
       <form className="filters">
         <div className="field">

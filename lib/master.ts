@@ -330,12 +330,13 @@ export function headsFor(master: Master, grup: string): Person[] {
 }
 
 /**
- * Lead untuk divisi & grup. Nama di Master_Kategori dipakai bila orangnya masih aktif sebagai lead;
- * bila tidak, dicari lead lain di divisi & grup yang sama (peran yang diubah di Kelola user).
+ * Lead untuk divisi & grup. Nama yang dipilih admin di Master_Kategori dipakai selama orangnya anggota tim
+ * yang aktif (boleh siapa pun, tanpa filter divisi/peran); bila tidak aktif, dicari lead lain di divisi & grup
+ * yang sama. Untuk mencabut seseorang dari peran lead, pakai "Ganti lead" agar aturan kategori ikut diganti.
  */
 export function leadFor(master: Master, divisi: string, grup: string, preferred = ''): string {
   const pref = findPerson(master, preferred);
-  if (pref && pref.active && (pref.isLead || pref.roles.includes('lead'))) return pref.name;
+  if (pref && pref.active && (pref.isLead || pref.roles.includes('lead') || pref.sources.includes('tim'))) return pref.name;
   const alt = master.people.find(
     (p) => p.active && (p.isLead || p.roles.includes('lead')) && p.divisi.toLowerCase() === divisi.toLowerCase() && inGrup(p, grup),
   );

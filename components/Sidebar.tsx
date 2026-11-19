@@ -12,6 +12,9 @@ export interface SideItem {
   label: string;
   icon: string;
   badge?: number;
+  badgeTitle?: string;
+  /** Badge "baru" (merah) yang hilang begitu menu dibuka. */
+  badgeNew?: boolean;
   /** Tampil sebagai tombol utama (mis. Request baru). */
   primary?: boolean;
   group?: 'admin';
@@ -29,13 +32,14 @@ export function Sidebar({ items, user }: { items: SideItem[]; user: { name: stri
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [path]);
 
+  const showBadge = (i: SideItem) => !!i.badge && !(i.badgeNew && isActive(path, i.href));
   const link = (i: SideItem) => (
     <Link key={i.href} href={i.href} className={`${i.primary ? 'primary' : ''}${isActive(path, i.href) ? ' active' : ''}`} aria-current={isActive(path, i.href) ? 'page' : undefined}>
       <Icon name={i.icon} />
       <span className="lbl">{i.label}</span>
-      {i.badge ? (
-        <span className="nav-badge" title={`${i.badge} tugas menunggu kamu`}>
-          {i.badge > 99 ? '99+' : i.badge}
+      {showBadge(i) ? (
+        <span className={`nav-badge${i.badgeNew ? ' new' : ''}`} title={i.badgeTitle || `${i.badge} waiting for you`}>
+          {i.badge! > 99 ? '99+' : i.badge}
         </span>
       ) : null}
     </Link>
@@ -43,7 +47,7 @@ export function Sidebar({ items, user }: { items: SideItem[]; user: { name: stri
   const main = items.filter((i) => !i.group && !i.primary);
   const admin = items.filter((i) => i.group === 'admin');
   const primary = items.filter((i) => i.primary);
-  const badge = items.find((i) => i.badge)?.badge || 0;
+  const badge = items.filter(showBadge).reduce((n, i) => n + (i.badge || 0), 0);
 
   return (
     <aside className={`sidebar${open ? ' open' : ''}`}>

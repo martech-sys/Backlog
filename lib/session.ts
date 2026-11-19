@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { ENV_VERSION, envSuperadmin, passwordVersion } from './accounts';
 import { AKSES } from './config';
+import { computeBadges, readSeen, type BadgeMenu } from './badges';
+import { now } from './clock';
+import { formatWib } from './dates';
 import { loadDb, type Db } from './db';
 import { getStore } from './store';
 import { SESSION_COOKIE, SESSION_DAYS, signSession, verifySession, type SessionPayload } from './token';
@@ -38,6 +41,14 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   }
   if (!acc || !acc.aktif || !acc.hash || passwordVersion(acc.hash) !== s.v) return null;
   return resolveUser(db.master, acc);
+});
+
+/** Badge merah sidebar untuk user yang login (dihitung sekali per render). */
+export const getBadges = cache(async (): Promise<Record<BadgeMenu, number>> => {
+  const u = await getCurrentUser();
+  if (!u) return { requests: 0, tracker: 0, dashboard: 0 };
+  const db = await getDb();
+  return computeBadges(db, u, readSeen(db.accountRows, u.email), formatWib(now()));
 });
 
 export async function requireUser(): Promise<CurrentUser> {

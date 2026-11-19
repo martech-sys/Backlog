@@ -310,6 +310,8 @@ export const USERS_HEADERS = [
   'Token Undangan',
   'Token Kedaluwarsa',
   'Undangan Terkirim',
+  /** JSON {menu: "YYYY-MM-DD HH:mm"}: kapan user terakhir membuka Request/Tracker/Dashboard (badge merah sidebar). */
+  'Terakhir Dilihat',
 ] as const;
 
 /** Komentar/thread di task, termasuk catatan QC dan revisi brand. */

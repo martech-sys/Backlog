@@ -2697,3 +2697,13 @@ tr:hover .icon-btn,
 .tabs a.tab-muted:not(.active) {
   color: var(--text-3);
 }
+
+/* Badge sidebar: merah = hal baru sejak terakhir dibuka; abu = bola di kamu */
+.side-nav .nav-badge:not(.new) {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+.side-nav .nav-badge.new {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px var(--side-bg);
+}

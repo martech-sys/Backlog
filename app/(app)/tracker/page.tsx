@@ -10,7 +10,8 @@ import { NewMarker } from '@/components/SeenMarker';
 import { Journey } from '@/components/Journey';
 import { journeyCounts, journeyOf } from '@/lib/journey';
 import { REVISI_STATUSES } from '@/lib/revisi';
-import { getDb, requireUser } from '@/lib/session';
+import { getBadges, getDb, requireUser } from '@/lib/session';
+import { MarkMenuSeen } from '@/components/MarkMenuSeen';
 import { Flash, HealthBadge, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
 import { bySubmittedDesc, HEALTH_LEVELS, submittedAt, taskHealth, taskTitle } from '@/lib/taskInfo';
 import type { CurrentUser } from '@/lib/workflow';
@@ -142,6 +143,7 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         </div>
       </div>
       <Flash ok={sp.ok} err={sp.err} />
+      <MarkMenuSeen menu="tracker" pending={(await getBadges()).tracker} />
 
       <div className="tabs">
         {views.map((v) => (

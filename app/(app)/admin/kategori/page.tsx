@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
-import { saveKategoriAction } from '@/app/actions';
+import { replaceLeadAction, saveKategoriAction } from '@/app/actions';
+import { ConfirmButton } from '@/components/ConfirmButton';
+import { canReplaceLead } from '@/lib/leadAdmin';
+import { DONE_STATUSES, type Status } from '@/lib/config';
 import { FieldBuilder } from '@/components/admin/FieldBuilder';
 import { SubmitButton } from '@/components/SubmitButton';
 import { Flash } from '@/components/ui';
@@ -79,6 +82,7 @@ function RuleFields({
               {leads.map((x) => (
                 <option key={x.name} value={x.name}>
                   {x.name} · {divisiLabel(x.divisi)} · {x.grup}
+                  {x.isLead ? ' · lead' : ''}
                 </option>
               ))}
             </select>
@@ -156,12 +160,25 @@ export default async function KategoriPage({ searchParams }: { searchParams: SP 
   const sp = await searchParams;
   const db = await getDb();
   const defs = categoryDefs(db.master, { includeInactive: true });
-  const leads = db.master.people.filter((p) => p.active && p.isLead).sort((a, b) => a.name.localeCompare(b.name));
+  // Dropdown lead berisi semua anggota tim aktif (tanpa filter divisi/peran), lead lebih dulu.
+  const leads = db.master.people
+    .filter((p) => p.active && p.sources.includes('tim'))
+    .sort((a, b) => Number(b.isLead) - Number(a.isLead) || a.name.localeCompare(b.name));
   const members = db.master.people
     .filter((p) => p.active && p.sources.includes('tim'))
     .sort((a, b) => a.name.localeCompare(b.name));
   const used = new Map<string, number>();
   for (const t of db.tasks) used.set(t.Kategori, (used.get(t.Kategori) || 0) + 1);
+  // Ganti lead: siapa pun yang saat ini lead (peran, task aktif, atau aturan kategori).
+  const leadTasks = new Map<string, number>();
+  for (const t of db.tasks) if (t.Lead && !DONE_STATUSES.includes(t.Status as Status)) leadTasks.set(t.Lead, (leadTasks.get(t.Lead) || 0) + 1);
+  const leadRules = new Map<string, number>();
+  for (const k of db.master.kategori)
+    for (const n of new Set([k.leadMenswear, k.leadWomenswear].filter(Boolean))) leadRules.set(n, (leadRules.get(n) || 0) + 1);
+  const currentLeads = [
+    ...new Set([...db.master.people.filter((p) => p.isLead).map((p) => p.name), ...leadTasks.keys(), ...leadRules.keys()]),
+  ].sort((a, b) => a.localeCompare(b));
+  const mayReplace = canReplaceLead(user);
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -240,6 +257,59 @@ export default async function KategoriPage({ searchParams }: { searchParams: SP 
           );
         })}
       </div>
+
+      {mayReplace ? (
+        <>
+          <h2 className="section-title" id="ganti-lead">
+            <span className="num">3</span> Replace a lead
+          </h2>
+          <section className="mcard plain">
+            <p className="card-sub" style={{ marginTop: 0 }}>
+              Moves every active task led by this person to the replacement, updates the category rules above, and (optionally) removes
+              their lead role. The replacement is marked as a lead. Every change is logged and the new lead gets one WhatsApp summary.
+            </p>
+            <form action={replaceLeadAction} className="stack">
+              <div className="form-grid">
+                <div className="field">
+                  <label htmlFor="rl-from">Current lead</label>
+                  <select id="rl-from" name="from" required defaultValue="">
+                    <option value="" disabled>
+                      Choose a lead…
+                    </option>
+                    {currentLeads.map((n) => (
+                      <option key={n} value={n}>
+                        {n} · {leadTasks.get(n) || 0} active tasks · {leadRules.get(n) || 0} category rules
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="rl-to">Replacement</label>
+                  <select id="rl-to" name="to" required defaultValue="">
+                    <option value="" disabled>
+                      Choose anyone on the team…
+                    </option>
+                    {members.map((x) => (
+                      <option key={x.name} value={x.name}>
+                        {x.name} · {divisiLabel(x.divisi)} · {x.grup}
+                        {x.isLead ? ' · lead' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <label className="choice" style={{ alignSelf: 'flex-start' }}>
+                <input type="checkbox" name="removeRole" value="Ya" defaultChecked /> Remove the lead role from the current lead
+              </label>
+              <div>
+                <ConfirmButton className="btn primary" confirm="Replace this lead? Active tasks and category rules will move to the replacement.">
+                  Replace lead
+                </ConfirmButton>
+              </div>
+            </form>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }

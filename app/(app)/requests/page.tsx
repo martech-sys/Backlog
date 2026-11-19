@@ -7,7 +7,8 @@ import { inPeriod } from '@/lib/drill';
 import { revisionRows } from '@/lib/revisi';
 import { now } from '@/lib/clock';
 import { formatTanggal, formatWaktu, todayWib } from '@/lib/dates';
-import { getDb, requireUser } from '@/lib/session';
+import { getBadges, getDb, requireUser } from '@/lib/session';
+import { MarkMenuSeen } from '@/components/MarkMenuSeen';
 import { Flash, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
 import { can } from '@/lib/workflow';
 import { bulkCekBriefAction } from '@/app/actions';
@@ -117,6 +118,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: SP 
         ) : null}
       </div>
       <Flash ok={sp.ok} err={sp.err} />
+      <MarkMenuSeen menu="requests" pending={(await getBadges()).requests} />
 
       <div className="tabs">
         {VIEWS.map((v) => (
