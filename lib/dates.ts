@@ -131,27 +131,37 @@ export function normalizeCellDate(v: unknown): string {
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** "Sen, 27 Okt 2026" */
+/** Tampilan web (English): "Mon, 27 Oct 2026". */
 export function formatTanggal(ymd: string, withDay = true): string {
+  if (!isYmd(ymd.slice(0, 10))) return ymd || '-';
+  const [y, m, d] = ymd.slice(0, 10).split('-').map(Number);
+  const base = `${d} ${MONTHS[m - 1]} ${y}`;
+  return withDay ? `${DAYS[dayOfWeek(ymd)]}, ${base}` : base;
+}
+
+/** Pesan WhatsApp (tetap Bahasa Indonesia): "Sen, 27 Okt 2026". */
+export function formatTanggalId(ymd: string, withDay = true): string {
   if (!isYmd(ymd.slice(0, 10))) return ymd || '-';
   const [y, m, d] = ymd.slice(0, 10).split('-').map(Number);
   const base = `${d} ${BULAN[m - 1]} ${y}`;
   return withDay ? `${HARI[dayOfWeek(ymd)]}, ${base}` : base;
 }
 
-/** "27 Okt, 14:05" */
+/** "27 Oct, 14:05" */
 export function formatWaktu(ts: string): string {
   if (!ts) return '-';
   const [ymd, hm] = ts.split(' ');
   if (!isYmd(ymd)) return ts;
   const [, m, d] = ymd.split('-').map(Number);
-  return `${d} ${BULAN[m - 1]}${hm ? `, ${hm}` : ''}`;
+  return `${d} ${MONTHS[m - 1]}${hm ? `, ${hm}` : ''}`;
 }
 
-/** Label sisa hari: "Hari ini", "2 hari lagi", "Lewat 3 hari". */
+/** Label sisa hari (web): "Today", "2 days left", "3 days late". */
 export function sisaLabel(days: number): string {
-  if (days === 0) return 'Hari ini';
-  if (days > 0) return `${days} hari lagi`;
-  return `Lewat ${-days} hari`;
+  if (days === 0) return 'Today';
+  if (days > 0) return `${days} ${days === 1 ? 'day' : 'days'} left`;
+  return `${-days} ${days === -1 ? 'day' : 'days'} late`;
 }

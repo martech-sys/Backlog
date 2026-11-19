@@ -42,6 +42,22 @@ PIC balas ACC ──► assignee upload file final ──► WA ke PIC & Traffic
 
 **Kelola kategori (Admin/Superadmin)**: tambah kategori baru tanpa programmer (nama, kode ID task, divisi, lead per sisi, cara assign, lead time, buffer, sub-jenis, serta kolom isian form: teks/angka/pilihan/teks panjang, wajib atau tidak). Kategori baru langsung muncul di form Request baru, filter, dashboard, dan routing. Kategori bawaan bisa diubah lead, lead time, cara assign, dan sub-jenisnya; kolom isian bawaannya tetap. Kategori bisa dinonaktifkan tanpa menghapus riwayat. Kandidat kategori di kartu "Pekerjaan custom" dashboard punya tombol **Jadikan kategori**.
 
+## Fitur revisi ronde 2 (17 Nov 2026)
+
+- **Tampilan**: gaya baru (kartu putih membulat, label pill lime, angka ringkasan dot-matrix), ikon kamera, label antarmuka **English**. Nama 11 status tetap Bahasa Indonesia; pesan WhatsApp tetap Bahasa Indonesia.
+- **Judul task**: field **Judul** wajib di form request; Tracker menampilkan Judul (utama) › Campaign Name › kode task kecil. Judul bisa diubah per task dari Edit brief.
+- **Urutan Tracker**: pengajuan terbaru di atas, kolom **Submitted** (tanggal & jam request dibuat).
+- **Current Task**: kartu Dashboard untuk task yang belum Final; panel per brand hanya menghitung task aktif.
+- **Creative Output Task Health**: ON TRACK (≥ 3 hari), URGENT (< 3 hari), VERY URGENT (+1 hari), OVERDUE (+2 hari), CRITICAL (≥ 3 hari terlambat, wajib eskalasi). Tampil di Tracker (bisa difilter), detail task, dan Dashboard.
+- **Pecah jumlah**: kolom jumlah (Jumlah foto/desain/video/output, atau kolom angka kategori web yang ditandai *Split into N tasks*) berisi N → N task terpisah saat brief disetujui (ID `…-PE1`, `…-PE2`, judul "Judul 1", "Judul 2"). Maks. 50 per kategori.
+- **Approve/Reject massal** di daftar Request (Traffic/Admin): approve memakai deadline masing-masing request dan default kategori; reject wajib satu alasan.
+- **Koreksi detail task Final/Selesai** (Admin, Traffic, Creative Head): PIC, lead, assignee, target draft, deadline, final pada; tercatat di riwayat.
+- **Hapus task = arsip** (Admin): kolom `Diarsipkan` di tab `Task`; task arsip hilang dari semua tampilan & reminder, bisa dikembalikan dari tab **Deleted** di Tracker.
+- **Badge merah sidebar**: jumlah request baru / task baru / update task sejak user terakhir membuka Requests, Tracker, Dashboard. Disimpan per user di kolom `Terakhir Dilihat` tab `Users`.
+- **Replace a lead** (Admin, di Kelola kategori): alihkan semua task aktif & aturan kategori dari lead lama ke pengganti, cabut peran lead lama. Dropdown lead kategori kini berisi semua anggota tim.
+
+Kolom baru (`Judul` di Request & Task, `Diarsipkan` di Task, `Terakhir Dilihat` di Users) ditambahkan otomatis ke sheet saat aplikasi pertama kali jalan.
+
 ## Struktur Google Sheets
 
 | Tab | Isi | Diubah oleh |

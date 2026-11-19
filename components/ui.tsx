@@ -39,7 +39,7 @@ export function HealthBadge({ health, withValue = false }: { health: HealthLevel
 
 export function Sisa({ deadline, today, done }: { deadline: string; today: string; done?: boolean }) {
   if (!deadline) return <span className="subtle">-</span>;
-  if (done) return <span className="subtle">selesai</span>;
+  if (done) return <span className="subtle">done</span>;
   const d = diffDays(today, deadline.slice(0, 10));
   const cls = d < 0 ? 'late' : d <= 1 ? 'soon' : '';
   return <span className={`sisa ${cls}`}>{sisaLabel(d)}</span>;

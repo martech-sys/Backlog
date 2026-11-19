@@ -31,8 +31,8 @@ export const ROLE_LABEL: Record<string, string> = {
   hocp: 'Head of Creative Production',
   head: 'Creative Head',
   traffic: 'Traffic',
-  lead: 'Lead divisi',
-  tim: 'Tim creative',
-  pic: 'PIC brand',
+  lead: 'Division lead',
+  tim: 'Creative team',
+  pic: 'Brand PIC',
   viewer: 'Viewer',
 };

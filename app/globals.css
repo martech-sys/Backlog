@@ -1880,7 +1880,7 @@ table.users td {
   margin-bottom: 4px;
 }
 .action-card > h2::before {
-  content: 'Langkah berikutnya';
+  content: 'Next step';
   display: block;
   font-size: 11px;
   font-weight: 700;
@@ -2711,4 +2711,24 @@ tr:hover .icon-btn,
   display: block;
   border-radius: 8px;
   flex: 0 0 auto;
+}
+
+/* Sidebar: aksen lime (arah UI baru) */
+.side-nav a,
+.side-primary a,
+.side-who {
+  border-radius: 12px;
+}
+.side-nav a.active::before {
+  background: var(--accent);
+}
+.side-nav a.active svg {
+  color: var(--accent);
+}
+.side-primary a {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.side-primary a svg {
+  color: var(--accent-text);
 }

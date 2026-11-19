@@ -1,5 +1,5 @@
 import type { RequestRow, TaskRow } from './config';
-import { formatTanggal } from './dates';
+import { formatTanggalId as formatTanggal } from './dates';
 import { env } from './env';
 
 const link = (path: string) => `${env.appUrl}${path}`;

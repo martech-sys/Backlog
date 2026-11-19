@@ -114,12 +114,13 @@ assert.ok((await page.locator('.field .error').count()) >= 5);
 // 2. Submit request
 step('PIC: kirim request Desain grafis');
 await page.selectOption('#brand', 'Heymale');
+await page.fill('#judul', 'Poster Payday E2E');
 await page.selectOption('#campaignType', 'Small Campaign');
 await page.fill('#objective', 'Uji alur end-to-end');
 await page.locator('label.choice', { hasText: 'Desain grafis' }).click();
 await page.locator('label.choice', { hasText: 'Poster' }).click();
 await page.fill('[name="detail:Desain grafis:ukuran"]', '1080x1350');
-await page.fill('[name="detail:Desain grafis:jumlahDesain"]', '2');
+await page.fill('[name="detail:Desain grafis:jumlahDesain"]', '1');
 await page.fill('#usp', 'Bahan adem');
 await page.fill('#keyMessage', 'Diskon 50%');
 await page.fill('#creativeNote', 'Bold');
