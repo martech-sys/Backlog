@@ -2681,3 +2681,19 @@ a.kpi-link:hover > .kpi-tile {
     border-radius: 18px;
   }
 }
+
+/* Hapus task (arsip) */
+.danger-zone {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+.icon-btn {
+  padding: 4px 8px !important;
+  opacity: 0.55;
+}
+tr:hover .icon-btn,
+.icon-btn:focus-visible {
+  opacity: 1;
+}
+.tabs a.tab-muted:not(.active) {
+  color: var(--text-3);
+}

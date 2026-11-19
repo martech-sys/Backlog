@@ -14,7 +14,10 @@ import {
   priorityAction,
   qcAction,
   reviewAction,
+  editDetailAction,
+  archiveTaskAction,
 } from '@/app/actions';
+import { ConfirmButton } from '@/components/ConfirmButton';
 import { SubmitButton } from '@/components/SubmitButton';
 import { Journey } from '@/components/Journey';
 import { MarkSeen } from '@/components/SeenMarker';
@@ -32,7 +35,7 @@ import { getDbWithWa, requireUser } from '@/lib/session';
 import { categoryDefs } from '@/lib/categories';
 import { journeyOf } from '@/lib/journey';
 import { seenKey } from '@/lib/mine';
-import { canComment, canEditBriefFromTask, needsCustomSetup, parseDetailLine } from '@/lib/service';
+import { canArchive, canComment, canEditBriefFromTask, canEditClosedDetail, needsCustomSetup, parseDetailLine } from '@/lib/service';
 import { previewUrl, uploadConfigured } from '@/lib/upload';
 import { availableActions, can } from '@/lib/workflow';
 
@@ -127,6 +130,16 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
   const catDef = catDefs.find((c) => c.name === t.Kategori);
   const taskSubs = String(t['Sub-jenis'] || '').split(',').map((x) => x.trim());
   const detailValues = r ? parseDetailLine(r['Detail Kategori'], t.Kategori, catDefs) : {};
+  const mayEditDetail = canEditClosedDetail(user, t);
+  const mayArchive = canArchive(user);
+  const teamOptions = db.master.people
+    .filter((p) => p.sources.includes('tim') && (p.active || p.name === t.Lead || p.name === t.Assignee))
+    .map((p) => p.name)
+    .sort((a, b) => a.localeCompare(b));
+  const picOptions = db.master.people
+    .filter((p) => p.roles.includes('pic') && (p.active || p.name === t['PIC Brand']))
+    .map((p) => p.name)
+    .sort((a, b) => a.localeCompare(b));
   const canUpload = uploadConfigured();
   const mayEditDesc = !done && (can.work(user, t) || can.qc(user, t));
   const jenisOptions = [
@@ -765,29 +778,82 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
         </div>
 
         <div className="stack">
-          <section className="card">
-            <h2 style={{ marginBottom: 10 }}>Detail</h2>
-            <dl className="kv" style={{ gridTemplateColumns: '110px minmax(0,1fr)' }}>
-              <dt>PIC brand</dt>
-              <dd>{t['PIC Brand']}</dd>
-              <dt>Lead</dt>
-              <dd>{t.Lead}</dd>
-              <dt>Assignee</dt>
-              <dd>{t.Assignee || 'Belum di-assign'}</dd>
-              <dt>Target draft</dt>
-              <dd>{formatTanggal(t['Target Draft'])}</dd>
-              <dt>Deadline</dt>
-              <dd>{formatTanggal(t.Deadline)}</dd>
-              <dt>Status sejak</dt>
-              <dd>{formatWaktu(t['Status Sejak'])}</dd>
-              {t['Selesai Pada'] ? (
-                <>
-                  <dt>Final pada</dt>
-                  <dd>{formatWaktu(t['Selesai Pada'])}</dd>
-                </>
-              ) : null}
-            </dl>
-          </section>
+          <EditableSection
+            key={`detail-${sp.ok || ''}`}
+            id="detail"
+            title="Detail"
+            editLabel="Edit"
+            canEdit={mayEditDetail}
+            view={
+              <dl className="kv" style={{ gridTemplateColumns: '110px minmax(0,1fr)' }}>
+                <dt>PIC brand</dt>
+                <dd>{t['PIC Brand']}</dd>
+                <dt>Lead</dt>
+                <dd>{t.Lead || '-'}</dd>
+                <dt>Assignee</dt>
+                <dd>{t.Assignee || 'Unassigned'}</dd>
+                <dt>Target draft</dt>
+                <dd>{formatTanggal(t['Target Draft'])}</dd>
+                <dt>Deadline</dt>
+                <dd>{formatTanggal(t.Deadline)}</dd>
+                <dt>Status since</dt>
+                <dd>{formatWaktu(t['Status Sejak'])}</dd>
+                {t['Selesai Pada'] ? (
+                  <>
+                    <dt>Final at</dt>
+                    <dd>{formatWaktu(t['Selesai Pada'])}</dd>
+                  </>
+                ) : null}
+              </dl>
+            }
+            form={
+              <form action={editDetailAction} className="stack">
+                <input type="hidden" name="taskId" value={id} />
+                <div className="field">
+                  <label htmlFor="ed-pic">PIC brand</label>
+                  <select id="ed-pic" name="pic" defaultValue={t['PIC Brand']} required>
+                    {picOptions.map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="ed-lead">Lead</label>
+                  <select id="ed-lead" name="lead" defaultValue={t.Lead} required>
+                    {teamOptions.map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="ed-assignee">Assignee</label>
+                  <select id="ed-assignee" name="assignee" defaultValue={t.Assignee}>
+                    <option value="">Unassigned</option>
+                    {teamOptions.map((n) => (
+                      <option key={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="ed-target">Target draft</label>
+                  <input id="ed-target" type="date" name="targetDraft" defaultValue={t['Target Draft'].slice(0, 10)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="ed-deadline">Deadline</label>
+                  <input id="ed-deadline" type="date" name="deadline" defaultValue={t.Deadline.slice(0, 10)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="ed-final">Final at</label>
+                  <input id="ed-final" type="datetime-local" name="selesaiPada" defaultValue={t['Selesai Pada'].replace(' ', 'T').slice(0, 16)} />
+                </div>
+                <div className="actions-row">
+                  <SubmitButton>Save</SubmitButton>
+                  <CancelEdit />
+                </div>
+                <span className="help">The task stays {t.Status}. Every change is recorded in the status history (who, when, which field).</span>
+              </form>
+            }
+          />
 
           {actions.includes('assign') ? (
             <section className="card">
@@ -833,6 +899,24 @@ export default async function TaskDetail({ params, searchParams }: { params: Par
                 </select>
                 <input type="text" name="note" placeholder="Alasan (wajib)" required />
                 <SubmitButton className="btn danger block">Paksa status</SubmitButton>
+              </form>
+            </section>
+          ) : null}
+
+          {mayArchive ? (
+            <section className="card danger-zone">
+              <h2>Delete task</h2>
+              <p className="muted" style={{ marginTop: 4 }}>
+                For tasks entered by mistake or no longer needed. The task disappears from the Tracker, Dashboard, and reminders; an admin
+                can restore it from the Deleted tab in the Tracker.
+              </p>
+              <form action={archiveTaskAction} className="stack" style={{ marginTop: 10 }}>
+                <input type="hidden" name="taskId" value={id} />
+                <input type="hidden" name="back" value="/tracker" />
+                <input type="text" name="reason" placeholder="Reason (optional)" maxLength={200} />
+                <ConfirmButton className="btn danger block" confirm={`Delete ${id}? It will be moved to the archive.`}>
+                  Delete task
+                </ConfirmButton>
               </form>
             </section>
           ) : null}

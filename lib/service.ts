@@ -1180,3 +1180,110 @@ export async function editDraftLink(store: Store, user: CurrentUser, taskId: str
     return { ok: true, message: `Link draft v${v} diperbarui.` };
   });
 }
+
+// ---------------------------------------------------------------------------
+// 7. Koreksi panel Detail untuk task yang sudah Final/Selesai (poin 13)
+// ---------------------------------------------------------------------------
+
+export interface DetailEdit {
+  pic: string;
+  lead: string;
+  assignee: string;
+  targetDraft: string;
+  deadline: string;
+  /** "YYYY-MM-DD" atau "YYYY-MM-DD HH:mm" */
+  selesaiPada: string;
+}
+
+/** Admin, Head of Creative Production, Creative Head & Traffic grup itu boleh mengoreksi detail task yang sudah ditutup. */
+export const canEditClosedDetail = (u: CurrentUser, t: TaskRow) =>
+  (t.Status === STATUS.FINAL || t.Status === STATUS.SELESAI) && can.prioritize(u, t);
+
+/**
+ * Koreksi data task yang sudah Final/Selesai tanpa membuka ulang task. Setiap field yang berubah
+ * dicatat di riwayat (siapa, kapan, dari → ke). Tidak mengirim WA.
+ */
+export async function editClosedDetail(store: Store, user: CurrentUser, taskId: string, e: DetailEdit): Promise<ActionResult> {
+  return withTask(store, user, taskId, async (tx, t, r) => {
+    if (!canEditClosedDetail(user, t)) return fail('Detail hanya bisa dikoreksi Admin, Traffic, atau Creative Head setelah task Final/Selesai.');
+    const { master } = tx.db;
+    const person = (name: string, label: string, opts: { pic?: boolean; optional?: boolean } = {}) => {
+      const n = name.trim();
+      if (!n) return opts.optional ? '' : fail(`${label} wajib diisi.`);
+      const p = findPerson(master, n);
+      if (!p) return fail(`${label} "${n}" tidak ditemukan di master data.`);
+      if (opts.pic && !p.roles.includes('pic')) return fail(`${n} bukan PIC brand.`);
+      return p.name;
+    };
+    const pic = person(e.pic, 'PIC brand', { pic: true });
+    const lead = person(e.lead, 'Lead');
+    const assignee = person(e.assignee, 'Assignee', { optional: true });
+    for (const v of [pic, lead, assignee]) if (typeof v !== 'string') return v;
+    for (const [v, label] of [
+      [e.targetDraft, 'Target draft'],
+      [e.deadline, 'Deadline'],
+    ] as const)
+      if (v && !isYmd(v)) return fail(`${label} tidak valid.`);
+    const sp = e.selesaiPada.trim().replace('T', ' ');
+    if (sp && !/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$/.test(sp)) return fail('Tanggal final tidak valid.');
+
+    const next: Record<string, string> = {
+      'PIC Brand': pic as string,
+      Lead: lead as string,
+      Assignee: assignee as string,
+      'Target Draft': e.targetDraft,
+      Deadline: e.deadline,
+      'Selesai Pada': sp,
+    };
+    const LABEL: Record<string, string> = { 'PIC Brand': 'PIC brand', 'Target Draft': 'Target draft', 'Selesai Pada': 'Final pada' };
+    const changed = Object.keys(next).filter((k) => next[k] !== String((t as unknown as Record<string, string>)[k] ?? ''));
+    if (!changed.length) return { ok: true, message: 'Tidak ada perubahan.' };
+    const patch: Record<string, Cell> = Object.fromEntries(changed.map((k) => [k, next[k]]));
+    patch['Bola di'] = ballHolder(t.Status, { ...t, ...next }, r.Traffic);
+    await writeTask(tx, taskId, patch);
+    const what = changed.map((k) => `${LABEL[k] || k}: ${(t as unknown as Record<string, string>)[k] || '-'} → ${next[k] || '-'}`).join('; ');
+    tx.log(taskId, 'Task', t.Status, t.Status, `Detail dikoreksi (task sudah ${t.Status}): ${what}`);
+    return { ok: true, message: `Detail diperbarui (${changed.map((k) => LABEL[k] || k).join(', ')}).` };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 8. Hapus task = arsip (poin 14). Hanya admin; bisa dikembalikan.
+// ---------------------------------------------------------------------------
+
+export const canArchive = (u: CurrentUser) => can.override(u);
+
+export async function archiveTask(store: Store, user: CurrentUser, taskId: string, reason: string): Promise<ActionResult> {
+  return withTask(store, user, taskId, async (tx, t, r) => {
+    if (!canArchive(user)) return fail('Hanya admin yang bisa menghapus task.');
+    const why = reason.trim().slice(0, 200);
+    await writeTask(tx, taskId, { Diarsipkan: `${tx.ts} · ${user.name}${why ? ` · ${why}` : ''}` });
+    tx.log(taskId, 'Task', t.Status, t.Status, `Task dihapus (diarsipkan)${why ? `: ${why}` : ''}`);
+    // Bila task lain di request ini sudah selesai semua, request ikut selesai.
+    const rest = tasksOf(tx.db, r['Request ID']).filter((x) => x['Task ID'] !== taskId);
+    if (rest.length && r.Status !== REQUEST_STATUS.SELESAI && rest.every((x) => x.Status === STATUS.SELESAI)) {
+      await tx.store.update(SHEETS.REQUEST, 'Request ID', [
+        { key: r['Request ID'], patch: { Status: REQUEST_STATUS.SELESAI, 'Status Sejak': tx.ts, 'Selesai Pada': tx.ts } },
+      ]);
+      tx.log(r['Request ID'], 'Request', r.Status, REQUEST_STATUS.SELESAI, `Semua task selesai (setelah ${taskId} dihapus)`);
+    }
+    return { ok: true, message: `Task ${taskId} dihapus. Admin bisa mengembalikannya dari tab Deleted di Tracker.` };
+  });
+}
+
+export async function restoreTask(store: Store, user: CurrentUser, taskId: string): Promise<ActionResult> {
+  if (!canArchive(user)) return fail('Hanya admin yang bisa mengembalikan task.');
+  const db = await loadDb(store, { fresh: true });
+  const t = db.archivedTasks.find((x) => x['Task ID'] === taskId);
+  if (!t) return fail('Task arsip tidak ditemukan.');
+  const tx = new Tx(store, db, user.name);
+  await writeTask(tx, taskId, { Diarsipkan: '' });
+  tx.log(taskId, 'Task', t.Status, t.Status, 'Task dikembalikan dari arsip');
+  const r = findRequest(db, t['Request ID']);
+  if (r && r.Status === REQUEST_STATUS.SELESAI && t.Status !== STATUS.SELESAI) {
+    await store.update(SHEETS.REQUEST, 'Request ID', [{ key: r['Request ID'], patch: { Status: REQUEST_STATUS.DIPROSES, 'Status Sejak': tx.ts, 'Selesai Pada': '' } }]);
+    tx.log(r['Request ID'], 'Request', r.Status, REQUEST_STATUS.DIPROSES, `${taskId} dikembalikan dari arsip`);
+  }
+  await tx.commit();
+  return { ok: true, message: `Task ${taskId} dikembalikan.` };
+}

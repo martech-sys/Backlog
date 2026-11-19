@@ -14,6 +14,9 @@ import { getDb, requireUser } from '@/lib/session';
 import { Flash, HealthBadge, Sisa, StatusBadge, UrgentBadge } from '@/components/ui';
 import { bySubmittedDesc, HEALTH_LEVELS, submittedAt, taskHealth, taskTitle } from '@/lib/taskInfo';
 import type { CurrentUser } from '@/lib/workflow';
+import { archiveTaskAction, restoreTaskAction } from '@/app/actions';
+import { ConfirmButton } from '@/components/ConfirmButton';
+import { canArchive } from '@/lib/service';
 
 export const metadata = { title: 'Tracker' };
 
@@ -27,6 +30,7 @@ const VIEWS = [
   { key: 'urgent', label: 'URGENT' },
   { key: 'selesai', label: 'Final & done' },
   { key: 'semua', label: 'All' },
+  { key: 'arsip', label: 'Deleted' },
 ] as const;
 
 const FILTER_LABELS: Record<string, string> = {
@@ -53,7 +57,9 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
   const today = todayWib(now());
   const tomorrow = addDays(today, 1);
   const reqById = new Map(db.requests.map((r) => [r['Request ID'], r]));
-  const view = (VIEWS.find((v) => v.key === sp.view)?.key || (sp.mine ? 'mine' : 'aktif')) as (typeof VIEWS)[number]['key'];
+  const admin = canArchive(user);
+  const views = VIEWS.filter((v) => v.key !== 'arsip' || admin);
+  const view = (views.find((v) => v.key === sp.view)?.key || (sp.mine ? 'mine' : 'aktif')) as (typeof VIEWS)[number]['key'];
   const q = (sp.q || '').toLowerCase();
   const stage = STAGES.find((x) => x.name === sp.tahap);
 
@@ -72,6 +78,8 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
         return !isDone(t) && t.Urgent === 'Ya';
       case 'selesai':
         return isDone(t);
+      case 'arsip':
+        return true;
       default:
         return true;
     }
@@ -95,7 +103,8 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
             .includes(q));
   // Default: urut waktu pengajuan (terbaru di atas). Urutan tetap stabil apa pun filternya.
   const bySubmitted = bySubmittedDesc<TaskRow>(reqById);
-  const filtered = db.tasks
+  const source = view === 'arsip' ? db.archivedTasks : db.tasks;
+  const filtered = source
     .filter((t) => matchView(view, t) && matchStatus(t) && matchOther(t))
     .sort((a, b) => {
       if (sp.sort === 'lama') return (a['Status Sejak'] || '').localeCompare(b['Status Sejak'] || '') || bySubmitted(a, b);
@@ -105,7 +114,9 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
     });
 
   const pipeline = journeyCounts(db.tasks.filter(matchOther), today);
-  const counts = Object.fromEntries(VIEWS.map((v) => [v.key, db.tasks.filter((t) => matchView(v.key, t)).length]));
+  const counts = Object.fromEntries(
+    views.map((v) => [v.key, v.key === 'arsip' ? db.archivedTasks.length : db.tasks.filter((t) => matchView(v.key, t)).length]),
+  );
 
   const keep = (patch: Record<string, string>) => {
     const p = new URLSearchParams(
@@ -133,8 +144,8 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
       <Flash ok={sp.ok} err={sp.err} />
 
       <div className="tabs">
-        {VIEWS.map((v) => (
-          <Link key={v.key} href={keep({ view: v.key })} className={view === v.key ? 'active' : ''}>
+        {views.map((v) => (
+          <Link key={v.key} href={keep({ view: v.key })} className={`${view === v.key ? 'active' : ''}${v.key === 'arsip' ? ' tab-muted' : ''}`}>
             {v.label}
             <span className="count">{counts[v.key]}</span>
           </Link>
@@ -287,13 +298,14 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
               <th>Deadline</th>
               <th>Time left</th>
               <th>Rev.</th>
+              {admin ? <th aria-label="Actions" /> : null}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={11} className="empty">
-                  No tasks.
+                <td colSpan={admin ? 12 : 11} className="empty">
+                  {view === 'arsip' ? 'No deleted tasks.' : 'No tasks.'}
                 </td>
               </tr>
             ) : (
@@ -306,9 +318,13 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
                 return (
                   <tr key={t['Task ID']} className={[mineRow ? 'mine-row' : '', urg ? `urg-${urg}` : ''].join(' ').trim() || undefined}>
                     <td className="task-cell">
-                      <Link className="task-title" href={`/tasks/${t['Task ID']}`}>
-                        {taskTitle(t, r)}
-                      </Link>
+                      {view === 'arsip' ? (
+                        <span className="task-title">{taskTitle(t, r)}</span>
+                      ) : (
+                        <Link className="task-title" href={`/tasks/${t['Task ID']}`}>
+                          {taskTitle(t, r)}
+                        </Link>
+                      )}
                       {r?.['Campaign Name'] && taskTitle(t, r) !== r['Campaign Name'] ? (
                         <div className="task-campaign">{r['Campaign Name']}</div>
                       ) : null}
@@ -369,6 +385,34 @@ export default async function TrackerPage({ searchParams }: { searchParams: SP }
                         <div className="subtle">since {formatTanggal(t['Status Sejak'].slice(0, 10), false)}</div>
                       ) : null}
                     </td>
+                    {admin ? (
+                      <td className="nowrap">
+                        {view === 'arsip' ? (
+                          <form action={restoreTaskAction}>
+                            <input type="hidden" name="taskId" value={t['Task ID']} />
+                            <input type="hidden" name="back" value={keep({})} />
+                            <div className="subtle" style={{ maxWidth: 180, whiteSpace: 'normal', marginBottom: 6 }}>
+                              Deleted {t.Diarsipkan}
+                            </div>
+                            <ConfirmButton className="btn small" confirm={`Restore ${t['Task ID']}?`}>
+                              Restore
+                            </ConfirmButton>
+                          </form>
+                        ) : (
+                          <form action={archiveTaskAction}>
+                            <input type="hidden" name="taskId" value={t['Task ID']} />
+                            <input type="hidden" name="back" value={keep({})} />
+                            <ConfirmButton
+                              className="btn small icon-btn"
+                              title={`Delete ${t['Task ID']}`}
+                              confirm={`Delete ${t['Task ID']} (${taskTitle(t, r)})? It will be moved to the archive; an admin can restore it from the Deleted tab.`}
+                            >
+                              🗑
+                            </ConfirmButton>
+                          </form>
+                        )}
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })

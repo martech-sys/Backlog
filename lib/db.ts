@@ -21,7 +21,10 @@ import type { Store } from './store';
 export interface Db {
   master: Master;
   requests: RequestRow[];
+  /** Task aktif di semua tampilan. Task yang diarsipkan (dihapus) tidak termasuk. */
   tasks: TaskRow[];
+  /** Task yang diarsipkan admin (kolom Diarsipkan terisi); bisa dikembalikan. */
+  archivedTasks: TaskRow[];
   statusLog: StatusLogRow[];
   waLog: WaLogRow[];
   /** Akun login (tab Users). Berisi hash password: jangan pernah dikirim ke komponen client. */
@@ -62,7 +65,8 @@ export async function loadDb(store: Store, opts: { withWaLog?: boolean; fresh?: 
   return {
     master,
     requests: (t[SHEETS.REQUEST] as unknown as RequestRow[]).filter((r) => r['Request ID']),
-    tasks: (t[SHEETS.TASK] as unknown as TaskRow[]).filter((r) => r['Task ID']),
+    tasks: (t[SHEETS.TASK] as unknown as TaskRow[]).filter((r) => r['Task ID'] && !String(r.Diarsipkan || '').trim()),
+    archivedTasks: (t[SHEETS.TASK] as unknown as TaskRow[]).filter((r) => r['Task ID'] && String(r.Diarsipkan || '').trim()),
     statusLog: t[SHEETS.STATUS_LOG] as unknown as StatusLogRow[],
     waLog: (t[SHEETS.WA_LOG] || []) as unknown as WaLogRow[],
     accounts: parseAccounts((t[SHEETS.USERS] || []) as unknown as UserRow[]),

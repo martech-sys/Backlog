@@ -95,3 +95,43 @@ test('approve / tolak request secara massal (poin 10)', async () => {
   const pic = await svc.bulkCekBrief(store, brama, [ids[2]], 'Lengkap', '');
   assert.equal(pic.ok, false, 'PIC brand tidak boleh approve');
 });
+
+test('detail task selesai bisa dikoreksi & task bisa dihapus (arsip) lalu dikembalikan (poin 13, 14)', async () => {
+  const store = testStore();
+  const brama = await userOf(store, 'Brama');
+  const evi = await userOf(store, 'Evi');
+  const admin = { email: 'admin@x', name: 'Admin', roles: ['admin' as const], grup: 'Semua' };
+  at('2026-10-27T02:00:00Z');
+  const a = (await svc.submitRequest(store, brama, requestInput({ dueDate: '2026-11-13' }))).id!;
+  const b = (await svc.submitRequest(store, brama, requestInput({ dueDate: '2026-11-13' }))).id!;
+  await svc.bulkCekBrief(store, evi, [a, b], 'Lengkap', '');
+  let db = await loadDb(store);
+  const ta = db.tasks.find((t) => t['Request ID'] === a)!;
+  const tb = db.tasks.find((t) => t['Request ID'] === b)!;
+
+  // Poin 13: task masih dikerjakan → belum bisa dikoreksi lewat panel Detail
+  const edit = { pic: 'Brama', lead: 'Aulia Pramudya', assignee: 'Desainer B', targetDraft: '2026-11-11', deadline: '2026-11-14', selesaiPada: '' };
+  assert.equal((await svc.editClosedDetail(store, evi, ta['Task ID'], edit)).ok, false);
+  await svc.overrideStatus(store, admin, ta['Task ID'], 'Selesai', 'tes');
+  const ed = await svc.editClosedDetail(store, evi, ta['Task ID'], { ...edit, selesaiPada: '2026-11-12T16:30' });
+  assert.equal(ed.ok, true, ed.message);
+  db = await loadDb(store);
+  const after = db.tasks.find((t) => t['Task ID'] === ta['Task ID'])!;
+  assert.deepEqual([after.Assignee, after.Deadline, after['Selesai Pada'], after.Status], ['Desainer B', '2026-11-14', '2026-11-12 16:30', 'Selesai']);
+  const log = db.statusLog.filter((l) => l.ID === ta['Task ID']).pop()!;
+  assert.match(log.Catatan, /Detail dikoreksi.*Assignee: .* → Desainer B/);
+  assert.equal(log.Oleh, 'Evi');
+  assert.equal((await svc.editClosedDetail(store, brama, ta['Task ID'], edit)).ok, false, 'PIC tidak boleh');
+
+  // Poin 14: hanya admin; task hilang dari daftar, request ikut selesai bila sisanya selesai
+  assert.equal((await svc.archiveTask(store, evi, tb['Task ID'], '')).ok, false);
+  assert.equal((await svc.archiveTask(store, admin, tb['Task ID'], 'salah input')).ok, true);
+  db = await loadDb(store);
+  assert.equal(db.tasks.some((t) => t['Task ID'] === tb['Task ID']), false);
+  assert.equal(db.archivedTasks.length, 1);
+  assert.match(db.archivedTasks[0].Diarsipkan, /Admin · salah input$/);
+  assert.equal((await svc.restoreTask(store, admin, tb['Task ID'])).ok, true);
+  db = await loadDb(store);
+  assert.equal(db.tasks.some((t) => t['Task ID'] === tb['Task ID']), true);
+  assert.equal(db.archivedTasks.length, 0);
+});

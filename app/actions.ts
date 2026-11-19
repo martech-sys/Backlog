@@ -118,6 +118,34 @@ export async function bulkCekBriefAction(fd: FormData) {
   done(safeBack(fd, '/requests'), r);
 }
 
+export async function editDetailAction(fd: FormData) {
+  const user = await requireUser();
+  const taskId = s(fd, 'taskId');
+  const r = await svc.editClosedDetail(await getStore(), user, taskId, {
+    pic: s(fd, 'pic'),
+    lead: s(fd, 'lead'),
+    assignee: s(fd, 'assignee'),
+    targetDraft: s(fd, 'targetDraft'),
+    deadline: s(fd, 'deadline'),
+    selesaiPada: s(fd, 'selesaiPada'),
+  });
+  done(`/tasks/${encodeURIComponent(taskId)}#detail`, r);
+}
+
+export async function archiveTaskAction(fd: FormData) {
+  const user = await requireUser();
+  const taskId = s(fd, 'taskId');
+  const r = await svc.archiveTask(await getStore(), user, taskId, s(fd, 'reason'));
+  // Task yang dihapus tidak punya halaman lagi: kembali ke Tracker (atau halaman asal).
+  done(r.ok ? safeBack(fd, '/tracker') : `/tasks/${encodeURIComponent(taskId)}`, r);
+}
+
+export async function restoreTaskAction(fd: FormData) {
+  const user = await requireUser();
+  const r = await svc.restoreTask(await getStore(), user, s(fd, 'taskId'));
+  done(safeBack(fd, '/tracker?view=arsip'), r);
+}
+
 export async function assignAction(fd: FormData) {
   const user = await requireUser();
   const taskId = s(fd, 'taskId');
