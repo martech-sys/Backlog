@@ -21,17 +21,17 @@ export function ChangePasswordForm({ currentLabel }: { currentLabel: string }) {
         <PasswordInput id="current" name="current" autoComplete="current-password" />
       </div>
       <div className="field">
-        <label htmlFor="password">Password baru</label>
+        <label htmlFor="password">New password</label>
         <PasswordInput id="password" name="password" />
-        <span className="help">Minimal 8 karakter, berisi huruf dan angka.</span>
+        <span className="help">At least 8 characters, with letters and numbers.</span>
       </div>
       <div className="field">
-        <label htmlFor="confirm">Ulangi password baru</label>
+        <label htmlFor="confirm">Repeat new password</label>
         <PasswordInput id="confirm" name="confirm" />
       </div>
       <div>
         <button type="submit" className="btn primary" disabled={pending}>
-          {pending ? 'Menyimpan…' : 'Simpan password'}
+          {pending ? 'Saving…' : 'Save password'}
         </button>
       </div>
     </form>

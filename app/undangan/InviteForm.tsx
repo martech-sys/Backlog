@@ -19,16 +19,16 @@ export function InviteForm({ token, email }: { token: string; email: string }) {
       <input type="hidden" name="token" value={token} />
       <input type="email" name="username" value={email} readOnly autoComplete="username" hidden />
       <div className="field">
-        <label htmlFor="password">Password baru</label>
+        <label htmlFor="password">New password</label>
         <PasswordInput id="password" name="password" />
-        <span className="help">Minimal 8 karakter, berisi huruf dan angka.</span>
+        <span className="help">At least 8 characters, with letters and numbers.</span>
       </div>
       <div className="field">
-        <label htmlFor="confirm">Ulangi password</label>
+        <label htmlFor="confirm">Repeat password</label>
         <PasswordInput id="confirm" name="confirm" />
       </div>
       <button type="submit" className="btn primary block" disabled={pending} style={{ padding: '10px 14px' }}>
-        {pending ? 'Menyimpan…' : 'Simpan password & masuk'}
+        {pending ? 'Saving…' : 'Save password & log in'}
       </button>
     </form>
   );

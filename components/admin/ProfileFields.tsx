@@ -35,21 +35,23 @@ export function ProfileFields({
     <div className="form-grid">
       <div className="field">
         <label htmlFor={id('peran')}>
-          Peran kerja{peranRequired ? <span className="req"> *</span> : null}
+          Work role{peranRequired ? <span className="req"> *</span> : null}
         </label>
         <select id={id('peran')} name="peran" value={value.peran} onChange={(e) => set({ peran: e.target.value as WorkProfile['peran'] })}>
-          <option value="">{peranRequired ? 'Pilih peran…' : '(tanpa peran kerja)'}</option>
+          <option value="">{peranRequired ? 'Choose a role…' : '(no work role)'}</option>
           {PERAN_LIST.map((p) => (
             <option key={p}>{p}</option>
           ))}
         </select>
-        <span className="help">Menentukan routing task & notifikasi WA.</span>
+        <span className="help">Decides task routing & WhatsApp notifications.</span>
       </div>
       <div className="field">
-        <label htmlFor={id('sisi')}>Sisi</label>
+        <label htmlFor={id('sisi')}>Side</label>
         <select id={id('sisi')} name="sisi" value={value.sisi} onChange={(e) => set({ sisi: e.target.value })}>
           {SISI.map((x) => (
-            <option key={x}>{x}</option>
+            <option key={x} value={x}>
+              {x === 'Semua' ? 'All' : x}
+            </option>
           ))}
         </select>
       </div>
@@ -57,10 +59,10 @@ export function ProfileFields({
         <>
           <div className="field">
             <label htmlFor={id('divisi')}>
-              Divisi <span className="req">*</span>
+              Division <span className="req">*</span>
             </label>
             <select id={id('divisi')} name="divisi" value={value.divisi} onChange={(e) => set({ divisi: e.target.value })}>
-              <option value="">Pilih divisi…</option>
+              <option value="">Choose a division…</option>
               {DIVISI.map((d) => (
                 <option key={d.value} value={d.value}>
                   {d.label}
@@ -69,16 +71,16 @@ export function ProfileFields({
             </select>
           </div>
           <div className="field">
-            <label htmlFor={id('jabatan')}>Jabatan (opsional)</label>
+            <label htmlFor={id('jabatan')}>Job title (optional)</label>
             <input
               id={id('jabatan')}
               name="jabatan"
               type="text"
               value={value.jabatan}
               onChange={(e) => set({ jabatan: e.target.value })}
-              placeholder="mis. Photo Editor, Graphic Designer"
+              placeholder="e.g. Photo Editor, Graphic Designer"
             />
-            <span className="help">Photo editing otomatis ke anggota berjabatan &quot;Photo Editor&quot;.</span>
+            <span className="help">Photo editing goes automatically to members titled &quot;Photo Editor&quot;.</span>
           </div>
         </>
       ) : (
@@ -86,7 +88,7 @@ export function ProfileFields({
       )}
       {isPic ? (
         <div className="field" style={{ gridColumn: '1 / -1' }}>
-          <span className="label">Brand yang dipegang</span>
+          <span className="label">Brands handled</span>
           {brandGroups.map(({ g, items }) => (
             <div key={g} className="choice-group" style={{ marginTop: 4 }}>
               <span className="subtle" style={{ alignSelf: 'center', minWidth: 90 }}>
@@ -111,7 +113,7 @@ export function ProfileFields({
         </div>
       ) : null}
       <div className="field">
-        <label htmlFor={id('phone')}>No WA</label>
+        <label htmlFor={id('phone')}>WhatsApp number</label>
         <input
           id={id('phone')}
           name="phone"
@@ -121,11 +123,11 @@ export function ProfileFields({
           onChange={(e) => set({ phone: e.target.value })}
           placeholder="08123456789"
         />
-        <span className="help">Otomatis dirapikan ke format 628…</span>
+        <span className="help">Automatically formatted as 628…</span>
       </div>
       {needsDivisi ? (
         <div className="field">
-          <label htmlFor={id('kapasitas')}>Kapasitas task aktif</label>
+          <label htmlFor={id('kapasitas')}>Active task capacity</label>
           <input
             id={id('kapasitas')}
             name="kapasitas"

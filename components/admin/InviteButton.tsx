@@ -5,7 +5,7 @@ import { blastInvitesAction, resendInviteAction, type AdminState } from '@/app/a
 import { InviteLinks } from './InviteLinks';
 
 /** Kirim ulang undangan untuk satu user; menampilkan link bila email belum terkirim. */
-export function InviteButton({ email, nama, label = 'Kirim ulang undangan' }: { email: string; nama: string; label?: string }) {
+export function InviteButton({ email, nama, label = 'Resend invitation' }: { email: string; nama: string; label?: string }) {
   const [state, action, pending] = useActionState(resendInviteAction, {} as AdminState);
   return (
     <div>
@@ -22,7 +22,7 @@ export function InviteButton({ email, nama, label = 'Kirim ulang undangan' }: { 
       >
         {pending ? (
           <>
-            <span className="spinner" aria-hidden /> Mengirim…
+            <span className="spinner" aria-hidden /> Sending…
           </>
         ) : (
           label
@@ -45,10 +45,10 @@ export function BlastInvitesButton({ count }: { count: number }) {
           className="btn"
           disabled={pending || count === 0}
           onClick={() => {
-            if (window.confirm(`Kirim email undangan ke ${count} akun yang belum pernah login?`)) startTransition(() => action());
+            if (window.confirm(`Send an invitation email to ${count} accounts that have never logged in?`)) startTransition(() => action());
           }}
         >
-          {pending ? 'Mengirim undangan…' : `Kirim undangan ke semua yang belum login (${count})`}
+          {pending ? 'Sending invitations…' : `Invite everyone who hasn't logged in (${count})`}
         </button>
       </div>
       {state.message ? <div className={`flash ${state.ok ? 'ok' : 'err'}`}>{state.message}</div> : null}

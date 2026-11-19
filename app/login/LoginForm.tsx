@@ -26,7 +26,7 @@ export function LoginForm({ next }: { next: string }) {
         <PasswordInput id="password" name="password" autoComplete="current-password" />
       </div>
       <button type="submit" className="btn primary block" disabled={pending} style={{ padding: '10px 14px' }}>
-        {pending ? 'Memeriksa…' : 'Masuk'}
+        {pending ? 'Checking…' : 'Log in'}
       </button>
     </form>
   );

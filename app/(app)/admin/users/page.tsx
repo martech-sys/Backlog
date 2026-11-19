@@ -28,7 +28,7 @@ import { countSample } from '@/lib/sample';
 import { getDbWithWa, requireSuperadmin } from '@/lib/session';
 import { getStore } from '@/lib/store';
 
-export const metadata = { title: 'Kelola user' };
+export const metadata = { title: 'Manage users' };
 // Membuat data contoh dan mengirim undangan massal bisa memakan beberapa detik.
 export const maxDuration = 60;
 
@@ -80,35 +80,35 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
     <div style={{ maxWidth: 1240, margin: '0 auto' }}>
       <div className="page-head">
         <div>
-          <h1>Kelola user</h1>
+          <h1>Manage users</h1>
           <p>
-            <b>Akses</b> menentukan menu yang bisa dibuka; <b>peran kerja</b> menentukan routing task dan notifikasi WA. Keduanya diatur di
-            sini.
+            <b>Access</b> decides which menus a user can open; <b>work role</b> decides task routing and WhatsApp notifications. Both are set
+            here.
           </p>
         </div>
         <div className="title-box" style={{ fontSize: 14 }}>
-          {active.length} akun aktif · {neverLoggedIn.length} belum login · {noPhone.length} tanpa No WA
+          {active.length} active accounts · {neverLoggedIn.length} never logged in · {noPhone.length} without WhatsApp number
         </div>
       </div>
       <Flash ok={sp.ok} err={sp.err} />
       {!emailConfigured() ? (
         <div className="flash err">
-          Email undangan belum bisa dikirim karena SMTP belum diatur (env <code>SMTP_HOST</code>, <code>SMTP_USER</code>,{' '}
-          <code>SMTP_PASS</code>, <code>EMAIL_FROM</code>). Sementara itu, link undangan ditampilkan di sini untuk disalin dan dikirim
-          manual.
+          Invitation emails can't be sent because SMTP isn't set up (env <code>SMTP_HOST</code>, <code>SMTP_USER</code>,{' '}
+          <code>SMTP_PASS</code>, <code>EMAIL_FROM</code>). Until then, invitation links are shown here to copy and send
+          manually.
         </div>
       ) : null}
 
       <h2 className="section-title">
-        <span className="num">1</span> Tambah user
+        <span className="num">1</span> Add user
       </h2>
       <section className="mcard plain" style={{ ['--c' as string]: BOARD_COLORS[2], marginTop: 22 }}>
-        <div className="tab">User baru</div>
+        <div className="tab">New user</div>
         <AddUserForm brands={brands} suggestions={masterSuggestions(db.master)} />
       </section>
 
       <h2 className="section-title" id="daftar">
-        <span className="num">2</span> Daftar user
+        <span className="num">2</span> User list
       </h2>
       <div
         className="row"
@@ -119,31 +119,31 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
         }}
       >
         <div className="tabs" style={{ marginBottom: 0 }}>
-          {tab('', 'Semua', db.accounts.length)}
-          {tab('belum-login', 'Belum pernah login', neverLoggedIn.length)}
-          {tab('tanpa-wa', 'No WA kosong', noPhone.length)}
-          {tab('tanpa-peran', 'Tanpa peran kerja', noRole.length)}
+          {tab('', 'All', db.accounts.length)}
+          {tab('belum-login', 'Never logged in', neverLoggedIn.length)}
+          {tab('tanpa-wa', 'No WhatsApp number', noPhone.length)}
+          {tab('tanpa-peran', 'No work role', noRole.length)}
         </div>
         <BlastInvitesButton count={neverLoggedIn.length} />
       </div>
       <form className="filters" style={{ marginBottom: 12 }}>
         {filter ? <input type="hidden" name="f" value={filter} /> : null}
         <div className="field wide">
-          <label htmlFor="q">Cari</label>
-          <input id="q" type="search" name="q" placeholder="Nama atau email" defaultValue={sp.q || ''} />
+          <label htmlFor="q">Search</label>
+          <input id="q" type="search" name="q" placeholder="Name or email" defaultValue={sp.q || ''} />
         </div>
         <button className="btn primary" type="submit">
-          Cari
+          Search
         </button>
       </form>
       <div className="table-wrap">
         <table className="users">
           <thead>
             <tr>
-              <th>Nama & email</th>
-              <th>Peran kerja</th>
-              <th>No WA</th>
-              <th>Akses</th>
+              <th>Name & email</th>
+              <th>Work role</th>
+              <th>WhatsApp number</th>
+              <th>Access</th>
               <th>Status</th>
               <th>Login</th>
               <th>Password</th>
@@ -153,7 +153,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="empty">
-                  Tidak ada user di filter ini.
+                  No users match this filter.
                 </td>
               </tr>
             ) : (
@@ -168,18 +168,18 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                     <td style={{ minWidth: 190 }}>
                       <div className="cell-main">
                         <span className="title">
-                          {a.nama || '-'} {self ? <span className="badge blue">Kamu</span> : null}
+                          {a.nama || '-'} {self ? <span className="badge blue">You</span> : null}
                         </span>
                         <span className="subtle">{a.email}</span>
                       </div>
                       <div className="cell-actions">
                         <details>
-                          <summary className="btn small">Ubah email</summary>
+                          <summary className="btn small">Change email</summary>
                           <form action={changeEmailAction} className="cell-panel">
                             <input type="hidden" name="email" value={a.email} />
-                            <input type="email" name="newEmail" required placeholder="email baru" />
-                            <span className="subtle">Password tetap; email lama tidak bisa dipakai login lagi. Pemberitahuan dikirim ke kedua email.</span>
-                            <SubmitButton className="btn small primary">Simpan email</SubmitButton>
+                            <input type="email" name="newEmail" required placeholder="new email" />
+                            <span className="subtle">Password stays the same; the old email can no longer be used to log in. A notice is sent to both emails.</span>
+                            <SubmitButton className="btn small primary">Save email</SubmitButton>
                           </form>
                         </details>
                       </div>
@@ -192,16 +192,16 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                             {profile.jabatan ? <span className="subtle">{profile.jabatan}</span> : null}
                           </>
                         ) : a.akses !== AKSES.USER ? (
-                          <span className="subtle">{a.akses} (tanpa peran kerja)</span>
+                          <span className="subtle">{a.akses} (no work role)</span>
                         ) : (
                           <span>
-                            <span className="badge amber">Belum ada peran</span>
+                            <span className="badge amber">No role yet</span>
                           </span>
                         )}
                       </div>
                       <div className="cell-actions">
                         <details>
-                          <summary className="btn small">Ubah peran</summary>
+                          <summary className="btn small">Edit role</summary>
                           <div className="cell-panel" style={{ maxWidth: 'none' }}>
                             <ProfileEditor email={a.email} initial={profile} brands={brands} peranRequired={a.akses === AKSES.USER} />
                           </div>
@@ -210,7 +210,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                     </td>
                     <td style={{ minWidth: 170 }}>
                       <div className="cell-main">
-                        {phone ? <span className="nowrap">{phone}</span> : <span><span className="badge red">No WA kosong</span></span>}
+                        {phone ? <span className="nowrap">{phone}</span> : <span><span className="badge red">No WhatsApp number</span></span>}
                       </div>
                       {person ? (
                         <div className="cell-actions">
@@ -223,19 +223,19 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                             />
                           ) : null}
                           <details>
-                            <summary className="btn small">{phone ? 'Ubah' : '+ Tambah No WA'}</summary>
+                            <summary className="btn small">{phone ? 'Edit' : '+ Add WhatsApp number'}</summary>
                             <form action={setPhoneAction} className="cell-panel">
                               <input type="hidden" name="email" value={a.email} />
                               <input type="hidden" name="nama" value={person.name} />
                               <input type="hidden" name="back" value={back} />
-                              <input name="phone" inputMode="tel" defaultValue={phone} placeholder="0812 3456 7890" aria-label={`No WA ${person.name}`} />
-                              <SubmitButton className="btn small primary">Simpan No WA</SubmitButton>
+                              <input name="phone" inputMode="tel" defaultValue={phone} placeholder="0812 3456 7890" aria-label={`WhatsApp number for ${person.name}`} />
+                              <SubmitButton className="btn small primary">Save number</SubmitButton>
                             </form>
                           </details>
                         </div>
                       ) : (
                         <div className="cell-note subtle" style={{ marginTop: 6 }}>
-                          Isi peran kerja dulu; No WA bisa diisi di Ubah peran.
+                          Set a work role first; the WhatsApp number can be added under Edit role.
                         </div>
                       )}
                     </td>
@@ -249,7 +249,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                         </select>
                         {self ? null : (
                           <div>
-                            <SubmitButton className="btn small">Simpan akses</SubmitButton>
+                            <SubmitButton className="btn small">Save access</SubmitButton>
                           </div>
                         )}
                       </form>
@@ -257,7 +257,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                     <td style={{ minWidth: 175 }}>
                       <div className="cell-main">
                         <span>
-                          <span className={`badge ${a.aktif ? 'green' : ''}`}>{a.aktif ? 'Aktif' : 'Nonaktif'}</span>
+                          <span className={`badge ${a.aktif ? 'green' : ''}`}>{a.aktif ? 'Active' : 'Inactive'}</span>
                         </span>
                       </div>
                       {self ? null : (
@@ -265,22 +265,22 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                           <form action={updateUserAction}>
                             <input type="hidden" name="email" value={a.email} />
                             <input type="hidden" name="aktif" value={a.aktif ? 'Tidak' : 'Ya'} />
-                            <SubmitButton className="btn small">{a.aktif ? 'Nonaktifkan' : 'Aktifkan'}</SubmitButton>
+                            <SubmitButton className="btn small">{a.aktif ? 'Deactivate' : 'Activate'}</SubmitButton>
                           </form>
                           <details>
-                            <summary className="btn small danger">Hapus</summary>
+                            <summary className="btn small danger">Delete</summary>
                             <form action={deleteUserAction} className="cell-panel">
                               <input type="hidden" name="email" value={a.email} />
                               <input type="hidden" name="back" value={`/admin/users${filter ? `?f=${filter}` : ''}#daftar`} />
                               <span className="subtle">
-                                Hapus akun <b>{a.nama}</b> permanen? Riwayat task & komentarnya tetap tersimpan.
+                                Permanently delete <b>{a.nama}</b>'s account? Their task history & comments are kept.
                               </span>
                               <label className="row" style={{ gap: 6, alignItems: 'flex-start', flexWrap: 'nowrap', fontSize: 12 }}>
                                 <input type="checkbox" name="deactivate" value="Ya" defaultChecked style={{ marginTop: 2 }} />
-                                <span>Nonaktifkan juga dari tim/PIC (tidak menerima tugas &amp; WA)</span>
+                                <span>Also deactivate in team/PIC (no more tasks &amp; WhatsApp)</span>
                               </label>
-                              <SubmitButton className="btn small danger" pendingText="Menghapus…">
-                                Ya, hapus user
+                              <SubmitButton className="btn small danger" pendingText="Deleting…">
+                                Yes, delete user
                               </SubmitButton>
                             </form>
                           </details>
@@ -294,21 +294,21 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                         ) : (
                           <>
                             <span>
-                              <span className="badge amber">Belum pernah login</span>
+                              <span className="badge amber">Never logged in</span>
                             </span>
-                            {a.invitedAt ? <span className="subtle">Undangan: {formatWaktu(a.invitedAt)}</span> : null}
+                            {a.invitedAt ? <span className="subtle">Invited: {formatWaktu(a.invitedAt)}</span> : null}
                           </>
                         )}
                       </div>
                       {!a.lastLogin && a.aktif && !self ? (
                         <div className="cell-actions">
-                          <InviteButton email={a.email} nama={a.nama} label={a.invitedAt ? 'Kirim ulang undangan' : 'Kirim undangan'} />
+                          <InviteButton email={a.email} nama={a.nama} label={a.invitedAt ? 'Resend invitation' : 'Send invitation'} />
                         </div>
                       ) : null}
                     </td>
                     <td style={{ minWidth: 110 }}>
                       <div className="cell-main">
-                        <span className="subtle">{!a.hash ? 'Belum dibuat' : a.mustChange ? 'Wajib ganti' : 'Sudah diatur'}</span>
+                        <span className="subtle">{!a.hash ? 'Not set' : a.mustChange ? 'Must change' : 'Set'}</span>
                       </div>
                       <div className="cell-actions">
                         <details>
@@ -316,7 +316,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                           <form action={resetPasswordAction} className="cell-panel" style={{ minWidth: 260 }}>
                             <input type="hidden" name="email" value={a.email} />
                             <PasswordInput name="password" generate autoGenerate />
-                            <SubmitButton className="btn small primary">Simpan password baru</SubmitButton>
+                            <SubmitButton className="btn small primary">Save new password</SubmitButton>
                           </form>
                         </details>
                       </div>
@@ -330,17 +330,17 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
       </div>
 
       <h2 className="section-title">
-        <span className="num">3</span> Orang di master data yang belum punya akun
-        <span className="hint">· buat akun + kirim undangan sekali klik</span>
+        <span className="num">3</span> People in master data without an account
+        <span className="hint">· create account + send invitation in one click</span>
       </h2>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Nama</th>
-              <th>Peran kerja</th>
+              <th>Name</th>
+              <th>Work role</th>
               <th>Email</th>
-              <th>No WA</th>
+              <th>WhatsApp number</th>
               <th />
             </tr>
           </thead>
@@ -348,7 +348,7 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
             {withoutAccount.length === 0 ? (
               <tr>
                 <td colSpan={5} className="empty">
-                  Semua orang di master data sudah punya akun.
+                  Everyone in master data already has an account.
                 </td>
               </tr>
             ) : (
@@ -364,14 +364,14 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
                     </td>
                     <td>{describe(profileOf(p))}</td>
                     <td style={{ minWidth: 220 }}>
-                      <input form={formId} name="email" type="email" required defaultValue={p.email} placeholder="email login" />
+                      <input form={formId} name="email" type="email" required defaultValue={p.email} placeholder="login email" />
                     </td>
                     <td style={{ minWidth: 150 }}>
                       <input form={formId} name="phone" type="text" inputMode="tel" defaultValue={p.phone} placeholder="08…" />
                     </td>
                     <td>
                       <button type="submit" form={formId} className="btn small primary">
-                        Buat akun & undang
+                        Create account & invite
                       </button>
                     </td>
                   </tr>
@@ -383,40 +383,40 @@ export default async function UsersPage({ searchParams }: { searchParams: SP }) 
       </div>
 
       <h2 className="section-title" id="data-contoh">
-        <span className="num">4</span> Data contoh
-        <span className="hint">· untuk melihat alur & insight sebelum data asli masuk</span>
+        <span className="num">4</span> Sample data
+        <span className="hint">· to see the flow & insights before real data comes in</span>
       </h2>
       <section className="mcard plain" style={{ ['--c' as string]: BOARD_COLORS[8], marginTop: 22 }}>
-        <div className="tab">Data contoh (ID berawalan DEMO-)</div>
+        <div className="tab">Sample data (IDs starting with DEMO-)</div>
         {hasSample ? (
           <>
             <p style={{ marginTop: 0 }}>
-              Saat ini ada <b>{sampleCounts.requests}</b> request, <b>{sampleCounts.tasks}</b> task, <b>{sampleCounts.statusLog}</b> riwayat
-              status, <b>{sampleCounts.waLog}</b> log WA, dan <b>{sampleCounts.members}</b> anggota tim bertanda &quot;(contoh)&quot;. Data
-              asli (ID berawalan selain DEMO-) tidak ikut terhapus.
+              There are currently <b>{sampleCounts.requests}</b> requests, <b>{sampleCounts.tasks}</b> tasks, <b>{sampleCounts.statusLog}</b> status
+              history entries, <b>{sampleCounts.waLog}</b> WhatsApp log entries, and <b>{sampleCounts.members}</b> team members marked &quot;(contoh)&quot;.
+              Real data (IDs not starting with DEMO-) is not deleted.
             </p>
             <form action={purgeSampleAction}>
-              <SubmitButton className="btn danger" pendingText="Menghapus…">
-                Hapus semua data contoh
+              <SubmitButton className="btn danger" pendingText="Deleting…">
+                Delete all sample data
               </SubmitButton>
             </form>
           </>
         ) : (
           <>
             <p style={{ marginTop: 0 }}>
-              Membuat ±6 minggu aktivitas contoh (±70 request) memakai master data saat ini, lengkap dengan cek brief, assign, draft, QC,
-              revisi, ACC, final, riwayat status, dan log WA. Tidak ada WA atau email yang benar-benar dikirim.
+              Creates ±6 weeks of sample activity (±70 requests) from the current master data, including brief checks, assignment, drafts, QC,
+              revisions, ACC, final, status history, and WhatsApp log. No WhatsApp messages or emails are actually sent.
             </p>
             <form action={generateSampleAction}>
-              <SubmitButton className="btn primary" pendingText="Membuat data contoh… (±10–30 detik)">
-                Buat data contoh
+              <SubmitButton className="btn primary" pendingText="Creating sample data… (±10–30 seconds)">
+                Create sample data
               </SubmitButton>
             </form>
           </>
         )}
       </section>
       <p className="subtle" style={{ marginTop: 16 }}>
-        Pengaturan WhatsApp (status gateway, mode uji, kirim pesan tes) ada di halaman <Link href="/admin/whatsapp">Pengaturan WA</Link>.
+        WhatsApp settings (gateway status, test mode, sending a test message) are on the <Link href="/admin/whatsapp">WhatsApp settings</Link> page.
       </p>
     </div>
   );

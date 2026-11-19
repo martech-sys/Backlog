@@ -19,7 +19,7 @@ export function ThemeToggle() {
   };
 
   return (
-    <button type="button" className="btn small" onClick={toggle} title={dark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'} aria-label={dark ? 'Mode terang' : 'Mode gelap'}>
+    <button type="button" className="btn small" onClick={toggle} title={dark ? 'Switch to light mode' : 'Switch to dark mode'} aria-label={dark ? 'Light mode' : 'Dark mode'}>
       {dark ? '☀️' : '🌙'}
     </button>
   );

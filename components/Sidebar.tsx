@@ -57,14 +57,14 @@ export function Sidebar({ items, user }: { items: SideItem[]; user: { name: stri
           <img src="/icon.svg" alt="" width={28} height={28} className="app-icon" />
           <span className="lbl">Creative Tracker</span>
         </Link>
-        <button type="button" className="side-menu-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? 'Tutup menu' : 'Buka menu'}>
+        <button type="button" className="side-menu-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={open ? 'Close menu' : 'Open menu'}>
           <Icon name={open ? 'close' : 'menu'} size={22} />
           {!open && badge ? <span className="nav-badge">{badge > 99 ? '99+' : badge}</span> : null}
         </button>
       </div>
       <div className="side-body">
         {primary.length ? <div className="side-primary">{primary.map(link)}</div> : null}
-        <nav className="side-nav" aria-label="Menu utama">
+        <nav className="side-nav" aria-label="Main menu">
           {main.map(link)}
           {admin.length ? (
             <>
@@ -74,7 +74,7 @@ export function Sidebar({ items, user }: { items: SideItem[]; user: { name: stri
           ) : null}
         </nav>
         <div className="side-user">
-          <Link href="/akun" className={`side-who${isActive(path, '/akun') ? ' active' : ''}`} title="Akun saya">
+          <Link href="/akun" className={`side-who${isActive(path, '/akun') ? ' active' : ''}`} title="My account">
             <span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>
             <span className="who-text">
               <strong>{user.name}</strong>
@@ -84,8 +84,8 @@ export function Sidebar({ items, user }: { items: SideItem[]; user: { name: stri
           <div className="side-actions">
             <ThemeToggle />
             <form action={logoutAction}>
-              <button className="btn small side-logout" type="submit" title="Keluar">
-                <Icon name="logout" size={15} /> Keluar
+              <button className="btn small side-logout" type="submit" title="Log out">
+                <Icon name="logout" size={15} /> Log out
               </button>
             </form>
           </div>

@@ -59,40 +59,40 @@ export function AddUserForm({
         </div>
         <div className="field">
           <label htmlFor="new-nama">
-            Nama <span className="req">*</span>
+            Name <span className="req">*</span>
           </label>
-          <input id="new-nama" name="nama" type="text" required list="master-names" value={profile.nama} onChange={(e) => onName(e.target.value)} placeholder="Nama lengkap" autoComplete="off" />
-          <span className="help">Bila nama ada di master data, peran & No WA terisi otomatis (tetap bisa diubah).</span>
+          <input id="new-nama" name="nama" type="text" required list="master-names" value={profile.nama} onChange={(e) => onName(e.target.value)} placeholder="Full name" autoComplete="off" />
+          <span className="help">If the name is in master data, role & WhatsApp number fill in automatically (still editable).</span>
         </div>
         <div className="field">
-          <label htmlFor="new-akses">Akses (menu yang bisa dibuka)</label>
+          <label htmlFor="new-akses">Access (which menus they can open)</label>
           <select id="new-akses" name="akses" value={akses} onChange={(e) => setAkses(e.target.value)}>
-            <option value={AKSES.USER}>User: sesuai peran kerja</option>
-            <option value={AKSES.ADMIN}>Admin: semua aksi + koreksi status</option>
-            <option value={AKSES.SUPERADMIN}>Superadmin: admin + kelola user</option>
+            <option value={AKSES.USER}>User: based on work role</option>
+            <option value={AKSES.ADMIN}>Admin: all actions + status fixes</option>
+            <option value={AKSES.SUPERADMIN}>Superadmin: admin + manage users</option>
           </select>
         </div>
       </div>
       <ProfileFields value={profile} onChange={setProfile} brands={brands} idPrefix="new" peranRequired={akses === AKSES.USER} />
       <details open={showPassword} onToggle={(e) => setShowPassword((e.currentTarget as HTMLDetailsElement).open)}>
         <summary className="subtle" style={{ cursor: 'pointer' }}>
-          Opsi cadangan: isi password awal (bila email undangan tidak bisa dipakai)
+          Fallback: set an initial password (if the invitation email can't be used)
         </summary>
         <div className="form-grid" style={{ marginTop: 8 }}>
           <div className="field">
-            <label htmlFor="new-pass">Password awal</label>
+            <label htmlFor="new-pass">Initial password</label>
             <PasswordInput id="new-pass" name="password" generate required={false} />
           </div>
           <label className="choice" style={{ alignSelf: 'end' }}>
-            <input type="checkbox" name="mustChange" value="Ya" defaultChecked /> Wajib ganti password saat login pertama
+            <input type="checkbox" name="mustChange" value="Ya" defaultChecked /> Must change password at first login
           </label>
         </div>
       </details>
       <div className="row">
-        <span className="subtle">Setelah klik Tambah user, email undangan berisi tombol &quot;Atur password&quot; dikirim otomatis.</span>
+        <span className="subtle">After you click Add user, an invitation email with a &quot;Set password&quot; button is sent automatically.</span>
         <span className="spacer" />
         <button type="submit" className="btn primary" disabled={pending}>
-          {pending ? 'Menyimpan…' : 'Tambah user & kirim undangan'}
+          {pending ? 'Saving…' : 'Add user & send invitation'}
         </button>
       </div>
     </form>

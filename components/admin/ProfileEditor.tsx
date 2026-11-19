@@ -25,12 +25,12 @@ export function ProfileEditor({
       <input type="hidden" name="email" value={email} />
       <input type="hidden" name="back" value={`/admin/users#u-${idp}`} />
       <div className="field">
-        <label htmlFor={`${idp}-nama`}>Nama</label>
+        <label htmlFor={`${idp}-nama`}>Name</label>
         <input id={`${idp}-nama`} name="nama" type="text" value={profile.nama} onChange={(e) => setProfile({ ...profile, nama: e.target.value })} />
       </div>
       <ProfileFields value={profile} onChange={setProfile} brands={brands} idPrefix={idp} peranRequired={peranRequired} />
       <div>
-        <SubmitButton className="btn primary small">Simpan peran kerja</SubmitButton>
+        <SubmitButton className="btn primary small">Save work role</SubmitButton>
       </div>
     </form>
   );

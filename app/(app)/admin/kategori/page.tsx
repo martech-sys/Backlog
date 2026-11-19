@@ -13,11 +13,12 @@ import { canManageKategori, MODE_ASSIGN } from '@/lib/kategoriAdmin';
 import type { KategoriRule, Person } from '@/lib/master';
 import { getDb, requireUser } from '@/lib/session';
 
-export const metadata = { title: 'Kelola kategori' };
+export const metadata = { title: 'Manage categories' };
 
 type SP = Promise<Record<string, string | undefined>>;
 
 const divisiLabel = (v: string) => DIVISI.find((d) => d.value === v)?.label || v || '-';
+const MODE_LABEL: Record<string, string> = { 'Lead pilih': 'Lead picks', 'Otomatis beban': 'Auto (least-loaded)', Default: 'Default' };
 
 /** Field-field aturan kategori (dipakai di form tambah dan form ubah). */
 function RuleFields({
@@ -46,26 +47,26 @@ function RuleFields({
           <>
             <div className="field">
               <label htmlFor={p('name')}>
-                Nama kategori <span className="req">*</span>
+                Category name <span className="req">*</span>
               </label>
-              <input id={p('name')} name="name" required maxLength={40} defaultValue={defaultName} placeholder="Mis. Banner marketplace" />
+              <input id={p('name')} name="name" required maxLength={40} defaultValue={defaultName} placeholder="E.g. Marketplace banner" />
             </div>
             <div className="field">
               <label htmlFor={p('code')}>
-                Kode ID task <span className="req">*</span>
+                Task ID code <span className="req">*</span>
               </label>
-              <input id={p('code')} name="code" required maxLength={4} pattern="[A-Za-z0-9]{1,4}" placeholder="Mis. BM" style={{ textTransform: 'uppercase' }} />
-              <span className="help">1–4 huruf/angka. Contoh ID: CR-2611-001-BM. Tidak bisa diubah setelah disimpan.</span>
+              <input id={p('code')} name="code" required maxLength={4} pattern="[A-Za-z0-9]{1,4}" placeholder="E.g. BM" style={{ textTransform: 'uppercase' }} />
+              <span className="help">1–4 letters/digits. Example ID: CR-2611-001-BM. Can't be changed after saving.</span>
             </div>
           </>
         ) : null}
         {isCustomCat ? null : (
           <div className="field">
             <label htmlFor={p('divisi')}>
-              Divisi <span className="req">*</span>
+              Division <span className="req">*</span>
             </label>
             <select id={p('divisi')} name="divisi" required defaultValue={rule?.divisi || ''}>
-              <option value="">Pilih divisi…</option>
+              <option value="">Choose a division…</option>
               {DIVISI.map((d) => (
                 <option key={d.value} value={d.value}>
                   {d.label}
@@ -78,7 +79,7 @@ function RuleFields({
           <div className="field" key={k}>
             <label htmlFor={p(k)}>Lead {k === 'leadMenswear' ? 'Menswear' : 'Womenswear'}</label>
             <select id={p(k)} name={k} defaultValue={rule ? rule[k] : ''}>
-              <option value="">Otomatis (lead divisi sesuai sisi)</option>
+              <option value="">Automatic (division lead for the side)</option>
               {leads.map((x) => (
                 <option key={x.name} value={x.name}>
                   {x.name} · {divisiLabel(x.divisi)} · {x.grup}
@@ -89,17 +90,17 @@ function RuleFields({
           </div>
         ))}
         <div className="field">
-          <label htmlFor={p('mode')}>Cara assign</label>
+          <label htmlFor={p('mode')}>Assignment method</label>
           <select id={p('mode')} name="modeAssign" defaultValue={rule?.modeAssign || 'Lead pilih'}>
             {MODE_ASSIGN.map((m) => (
               <option key={m} value={m}>
-                {m === 'Lead pilih' ? 'Lead memilih anggota' : m === 'Otomatis beban' ? 'Otomatis ke anggota paling longgar' : 'Default ke orang tertentu'}
+                {m === 'Lead pilih' ? 'Lead picks a member' : m === 'Otomatis beban' ? 'Auto to least-loaded member' : 'Default to a specific person'}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor={p('assignee')}>Assignee default</label>
+          <label htmlFor={p('assignee')}>Default assignee</label>
           <select id={p('assignee')} name="assigneeDefault" defaultValue={rule?.assigneeDefault || ''}>
             <option value="">—</option>
             {members.map((x) => (
@@ -108,21 +109,21 @@ function RuleFields({
               </option>
             ))}
           </select>
-          <span className="help">Dipakai bila cara assign = Default.</span>
+          <span className="help">Used when the assignment method is Default.</span>
         </div>
         <div className="field">
-          <label htmlFor={p('filter')}>Filter jabatan (otomatis beban)</label>
-          <input id={p('filter')} name="filterPeran" defaultValue={rule?.filterPeran || ''} placeholder="Mis. Photo Editor" />
-          <span className="help">Kosong = semua anggota divisi.</span>
+          <label htmlFor={p('filter')}>Job title filter (auto-assign)</label>
+          <input id={p('filter')} name="filterPeran" defaultValue={rule?.filterPeran || ''} placeholder="E.g. Photo Editor" />
+          <span className="help">Empty = all division members.</span>
         </div>
         <div className="field">
-          <label htmlFor={p('lt')}>Lead time minimum (hari kerja)</label>
+          <label htmlFor={p('lt')}>Minimum lead time (working days)</label>
           <input id={p('lt')} name="leadTimeMin" type="number" min={0} max={60} required defaultValue={rule?.leadTimeMin ?? 3} />
         </div>
         <div className="field">
-          <label htmlFor={p('buf')}>Buffer review (hari kerja)</label>
+          <label htmlFor={p('buf')}>Review buffer (working days)</label>
           <input id={p('buf')} name="bufferReview" type="number" min={0} max={10} required defaultValue={rule?.bufferReview ?? 1} />
-          <span className="help">Target draft = deadline dikurangi buffer ini.</span>
+          <span className="help">Draft target = deadline minus this buffer.</span>
         </div>
       </div>
       {isCustomCat ? (
@@ -130,16 +131,16 @@ function RuleFields({
       ) : (
         <div className="field">
           <label htmlFor={p('sub')}>
-            Sub-jenis <span className="req">*</span>
+            Sub-types <span className="req">*</span>
           </label>
-          <input id={p('sub')} name="subJenis" required defaultValue={rule?.subJenis.join(', ') || ''} placeholder="Pisahkan dengan koma, mis. Shopee, Tokopedia, TikTok Shop" />
+          <input id={p('sub')} name="subJenis" required defaultValue={rule?.subJenis.join(', ') || ''} placeholder="Comma separated, e.g. Shopee, Tokopedia, TikTok Shop" />
         </div>
       )}
       <div className="field">
-        <span className="label">Kolom isian di form request</span>
+        <span className="label">Form fields on the request form</span>
         {builtIn ? (
           <p className="subtle" style={{ margin: 0 }}>
-            Kategori bawaan: kolom isiannya tetap ({fields.map((f) => f.label).join(', ') || '-'}) agar data request lama tetap terbaca.
+            Built-in category: its form fields are fixed ({fields.map((f) => f.label).join(', ') || '-'}) so old request data stays readable.
           </p>
         ) : (
           <FieldBuilder initial={fields} />
@@ -147,7 +148,7 @@ function RuleFields({
       </div>
       <label className="row" style={{ gap: 6, alignItems: 'center', justifyContent: 'flex-start' }}>
         <input type="checkbox" name="aktif" value="Ya" defaultChecked={rule ? rule.active : true} disabled={isCustomCat} style={{ flex: '0 0 auto', width: 'auto' }} />
-        <span>Aktif (muncul di form Request baru dan dirouting)</span>
+        <span>Active (shown on the New request form and routed)</span>
         {isCustomCat ? <input type="hidden" name="aktif" value="Ya" /> : null}
       </label>
     </>
@@ -156,7 +157,7 @@ function RuleFields({
 
 export default async function KategoriPage({ searchParams }: { searchParams: SP }) {
   const user = await requireUser();
-  if (!canManageKategori(user)) redirect('/dashboard?err=' + encodeURIComponent('Halaman ini khusus Admin/Superadmin.'));
+  if (!canManageKategori(user)) redirect('/dashboard?err=' + encodeURIComponent('This page is for Admin/Superadmin only.'));
   const sp = await searchParams;
   const db = await getDb();
   const defs = categoryDefs(db.master, { includeInactive: true });
@@ -184,28 +185,28 @@ export default async function KategoriPage({ searchParams }: { searchParams: SP 
     <div style={{ maxWidth: 1180, margin: '0 auto' }}>
       <div className="page-head">
         <div>
-          <h1>Kelola kategori</h1>
-          <p>Tambah kategori pekerjaan baru beserta kolom isian form-nya, ubah lead &amp; lead time, atau nonaktifkan kategori. Perubahan langsung berlaku.</p>
+          <h1>Manage categories</h1>
+          <p>Add new work categories with their form fields, change lead &amp; lead time, or deactivate a category. Changes apply right away.</p>
         </div>
       </div>
       <Flash ok={sp.ok} err={sp.err} big />
 
       <h2 className="section-title" id="tambah">
-        <span className="num">1</span> Tambah kategori
+        <span className="num">1</span> Add category
       </h2>
       <section className="mcard plain" style={{ ['--c' as string]: BOARD_COLORS[2], marginTop: 22 }}>
-        <div className="tab">Kategori baru</div>
+        <div className="tab">New category</div>
         <form action={saveKategoriAction} className="stack" key={sp.ok || 'baru'}>
           <input type="hidden" name="originalCode" value="" />
           <RuleFields isNew defaultName={sp.baru} leads={leads} members={members} fields={[]} builtIn={false} />
           <div>
-            <SubmitButton>Tambah kategori</SubmitButton>
+            <SubmitButton>Add category</SubmitButton>
           </div>
         </form>
       </section>
 
       <h2 className="section-title" id="daftar">
-        <span className="num">2</span> Daftar kategori
+        <span className="num">2</span> Category list
       </h2>
       <div className="kat-list">
         {db.master.kategori.map((r, i) => {
@@ -215,30 +216,30 @@ export default async function KategoriPage({ searchParams }: { searchParams: SP 
             <details key={`${r.code || r.kategori}-${i}`} id={`k-${r.code}`} className={`kat-item${r.active ? '' : ' off'}`} open={sp.buka === r.code}>
               <summary>
                 <span className="kat-name">
-                  <b>{r.kategori}</b> {builtIn ? <span className="badge outline">Bawaan</span> : <span className="badge violet">Buatan web</span>}{' '}
-                  {r.active ? null : <span className="badge">Nonaktif</span>}
+                  <b>{r.kategori}</b> {builtIn ? <span className="badge outline">Built-in</span> : <span className="badge violet">Created on web</span>}{' '}
+                  {r.active ? null : <span className="badge">Inactive</span>}
                   <span className="subtle">{r.subJenis.join(', ') || '-'}</span>
                 </span>
                 <span>
-                  <span className="subtle">Kode</span> {r.code || '-'}
+                  <span className="subtle">Code</span> {r.code || '-'}
                 </span>
                 <span>
-                  <span className="subtle">Divisi</span> {divisiLabel(r.divisi)}
+                  <span className="subtle">Division</span> {divisiLabel(r.divisi)}
                 </span>
                 <span>
-                  <span className="subtle">Lead</span> {r.leadMenswear || 'otomatis'} / {r.leadWomenswear || 'otomatis'}
+                  <span className="subtle">Lead</span> {r.leadMenswear || 'auto'} / {r.leadWomenswear || 'auto'}
                 </span>
                 <span>
-                  <span className="subtle">Assign</span> {r.modeAssign}
+                  <span className="subtle">Assign</span> {MODE_LABEL[r.modeAssign] || r.modeAssign}
                   {r.modeAssign === 'Default' && r.assigneeDefault ? ` (${r.assigneeDefault})` : ''}
                 </span>
                 <span>
-                  <span className="subtle">Lead time</span> {r.leadTimeMin} hari
+                  <span className="subtle">Lead time</span> {r.leadTimeMin} days
                 </span>
                 <span>
-                  <span className="subtle">Isian</span> {(def?.fields || []).length} kolom · {used.get(r.kategori) || 0} task
+                  <span className="subtle">Fields</span> {(def?.fields || []).length} fields · {used.get(r.kategori) || 0} tasks
                 </span>
-                <span className="btn small kat-toggle">Ubah</span>
+                <span className="btn small kat-toggle">Edit</span>
               </summary>
               <div className="kat-edit">
                 {r.code ? (
@@ -246,11 +247,11 @@ export default async function KategoriPage({ searchParams }: { searchParams: SP 
                     <input type="hidden" name="originalCode" value={r.code} />
                     <RuleFields rule={r} isNew={false} leads={leads} members={members} fields={def?.fields || []} builtIn={builtIn} />
                     <div>
-                      <SubmitButton>Simpan {r.kategori}</SubmitButton>
+                      <SubmitButton>Save {r.kategori}</SubmitButton>
                     </div>
                   </form>
                 ) : (
-                  <p className="subtle">Baris ini belum punya Kode di sheet Master_Kategori. Isi kolom Kode dulu agar bisa diubah dari sini.</p>
+                  <p className="subtle">This row has no Kode in the Master_Kategori sheet. Fill in the Kode column first to edit it here.</p>
                 )}
               </div>
             </details>

@@ -5,7 +5,7 @@ import { findPerson } from '@/lib/master';
 import { ROLE_LABEL } from '@/lib/users';
 import { ChangePasswordForm } from './ChangePasswordForm';
 
-export const metadata = { title: 'Akun saya' };
+export const metadata = { title: 'My account' };
 
 export default async function AkunPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const user = await requireUser();
@@ -20,8 +20,8 @@ export default async function AkunPage({ searchParams }: { searchParams: Promise
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
       <div className="page-head">
         <div>
-          <h1>Akun saya</h1>
-          <p>Data login dan ganti password.</p>
+          <h1>My account</h1>
+          <p>Login details and password change.</p>
         </div>
       </div>
 
@@ -30,53 +30,53 @@ export default async function AkunPage({ searchParams }: { searchParams: Promise
       {sp.wajib ? (
         <div className="flash err">
           {envLogin && !acc?.hash
-            ? 'Kamu masuk dengan password awal dari server. Buat password pribadi dulu sebelum memakai aplikasi.'
-            : 'Password kamu dibuat atau di-reset oleh Superadmin. Ganti dengan password pribadi sebelum melanjutkan.'}
+            ? 'You logged in with the initial password from the server. Create your own password before using the app.'
+            : 'Your password was created or reset by a Superadmin. Change it to your own password before continuing.'}
         </div>
       ) : null}
 
       <div className="grid grid-2 stretch" style={{ paddingTop: 22, rowGap: 34 }}>
         <section className="mcard plain" style={{ ['--c' as string]: '#1ea5d8' }}>
-          <div className="tab">Profil</div>
+          <div className="tab">Profile</div>
           <dl className="kv" style={{ gridTemplateColumns: '110px minmax(0,1fr)' }}>
-            <dt>Nama</dt>
+            <dt>Name</dt>
             <dd>{user.name}</dd>
             <dt>Email</dt>
             <dd>{user.email}</dd>
-            <dt>Akses</dt>
+            <dt>Access</dt>
             <dd>{acc?.akses || 'Superadmin'}</dd>
-            <dt>Peran</dt>
+            <dt>Role</dt>
             <dd>{user.roles.map((r) => ROLE_LABEL[r]).join(', ')}</dd>
-            <dt>Grup</dt>
+            <dt>Group</dt>
             <dd>{user.grup}</dd>
           </dl>
           {user.roles.includes('viewer') ? (
             <p className="subtle" style={{ marginTop: 10 }}>
-              Nama akunmu belum cocok dengan Master_PIC / Master_Tim, jadi aksesmu hanya melihat. Minta Superadmin menyamakan nama.
+              Your account name doesn't match Master_PIC / Master_Tim yet, so you have view-only access. Ask a Superadmin to match the name.
             </p>
           ) : null}
         </section>
         <section className="mcard plain" id="wa" style={{ ['--c' as string]: '#25a35a' }}>
-          <div className="tab">Nomor WhatsApp</div>
+          <div className="tab">WhatsApp number</div>
           <p className="subtle" style={{ marginTop: 0 }}>
-            Dipakai untuk notifikasi tugas, reminder deadline, dan balasan ACC/REV. Tulis bebas (0812…, +62 812…); sistem menyimpannya sebagai 628….
+            Used for task notifications, deadline reminders, and ACC/REV replies. Any format works (0812…, +62 812…); it's saved as 628….
           </p>
           {!me ? (
-            <p className="subtle">Akunmu belum terhubung ke data tim/PIC. Minta Superadmin mengisi peran kerjamu dulu.</p>
+            <p className="subtle">Your account isn't linked to team/PIC data yet. Ask a Superadmin to set your work role first.</p>
           ) : (
             <form action={updateMyPhoneAction} className="row" style={{ gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <label className="field" style={{ flex: '1 1 200px', margin: 0 }}>
-                <span>No WA</span>
+                <span>WhatsApp number</span>
                 <input name="phone" defaultValue={me.phone} inputMode="tel" placeholder="0812 3456 7890" />
               </label>
-              <button className="btn">Simpan</button>
+              <button className="btn">Save</button>
             </form>
           )}
-          {me && !me.phone ? <p style={{ marginTop: 10 }}><span className="badge red">No WA kosong</span> kamu tidak menerima notifikasi WA.</p> : null}
+          {me && !me.phone ? <p style={{ marginTop: 10 }}><span className="badge red">No WhatsApp number</span> you won't get WhatsApp notifications.</p> : null}
         </section>
         <section className="mcard plain" style={{ ['--c' as string]: '#3a9a1e' }}>
-          <div className="tab">Ganti password</div>
-          <ChangePasswordForm currentLabel={envLogin && !acc?.hash ? 'Password awal (dari Superadmin/server)' : 'Password saat ini'} />
+          <div className="tab">Change password</div>
+          <ChangePasswordForm currentLabel={envLogin && !acc?.hash ? 'Initial password (from Superadmin/server)' : 'Current password'} />
         </section>
       </div>
     </div>

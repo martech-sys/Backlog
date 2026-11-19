@@ -13,7 +13,7 @@ export function TestWaButton({ to, nama, remaining, limit }: { to: string; nama:
         type="button"
         className="btn small"
         disabled={pending || left <= 0}
-        title={left <= 0 ? `Batas tes ${limit}x per hari sudah tercapai` : `Kirim pesan tes ke ${nama} (sisa ${left}x hari ini)`}
+        title={left <= 0 ? `Test limit of ${limit}x per day reached` : `Send a test message to ${nama} (${left}x left today)`}
         onClick={() => {
           const fd = new FormData();
           fd.set('to', to);
@@ -23,12 +23,12 @@ export function TestWaButton({ to, nama, remaining, limit }: { to: string; nama:
       >
         {pending ? (
           <>
-            <span className="spinner" aria-hidden /> Mengirim…
+            <span className="spinner" aria-hidden /> Sending…
           </>
         ) : left <= 0 ? (
-          'Batas tes habis'
+          'Test limit reached'
         ) : (
-          'Tes WA'
+          'Test WA'
         )}
       </button>
       {state.message ? (

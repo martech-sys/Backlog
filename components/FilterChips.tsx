@@ -20,10 +20,10 @@ export function FilterChips({
   const fromDash = sp.src === 'dash';
   if (!active.length && !fromDash) return null;
   return (
-    <div className="chips" aria-label="Filter aktif">
+    <div className="chips" aria-label="Active filters">
       {fromDash ? (
         <Link className="btn small" href={`/dashboard${sp.dash ? `?${sp.dash}` : ''}`}>
-          ← Kembali ke dashboard
+          ← Back to dashboard
         </Link>
       ) : null}
       {active.map((k) => (
@@ -31,7 +31,7 @@ export function FilterChips({
           {labels[k]}: <b>{format(k, sp[k]!)}</b>
           <Link
             href={without(path, sp, k === 'from' || k === 'to' ? ['from', 'to', 'periode'] : k)}
-            aria-label={`Hapus filter ${labels[k]}`}
+            aria-label={`Remove filter ${labels[k]}`}
           >
             ×
           </Link>
@@ -39,7 +39,7 @@ export function FilterChips({
       ))}
       {active.length > 1 ? (
         <Link className="subtle" href={without(path, sp, active.concat('periode'))}>
-          Hapus semua filter
+          Clear all filters
         </Link>
       ) : null}
     </div>

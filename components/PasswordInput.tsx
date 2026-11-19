@@ -52,8 +52,8 @@ export function PasswordInput({
         spellCheck={false}
         style={{ fontFamily: show ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined }}
       />
-      <button type="button" className="btn small" onClick={() => setShow((v) => !v)} aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}>
-        {show ? 'Sembunyi' : 'Lihat'}
+      <button type="button" className="btn small" onClick={() => setShow((v) => !v)} aria-label={show ? 'Hide password' : 'Show password'}>
+        {show ? 'Hide' : 'Show'}
       </button>
       {generate ? (
         <button
@@ -64,7 +64,7 @@ export function PasswordInput({
             setShow(true);
           }}
         >
-          Acak
+          Generate
         </button>
       ) : null}
     </div>

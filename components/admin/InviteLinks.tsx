@@ -21,11 +21,11 @@ export function InviteLinks({ links }: { links: { email: string; nama: string; l
               setCopied(l.email);
             }}
           >
-            {copied === l.email ? 'Tersalin' : 'Salin'}
+            {copied === l.email ? 'Copied' : 'Copy'}
           </button>
         </div>
       ))}
-      <span className="subtle">Link berlaku 72 jam dan hanya bisa dipakai sekali. Kirim ke masing-masing user secara pribadi.</span>
+      <span className="subtle">Links are valid for 72 hours and can be used once. Send each one to its user privately.</span>
     </div>
   );
 }

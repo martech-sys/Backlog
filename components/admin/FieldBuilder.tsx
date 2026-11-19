@@ -12,10 +12,10 @@ interface Field {
 }
 
 const TYPES: [string, string][] = [
-  ['text', 'Teks singkat'],
-  ['textarea', 'Teks panjang'],
-  ['number', 'Angka'],
-  ['select', 'Pilihan'],
+  ['text', 'Short text'],
+  ['textarea', 'Long text'],
+  ['number', 'Number'],
+  ['select', 'Dropdown'],
 ];
 
 /** Penyusun kolom isian form untuk kategori buatan web. Hasilnya dikirim sebagai JSON di input `fields`. */
@@ -46,11 +46,11 @@ export function FieldBuilder({
           fields.map((f) => ({ key: f.key, label: f.label, type: f.type, required: f.required, options: f.options, split: f.type === 'number' && f.split })),
         )}
       />
-      {fields.length === 0 ? <p className="subtle" style={{ margin: 0 }}>Belum ada kolom isian khusus. Form hanya berisi brief umum.</p> : null}
+      {fields.length === 0 ? <p className="subtle" style={{ margin: 0 }}>No custom fields yet. The form only has the general brief.</p> : null}
       {fields.map((f, i) => (
         <div className="fb-row" key={i}>
-          <input value={f.label} onChange={(e) => set(i, { label: e.target.value })} placeholder="Label, mis. Ukuran banner" aria-label={`Label kolom ${i + 1}`} />
-          <select value={f.type} onChange={(e) => set(i, { type: e.target.value })} aria-label={`Jenis kolom ${i + 1}`}>
+          <input value={f.label} onChange={(e) => set(i, { label: e.target.value })} placeholder="Label, e.g. Banner size" aria-label={`Field ${i + 1} label`} />
+          <select value={f.type} onChange={(e) => set(i, { type: e.target.value })} aria-label={`Field ${i + 1} type`}>
             {TYPES.map(([v, l]) => (
               <option key={v} value={v}>
                 {l}
@@ -72,16 +72,16 @@ export function FieldBuilder({
             <span />
           )}
           <label className="fb-req">
-            <input type="checkbox" checked={f.required} onChange={(e) => set(i, { required: e.target.checked })} /> Wajib
+            <input type="checkbox" checked={f.required} onChange={(e) => set(i, { required: e.target.checked })} /> Required
           </label>
           <span className="fb-actions">
-            <button type="button" className="btn small" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Naikkan">
+            <button type="button" className="btn small" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">
               ↑
             </button>
-            <button type="button" className="btn small" onClick={() => move(i, 1)} disabled={i === fields.length - 1} aria-label="Turunkan">
+            <button type="button" className="btn small" onClick={() => move(i, 1)} disabled={i === fields.length - 1} aria-label="Move down">
               ↓
             </button>
-            <button type="button" className="btn small danger" onClick={() => setFields((xs) => xs.filter((_, j) => j !== i))} aria-label="Hapus kolom">
+            <button type="button" className="btn small danger" onClick={() => setFields((xs) => xs.filter((_, j) => j !== i))} aria-label="Delete field">
               ×
             </button>
           </span>
@@ -90,7 +90,7 @@ export function FieldBuilder({
       {fields.length < 12 ? (
         <div>
           <button type="button" className="btn small" onClick={() => setFields((xs) => [...xs, { label: '', type: 'text', required: false, options: '', split: false }])}>
-            + Tambah kolom isian
+            + Add form field
           </button>
         </div>
       ) : null}

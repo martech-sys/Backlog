@@ -5,7 +5,7 @@ import { env } from '@/lib/env';
 import { getCurrentUser } from '@/lib/session';
 import { LoginForm } from './LoginForm';
 
-export const metadata = { title: 'Masuk' };
+export const metadata = { title: 'Log in' };
 export const dynamic = 'force-dynamic';
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -24,20 +24,20 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <div>
             <h1 style={{ fontSize: 20 }}>Creative Request Tracker</h1>
             <p className="muted" style={{ margin: 0 }}>
-              Backlog tim Creative · Heymale Group
+              Creative team backlog · Heymale Group
             </p>
           </div>
         </div>
 
         <LoginForm next={next} />
         <p className="subtle" style={{ marginTop: 10 }}>
-          Belum punya akun atau lupa password? Hubungi Superadmin.
+          No account or forgot your password? Contact a Superadmin.
         </p>
 
         {env.demoMode ? (
           <>
             <div className="flash ok" style={{ marginTop: 12 }}>
-              Mode demo: semua akun demo memakai password <b>demo1234</b>, atau pilih peran di bawah untuk masuk langsung.
+              Demo mode: all demo accounts use the password <b>demo1234</b>, or pick a role below to log in directly.
             </div>
             <div className="persona-list">
               {personas.map((p) => (
